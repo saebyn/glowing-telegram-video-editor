@@ -1,0 +1,41 @@
+import { Temporal } from "temporal-polyfill";
+
+export function isoToSeconds(iso8601Duration: string): number {
+  const duration = Temporal.Duration.from(iso8601Duration);
+  return duration.total({ unit: "seconds" });
+}
+
+export function isoToMs(iso8601Duration: string): number {
+  const duration = Temporal.Duration.from(iso8601Duration);
+  return duration.total({ unit: "milliseconds" });
+}
+
+/**
+ * Formats an ISO 8601 Duration into a string representation of minutes and seconds.
+ * @param iso8601 - The ISO 8601 Duration to format.
+ * @returns The formatted timestamp string in the format "mm:ss".
+ */
+export function format(iso8601: string): string {
+  // Cannot use .toLocaleString() since it depends on
+  // Intl.DurationFormat which is not yet supported in Node.js.
+  // and not supplied by the Temporal polyfill.
+  const seconds = isoToSeconds(iso8601);
+
+  return formatMs(seconds * 1000);
+}
+
+/**
+ * Formats a duration in milliseconds into a string representation of minutes and seconds.
+ * @param ms - The duration in milliseconds to format.
+ * @returns The formatted timestamp string in the format "mm:ss".
+ */
+export function formatMs(ms: number): string {
+  const seconds = ms / 1000;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(
+    remainingSeconds,
+  ).padStart(2, "0")}`;
+}
