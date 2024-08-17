@@ -1,0 +1,572 @@
+{
+  "title": "Coding Livestream 1",
+  "video_url": "/gt62.mp4",
+  "length": "PT56M35S",
+  "transcript": [
+    {
+      "timestamp_start": "PT0S",
+      "text": "Welcome back!"
+    },
+    {
+      "timestamp_start": "PT5S",
+      "text": "Sound is good!"
+    },
+    {
+      "timestamp_start": "PT10S",
+      "text": "Yeah, volume is perfect."
+    },
+    {
+      "timestamp_start": "PT25S",
+      "text": "Happens to me all the time. Let's code!"
+    },
+    {
+      "timestamp_start": "PT49S",
+      "text": "No errors? Nice progress!"
+    },
+    {
+      "timestamp_start": "PT60S",
+      "text": "What’s exponential back off?"
+    },
+    {
+      "timestamp_start": "PT70S",
+      "text": "I think I can help with that!"
+    },
+    {
+      "timestamp_start": "PT85S",
+      "text": "Upload status sounds good."
+    },
+    {
+      "timestamp_start": "PT100S",
+      "text": "Makes sense, go on."
+    },
+    {
+      "timestamp_start": "PT117S",
+      "text": "Async function, right on!"
+    },
+    {
+      "timestamp_start": "PT130S",
+      "text": "Don’t forget the request client!"
+    },
+    {
+      "timestamp_start": "PT150S",
+      "text": "Authorization header, got it."
+    },
+    {
+      "timestamp_start": "PT160S",
+      "text": "What’s a content range?"
+    },
+    {
+      "timestamp_start": "PT180S",
+      "text": "First byte and wait time, noted."
+    },
+    {
+      "timestamp_start": "PT210S",
+      "text": "Returning a value makes sense."
+    },
+    {
+      "timestamp_start": "PT230S",
+      "text": "Set the content range header!"
+    },
+    {
+      "timestamp_start": "PT250S",
+      "text": "File size as content length, good call."
+    },
+    {
+      "timestamp_start": "PT275S",
+      "text": "308 means resume, right?"
+    },
+    {
+      "timestamp_start": "PT300S",
+      "text": "Continue, good now, or give up, got it."
+    },
+    {
+      "timestamp_start": "PT340S",
+      "text": "Sounds similar to what we had before."
+    }
+  ],
+  "silences": [
+    {
+      "timestamp_start": "PT0S",
+      "timestamp_end": "PT3M"
+    },
+    {
+      "timestamp_start": "PT56M10S",
+      "timestamp_end": "PT56M35S"
+    }
+  ],
+  "chat_history": [
+    {
+      "timestamp": "PT0S",
+      "username": "coderfan123",
+      "message": "Welcome back!"
+    },
+    {
+      "timestamp": "PT5S",
+      "username": "techlover",
+      "message": "Sound is good!"
+    },
+    {
+      "timestamp": "PT10S",
+      "username": "musicguy",
+      "message": "Yeah, volume is perfect."
+    },
+    {
+      "timestamp": "PT25S",
+      "username": "debugger007",
+      "message": "Happens to me all the time. Let's code!"
+    },
+    {
+      "timestamp": "PT49S",
+      "username": "devguru",
+      "message": "No errors? Nice progress!"
+    },
+    {
+      "timestamp": "PT60S",
+      "username": "juniorcoder",
+      "message": "What’s exponential back off?"
+    },
+    {
+      "timestamp": "PT70S",
+      "username": "rustacean",
+      "message": "I think I can help with that!"
+    },
+    {
+      "timestamp": "PT85S",
+      "username": "coderfan123",
+      "message": "Upload status sounds good."
+    },
+    {
+      "timestamp": "PT100S",
+      "username": "techlover",
+      "message": "Makes sense, go on."
+    },
+    {
+      "timestamp": "PT117S",
+      "username": "debugger007",
+      "message": "Async function, right on!"
+    },
+    {
+      "timestamp": "PT130S",
+      "username": "rustacean",
+      "message": "Don’t forget the request client!"
+    },
+    {
+      "timestamp": "PT150S",
+      "username": "devguru",
+      "message": "Authorization header, got it."
+    },
+    {
+      "timestamp": "PT160S",
+      "username": "juniorcoder",
+      "message": "What’s a content range?"
+    },
+    {
+      "timestamp": "PT180S",
+      "username": "coderfan123",
+      "message": "First byte and wait time, noted."
+    },
+    {
+      "timestamp": "PT210S",
+      "username": "techlover",
+      "message": "Returning a value makes sense."
+    },
+    {
+      "timestamp": "PT230S",
+      "username": "debugger007",
+      "message": "Set the content range header!"
+    },
+    {
+      "timestamp": "PT250S",
+      "username": "devguru",
+      "message": "File size as content length, good call."
+    },
+    {
+      "timestamp": "PT275S",
+      "username": "rustacean",
+      "message": "308 means resume, right?"
+    },
+    {
+      "timestamp": "PT300S",
+      "username": "coderfan123",
+      "message": "Continue, good now, or give up, got it."
+    },
+    {
+      "timestamp": "PT340S",
+      "username": "techlover",
+      "message": "Sounds similar to what we had before."
+    },
+    {
+      "timestamp": "PT370S",
+      "username": "juniorcoder",
+      "message": "Rename it for clarity."
+    },
+    {
+      "timestamp": "PT400S",
+      "username": "devguru",
+      "message": "Upload status and inner status, makes sense."
+    },
+    {
+      "timestamp": "PT435S",
+      "username": "rustacean",
+      "message": "Names are always hard!"
+    },
+    {
+      "timestamp": "PT470S",
+      "username": "coderfan123",
+      "message": "Temporary failure needs more info."
+    },
+    {
+      "timestamp": "PT500S",
+      "username": "debugger007",
+      "message": "Let’s verify that!"
+    },
+    {
+      "timestamp": "PT535S",
+      "username": "techlover",
+      "message": "Enums with associated values, yep!"
+    },
+    {
+      "timestamp": "PT560S",
+      "username": "devguru",
+      "message": "Microseconds for wait time?"
+    },
+    {
+      "timestamp": "PT590S",
+      "username": "juniorcoder",
+      "message": "Use retry after header."
+    },
+    {
+      "timestamp": "PT625S",
+      "username": "rustacean",
+      "message": "Got a response header!"
+    },
+    {
+      "timestamp": "PT660S",
+      "username": "coderfan123",
+      "message": "Exponential backoff with jitter is smart."
+    },
+    {
+      "timestamp": "PT690S",
+      "username": "debugger007",
+      "message": "Track retry attempts."
+    },
+    {
+      "timestamp": "PT720S",
+      "username": "brainless",
+      "message": "Hey, I’m here!"
+    },
+    {
+      "timestamp": "PT740S",
+      "username": "adamvseverything",
+      "message": "Nice emotes!"
+    },
+    {
+      "timestamp": "PT750S",
+      "username": "coderfan123",
+      "message": "Spelling attempts can be tricky!"
+    },
+    {
+      "timestamp": "PT800S",
+      "username": "techlover",
+      "message": "Exponential backoff logic seems solid."
+    },
+    {
+      "timestamp": "PT850S",
+      "username": "devguru",
+      "message": "Max attempts to prevent overflow."
+    },
+    {
+      "timestamp": "PT880S",
+      "username": "juniorcoder",
+      "message": "Lovecraftian vibe in the DLC?"
+    },
+    {
+      "timestamp": "PT920S",
+      "username": "rustacean",
+      "message": "Return an error if max attempts exceeded."
+    },
+    {
+      "timestamp": "PT950S",
+      "username": "coderfan123",
+      "message": "Exponential backoff calculation."
+    },
+    {
+      "timestamp": "PT1000S",
+      "username": "debugger007",
+      "message": "Trace errors for upload status."
+    },
+    {
+      "timestamp": "PT1030S",
+      "username": "techlover",
+      "message": "Handle different HTTP status codes."
+    },
+    {
+      "timestamp": "PT1100S",
+      "username": "devguru",
+      "message": "308 status means resume upload."
+    },
+    {
+      "timestamp": "PT1150S",
+      "username": "juniorcoder",
+      "message": "Parse the range header correctly."
+    },
+    {
+      "timestamp": "PT1200S",
+      "username": "rustacean",
+      "message": "Left and right shift operations."
+    },
+    {
+      "timestamp": "PT1300S",
+      "username": "coderfan123",
+      "message": "Power method is clear."
+    },
+    {
+      "timestamp": "PT1400S",
+      "username": "debugger007",
+      "message": "Check for range split and collect."
+    },
+    {
+      "timestamp": "PT1500S",
+      "username": "techlover",
+      "message": "IRL voice ban sounds fun!"
+    },
+    {
+      "timestamp": "PT1600S",
+      "username": "devguru",
+      "message": "Timer for ads might be useful."
+    },
+    {
+      "timestamp": "PT1700S",
+      "username": "juniorcoder",
+      "message": "Match retry after header."
+    },
+    {
+      "timestamp": "PT1800S",
+      "username": "rustacean",
+      "message": "Milliseconds for wait time."
+    },
+    {
+      "timestamp": "PT2000S",
+      "username": "coderfan123",
+      "message": "Benchmarking for optimization."
+    },
+    {
+      "timestamp": "PT2100S",
+      "username": "markc",
+      "message": "Hey, I’m early!"
+    },
+    {
+      "timestamp": "PT2150S",
+      "username": "techlover",
+      "message": "Parsing from RFC 2822."
+    },
+    {
+      "timestamp": "PT2250S",
+      "username": "devguru",
+      "message": "Retry after as HTTP date."
+    },
+    {
+      "timestamp": "PT2300S",
+      "username": "brainless",
+      "message": "Lots of tabs open!"
+    },
+    {
+      "timestamp": "PT2400S",
+      "username": "juniorcoder",
+      "message": "RFC 5322 is the replacement."
+    },
+    {
+      "timestamp": "PT2500S",
+      "username": "rustacean",
+      "message": "Parsing methods needed."
+    },
+    {
+      "timestamp": "PT2600S",
+      "username": "coderfan123",
+      "message": "Status of upload check."
+    },
+    {
+      "timestamp": "PT2700S",
+      "username": "techlover",
+      "message": "Implementing async function upload."
+    },
+    {
+      "timestamp": "PT2800S",
+      "username": "devguru",
+      "message": "Looping logic for uploads."
+    },
+    {
+      "timestamp": "PT2900S",
+      "username": "juniorcoder",
+      "message": "Return result for upload status."
+    },
+    {
+      "timestamp": "PT3000S",
+      "username": "rustacean",
+      "message": "Handle permanent failures."
+    },
+    {
+      "timestamp": "PT3100S",
+      "username": "coderfan123",
+      "message": "Await the async function."
+    },
+    {
+      "timestamp": "PT3200S",
+      "username": "techlover",
+      "message": "Testing the implementation."
+    },
+    {
+      "timestamp": "PT3300S",
+      "username": "devguru",
+      "message": "API call for YouTube upload."
+    },
+    {
+      "timestamp": "PT3400S",
+      "username": "juniorcoder",
+      "message": "Queue task for upload."
+    },
+    {
+      "timestamp": "PT3500S",
+      "username": "rustacean",
+      "message": "Invalid token error, need to log in."
+    },
+    {
+      "timestamp": "PT3600S",
+      "username": "markc",
+      "message": "Good luck with the upload!"
+    },
+    {
+      "timestamp": "PT3700S",
+      "username": "coderfan123",
+      "message": "Seeing the video in YouTube studio."
+    },
+    {
+      "timestamp": "PT3740S",
+      "username": "techlover",
+      "message": "Ready for the next coding session!"
+    }
+  ],
+  "highlights": [
+    {
+      "timestamp_start": "PT0M49S",
+      "timestamp_end": "PT1M25S",
+      "description": "Discussion about handling temporary failures and exponential back off",
+      "reasoning": "The streamer explains important concepts related to handling temporary failures and implementing exponential back off."
+    },
+    {
+      "timestamp_start": "PT1M25S",
+      "timestamp_end": "PT2M40S",
+      "description": "Creating a function for upload status and discussing required parameters",
+      "reasoning": "The streamer goes into detail about creating an async function and the necessary parameters, which is informative for viewers interested in coding practices."
+    },
+    {
+      "timestamp_start": "PT3M6S",
+      "timestamp_end": "PT4M0S",
+      "description": "Explanation of different return values for upload status",
+      "reasoning": "This section includes a clear explanation of how different statuses should be handled, providing valuable insights into error handling."
+    },
+    {
+      "timestamp_start": "PT5M0S",
+      "timestamp_end": "PT6M30S",
+      "description": "Discussion on handling content range and byte ranges",
+      "reasoning": "The streamer provides detailed information on handling content range and byte ranges, which is essential for developers working with file uploads."
+    },
+    {
+      "timestamp_start": "PT7M0S",
+      "timestamp_end": "PT8M30S",
+      "description": "Explanation of the power method and its application",
+      "reasoning": "The streamer explains the power method and its practical application, offering valuable knowledge for viewers."
+    },
+    {
+      "timestamp_start": "PT9M10S",
+      "timestamp_end": "PT10M50S",
+      "description": "Parsing and handling the retry-after header",
+      "reasoning": "Detailed explanation on handling HTTP headers and retry logic, useful for backend developers."
+    },
+    {
+      "timestamp_start": "PT11M0S",
+      "timestamp_end": "PT11M50S",
+      "description": "Discussion on handling different HTTP status codes",
+      "reasoning": "The streamer explains how to handle various HTTP status codes, providing practical knowledge for developers."
+    },
+    {
+      "timestamp_start": "PT12M0S",
+      "timestamp_end": "PT14M50S",
+      "description": "Setting up exponential back off and retry mechanisms",
+      "reasoning": "In-depth look at setting up retry logic and exponential back off, which is a critical part of robust application design."
+    },
+    {
+      "timestamp_start": "PT15M10S",
+      "timestamp_end": "PT16M10S",
+      "description": "Discussion on handling different HTTP status codes",
+      "reasoning": "The streamer explains how to handle various HTTP status codes, providing practical knowledge for developers."
+    },
+    {
+      "timestamp_start": "PT17M30S",
+      "timestamp_end": "PT19M0S",
+      "description": "Implementing the exponential back off calculation",
+      "reasoning": "The streamer demonstrates the implementation of a key algorithm, showcasing coding skills and problem-solving abilities."
+    },
+    {
+      "timestamp_start": "PT20M0S",
+      "timestamp_end": "PT21M30S",
+      "description": "Handling range headers and byte ranges",
+      "reasoning": "Detailed explanation of handling range headers and byte ranges, essential for developers working with file uploads."
+    },
+    {
+      "timestamp_start": "PT22M0S",
+      "timestamp_end": "PT23M30S",
+      "description": "Discussion on left and right shift operations",
+      "reasoning": "The streamer explains bitwise operations, which are fundamental concepts in programming."
+    },
+    {
+      "timestamp_start": "PT24M0S",
+      "timestamp_end": "PT25M10S",
+      "description": "Checking for range split and collect",
+      "reasoning": "The streamer demonstrates error checking and data collection, important aspects of software development."
+    },
+    {
+      "timestamp_start": "PT25M10S",
+      "timestamp_end": "PT27M10S",
+      "description": "Implementing and testing the upload status function",
+      "reasoning": "The streamer implements and tests a key function, providing practical insights into the coding and debugging process."
+    }
+  ],
+  "attentions": [
+    {
+      "timestamp_start": "PT0S",
+      "timestamp_end": "PT49S",
+      "description": "Introductory remarks and checking audio levels",
+      "reasoning": "This section includes non-coding content that is not relevant for an informative highlight video."
+    },
+    {
+      "timestamp_start": "PT15M31S",
+      "timestamp_end": "PT16M25S",
+      "description": "Discussion about personal streaming setup",
+      "reasoning": "Non-coding content about the streamer’s personal setup is not relevant for the main highlight."
+    },
+    {
+      "timestamp_start": "PT16M25S",
+      "timestamp_end": "PT17M25S",
+      "description": "Discussion about ads and timer setup",
+      "reasoning": "This section focuses on ads and timers, which is not related to the programming content."
+    }
+  ],
+  "transcription_errors": [
+    {
+      "timestamp_start": "PT117S",
+      "category": "Ambiguous wording",
+      "description": "The phrase 'not handler' might be incorrect; context suggests it should be 'note handler'."
+    },
+    {
+      "timestamp_start": "PT504S",
+      "category": "Ambiguous wording",
+      "description": "The phrase 'number turn' might be incorrect; context suggests it should be 'return'."
+    },
+    {
+      "timestamp_start": "PT505S",
+      "category": "Ambiguous wording",
+      "description": "The phrase 'rust. Enum. How do you work?' might be incorrect; context suggests it should be 'Rust Enum. How do you work?'."
+    }
+  ]
+}
