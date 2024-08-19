@@ -8,6 +8,7 @@ function TimeTable({
   includeReasoning = false,
   includeCategory = false,
   canEdit = false,
+  playheadTime,
   onSeekToTime,
 }: {
   rows: Section[];
@@ -15,6 +16,7 @@ function TimeTable({
   includeReasoning?: boolean;
   includeCategory?: boolean;
   canEdit?: boolean;
+  playheadTime?: number;
   onSeekToTime?: (milliseconds: number) => void;
 }) {
   return (
@@ -39,7 +41,16 @@ function TimeTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`row-${row.timestamp}`}>
+            <tr
+              key={`row-${row.timestamp}`}
+              className={`${
+                playheadTime &&
+                row.timestamp <= playheadTime &&
+                (row.timestamp_end || 0) >= playheadTime
+                  ? "bg-gray-200 dark:bg-gray-700"
+                  : ""
+              }`}
+            >
               <td className="border-b px-4 py-2">
                 <TimeLink milliseconds={row.timestamp} onClick={onSeekToTime} />
               </td>

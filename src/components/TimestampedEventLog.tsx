@@ -4,7 +4,7 @@ import { createRef, useEffect } from "react";
 
 interface TimestampedEventLogProps<T extends LogEvent> {
   log: T[];
-  playbackTime: number;
+  playheadTime: number;
   onSeekToTime: (milliseconds: number) => void;
   renderEvent: (event: T) => React.ReactNode;
   followPlayback?: boolean;
@@ -12,14 +12,14 @@ interface TimestampedEventLogProps<T extends LogEvent> {
 
 export default function TimestampedEventLog<T extends LogEvent>({
   log,
-  playbackTime,
+  playheadTime,
   onSeekToTime,
   renderEvent,
   followPlayback = true,
 }: TimestampedEventLogProps<T>) {
   const ref = createRef<HTMLDivElement>();
   const nearestElementIndex = useScrollToNearestElementToTime(
-    playbackTime,
+    playheadTime,
     ref,
     log,
     followPlayback,

@@ -1,71 +1,38 @@
 import { VideoMetadata } from "types";
-import {
-  createTimeline,
-  TimelineItem,
-  TimelineLens,
-  generateKey,
-  getVisibleElements,
-  timeToRelative,
-  zoomIn,
-  zoomOut,
-  resetLens,
-  createLens,
-  panLens,
-  getLensLength,
-} from "utils/timeline";
-import Button from "./Button";
+import { createTimeline, generateKey, TimelineItem } from "utils/timeline";
 import { useEffect, useRef, useState } from "react";
-
-type TimelineElementType =
-  | "cursor"
-  | "silence"
-  | "chat"
-  | "highlight"
-  | "attention"
-  | "error";
-
-const timelineElementTypeColors: Record<TimelineElementType, string> = {
-  silence: "bg-gray-700 dark:bg-gray-900",
-  chat: "bg-gray-500 dark:bg-gray-300",
-  highlight: "bg-blue-500 dark:bg-blue-300",
-  attention: "bg-red-500 dark:bg-red-300",
-  error: "bg-yellow-500 dark:bg-yellow-300",
-  cursor: "bg-green-500 dark:bg-green-300",
-};
-
-function barWidthStyle(
-  lens: TimelineLens,
-  startMilliseconds: number,
-  endMilliseconds: number | undefined,
-): string {
-  if (endMilliseconds === undefined) {
-    return "0.125rem";
-  }
-
-  const relativeStart = timeToRelative(lens, startMilliseconds);
-  const relativeEnd = timeToRelative(lens, endMilliseconds);
-  const relativeWidth = relativeEnd - relativeStart;
-
-  return `max(${relativeWidth * 100.0}%, 0.125rem)`;
-}
+import { useLens } from "./TimelineContext";
+import {
+  TimelineElementType,
+  timelineElementTypeColors,
+} from "./TimelineLegend";
 
 function TimeSegmentMarker({
   startMilliseconds,
   endMilliseconds,
-  lens,
   className,
 }: {
   startMilliseconds: number;
   endMilliseconds: number | undefined;
-  lens: TimelineLens;
   className: string;
 }) {
+  const { timeToRelative } = useLens();
+
+  const relativeWidth =
+    endMilliseconds &&
+    timeToRelative(endMilliseconds) - timeToRelative(startMilliseconds);
+
+  const width =
+    relativeWidth !== undefined
+      ? `max(${relativeWidth * 100.0}%, 0.125rem)`
+      : "0.125rem";
+
   return (
     <div
       className={`absolute top-1/2 size-1 -translate-y-1/2 ${className}`}
       style={{
-        left: `${timeToRelative(lens, startMilliseconds) * 100.0}%`,
-        width: barWidthStyle(lens, startMilliseconds, endMilliseconds),
+        left: `${timeToRelative(startMilliseconds) * 100.0}%`,
+        width,
       }}
     />
   );
@@ -73,19 +40,18 @@ function TimeSegmentMarker({
 
 function TimeDotMarker({
   timestampMilliseconds,
-  lens,
   className,
 }: {
   timestampMilliseconds: number;
-  lens: TimelineLens;
   className: string;
 }) {
+  const { timeToRelative } = useLens();
   return (
     <div
       className={`absolute top-1/2 size-1 h-1 -translate-y-1/2 ${className}`}
       style={{
         left: `calc(${
-          timeToRelative(lens, timestampMilliseconds) * 100.0
+          timeToRelative(timestampMilliseconds) * 100.0
         }% - 0.125rem)`,
       }}
     />
@@ -93,19 +59,16 @@ function TimeDotMarker({
 }
 
 interface TimelineElementProps {
-  lens: TimelineLens;
   content: TimelineItem<TimelineElementType>;
 }
 
 function TimelineElement({
-  lens,
   content: { startMilliseconds, endMilliseconds, type },
 }: TimelineElementProps) {
   if (type === "chat") {
     return (
       <TimeDotMarker
         timestampMilliseconds={startMilliseconds}
-        lens={lens}
         className={`z-40 ${timelineElementTypeColors[type]}`}
       />
     );
@@ -127,7 +90,6 @@ function TimelineElement({
       <TimeSegmentMarker
         startMilliseconds={startMilliseconds}
         endMilliseconds={endMilliseconds}
-        lens={lens}
         className={className}
       />
     );
@@ -141,18 +103,18 @@ export default function Timeline({
     highlights,
     attentions,
     transcription_errors,
-    length: contentLength,
   },
-  playbackTime,
+  playheadTime,
   onSeekToTime,
 }: {
   content: VideoMetadata;
-  playbackTime: number;
+  playheadTime: number;
   onSeekToTime?: (time: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [lens, setLens] = useState<TimelineLens>(createLens(contentLength));
-  const [dragging, setDragging] = useState(false);
+  const lens = useLens();
+
+  const [dragging, setDragging] = useState(0);
 
   useEffect(() => {
     document.addEventListener("mouseup", handleDragEnd);
@@ -171,26 +133,24 @@ export default function Timeline({
 
     const container = containerRef.current;
 
-    container.addEventListener(
-      "wheel",
-      (event) => {
-        event.preventDefault();
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
 
-        const deltaY = event.deltaY;
+      const deltaY = event.deltaY;
 
-        if (deltaY > 0) {
-          handleZoomOut();
-        } else {
-          handleZoomIn();
-        }
-      },
-      { passive: false },
-    );
+      if (deltaY > 0) {
+        lens.zoomOut();
+      } else {
+        lens.zoomIn();
+      }
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      container.removeEventListener("wheel", () => {});
+      container.removeEventListener("wheel", handleWheel);
     };
-  }, [containerRef]);
+  }, [containerRef, lens]);
 
   const timeline = createTimeline<TimelineElementType>([
     ...silences.map((silence) => ({
@@ -218,32 +178,22 @@ export default function Timeline({
       startMilliseconds: chat.timestamp,
     })),
   ]);
-  const elements = getVisibleElements(lens, timeline);
-
-  const zoomFactor = 1.1;
-
-  const handleZoomIn = () => {
-    setLens((lens) => zoomIn(lens, zoomFactor));
-  };
-
-  const handleZoomOut = () => {
-    setLens((lens) => zoomOut(lens, zoomFactor));
-  };
-
-  const handleReset = () => {
-    setLens((lens) => resetLens(lens));
-  };
+  const elements = lens.getVisibleElements(timeline);
 
   const handleDragStart = () => {
-    setDragging(true);
+    setDragging(new Date().getTime());
   };
 
-  const handleDragEnd = () => {
-    setDragging(false);
+  const handleDragEnd = (e: MouseEvent) => {
+    e.preventDefault();
+
+    setTimeout(() => {
+      setDragging(0);
+    }, 0);
   };
 
   const handleDrag = (event: MouseEvent) => {
-    if (!dragging) {
+    if (dragging === 0) {
       return;
     }
 
@@ -255,9 +205,9 @@ export default function Timeline({
 
     const containerPixelWidth = containerRef.current.clientWidth;
     const relativeMovement = movementX / containerPixelWidth;
-    const deltaMs = Math.round(-relativeMovement * getLensLength(lens));
+    const deltaMs = Math.round(-relativeMovement * lens.getLength());
 
-    setLens((lens) => panLens(lens, deltaMs));
+    lens.pan(deltaMs);
   };
 
   const handleContainerClick = (event: React.MouseEvent) => {
@@ -265,11 +215,20 @@ export default function Timeline({
       return;
     }
 
-    const containerPixelWidth = containerRef.current.clientWidth;
-    const relativeClick = event.nativeEvent.offsetX / containerPixelWidth;
-    const clickMs = Math.round(relativeClick * getLensLength(lens));
+    /**
+     * If the user is dragging, don't seek to the time.
+     * Dragging is detected by the mouse moving more than 250ms
+     */
+    if (new Date().getTime() - dragging > 250) {
+      return;
+    }
 
-    console.log(clickMs);
+    const containerPixelWidth = containerRef.current.clientWidth;
+
+    const offsetXInContainer = event.pageX - containerRef.current.offsetLeft;
+
+    const relativeClick = offsetXInContainer / containerPixelWidth;
+    const clickMs = Math.round(relativeClick * lens.getLength());
 
     if (onSeekToTime) {
       onSeekToTime(clickMs);
@@ -277,86 +236,21 @@ export default function Timeline({
   };
 
   return (
-    <>
-      <div
-        className="relative h-16 cursor-pointer select-none overflow-hidden rounded bg-gray-200 dark:bg-gray-600"
-        ref={containerRef}
-        onClick={handleContainerClick}
-        onMouseDown={handleDragStart}
-      >
-        {elements.map((content) => (
-          <TimelineElement
-            key={generateKey(content)}
-            lens={lens}
-            content={content}
-          />
-        ))}
-
-        <TimeSegmentMarker
-          startMilliseconds={playbackTime}
-          endMilliseconds={undefined}
-          lens={lens}
-          className={`z-50 h-16 ${timelineElementTypeColors.cursor}`}
-        />
-      </div>
-      <div className="mt-4">
-        <TimelineLegend />
-
-        <Button onClick={handleZoomIn}>Zoom In</Button>
-        <Button
-          className="mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400"
-          onClick={handleZoomOut}
-        >
-          Zoom Out
-        </Button>
-        <Button
-          className="mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400"
-          onClick={handleReset}
-        >
-          Reset
-        </Button>
-      </div>
-    </>
-  );
-}
-
-export function TimelineLegend() {
-  return (
     <div
-      className="my-8 flex space-x-4 text-sm text-gray-800
-     dark:text-gray-200
-    "
+      className="relative h-16 cursor-pointer select-none overflow-hidden rounded bg-gray-200 dark:bg-gray-600"
+      ref={containerRef}
+      onMouseDown={handleDragStart}
+      onClick={handleContainerClick}
     >
-      <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.silence}`}
-        ></div>
-        <span>Silence segment</span>
-      </div>
-      <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.chat}`}
-        ></div>
-        <span>Chat message</span>
-      </div>
-      <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.highlight}`}
-        ></div>
-        <span>Highlighted segment</span>
-      </div>
-      <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.attention}`}
-        ></div>
-        <span>Attention segment</span>
-      </div>
-      <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.error}`}
-        ></div>
-        <span>Transcript error</span>
-      </div>
+      {elements.map((content) => (
+        <TimelineElement key={generateKey(content)} content={content} />
+      ))}
+
+      <TimeSegmentMarker
+        startMilliseconds={playheadTime}
+        endMilliseconds={undefined}
+        className={`z-50 h-16 ${timelineElementTypeColors.cursor}`}
+      />
     </div>
   );
 }

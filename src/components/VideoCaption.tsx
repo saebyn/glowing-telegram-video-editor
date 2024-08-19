@@ -1,7 +1,7 @@
 import { TranscriptSegment } from "types";
 
 interface VideoCaptionProps {
-  playbackTime: number;
+  playheadTime: number;
   transcript: TranscriptSegment[];
 }
 
@@ -11,10 +11,10 @@ interface VideoCaptionProps {
  * Stitches together the transcript segments to create a "ticker"
  * that scrolls through the transcript as the video plays.
  */
-function VideoCaption({ playbackTime, transcript }: VideoCaptionProps) {
+function VideoCaption({ playheadTime, transcript }: VideoCaptionProps) {
   // Find the nearby transcript segments to display
   const nearestTranscriptSegmentIndex = transcript.findIndex(
-    (segment) => segment.timestamp_start >= playbackTime,
+    (segment) => segment.timestamp_start >= playheadTime,
   );
 
   return (

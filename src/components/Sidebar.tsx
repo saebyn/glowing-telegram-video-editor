@@ -1,12 +1,16 @@
 import { VideoMetadata } from "types";
 import TimeLink from "./TimeLink";
 
+const timeHighlightMargin = 5000;
+
 function Sidebar({
   content,
   onSeekToTime,
+  playheadTime,
 }: {
   content: VideoMetadata;
   onSeekToTime: (milliseconds: number) => void;
+  playheadTime?: number;
 }) {
   return (
     <aside
@@ -16,7 +20,7 @@ function Sidebar({
       <div className="p-4">
         <input
           type="search"
-          placeholder="Search..."
+          placeholder="Filter..."
           className="w-full rounded border p-2 dark:bg-gray-800"
         />
       </div>
@@ -29,6 +33,7 @@ function Sidebar({
             <NavEntry
               key={`highlight-${highlight.timestamp}`}
               {...highlight}
+              playheadTime={playheadTime}
               onSeekToTime={onSeekToTime}
             />
           ))}
@@ -44,6 +49,7 @@ function Sidebar({
             <NavEntry
               key={`attention-${attention.timestamp}`}
               {...attention}
+              playheadTime={playheadTime}
               onSeekToTime={onSeekToTime}
             />
           ))}
@@ -56,6 +62,7 @@ function Sidebar({
             <NavEntry
               key={`error-${error.timestamp}`}
               {...error}
+              playheadTime={playheadTime}
               onSeekToTime={onSeekToTime}
             />
           ))}
@@ -92,13 +99,23 @@ function NavEntry({
   timestamp,
   description,
   onSeekToTime,
+  playheadTime,
 }: {
   timestamp: number;
   description?: string;
   onSeekToTime: (milliseconds: number) => void;
+  playheadTime?: number;
 }) {
+  const shouldHighlight =
+    playheadTime && Math.abs(playheadTime - timestamp) < timeHighlightMargin;
+
   return (
-    <li key={`error-${timestamp}`} className="ml-4">
+    <li
+      key={`error-${timestamp}`}
+      className={`ml-4 ${
+        shouldHighlight ? "bg-gray-300 dark:bg-gray-600" : ""
+      }`}
+    >
       <TimeLink
         className="p-4 text-gray-700 dark:text-gray-200"
         href={`#${timestamp}`}

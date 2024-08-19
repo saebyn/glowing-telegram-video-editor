@@ -39,7 +39,7 @@ export interface TimelineLens {
 /**
  * A timeline
  */
-interface Timeline<ElementType> {
+export interface Timeline<ElementType> {
   sortedElements: TimelineItem<ElementType>[];
   timelineDurationMilliseconds: number;
 }
@@ -230,7 +230,9 @@ export function panRight(
 }
 
 /**
- * Pan the lens to the left or right based on the direction
+ * Pan the lens to the left or right based on the sign of the
+ * `milliseconds` value. If the value is negative, the lens should be panned to
+ * the left. If the value is positive, the lens should be panned to the right.
  */
 export function panLens(
   lens: TimelineLens,

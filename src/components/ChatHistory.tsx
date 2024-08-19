@@ -3,19 +3,19 @@ import TimestampedEventLog from "./TimestampedEventLog";
 
 export default function ChatHistory({
   chatHistory,
-  playbackTime,
+  playheadTime,
   onSeekToTime,
   followPlayback = true,
 }: {
   chatHistory: ChatMessage[];
-  playbackTime: number;
+  playheadTime: number;
   onSeekToTime: (milliseconds: number) => void;
   followPlayback?: boolean;
 }) {
   return (
     <TimestampedEventLog<ChatMessage>
       log={chatHistory}
-      playbackTime={playbackTime}
+      playheadTime={playheadTime}
       onSeekToTime={onSeekToTime}
       renderEvent={(chat) => {
         return (

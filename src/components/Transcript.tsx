@@ -3,19 +3,19 @@ import TimestampedEventLog from "./TimestampedEventLog";
 
 export default function Transcript({
   transcript,
-  playbackTime,
+  playheadTime,
   onSeekToTime,
   followPlayback = true,
 }: {
   transcript: TranscriptSegment[];
-  playbackTime: number;
+  playheadTime: number;
   onSeekToTime: (milliseconds: number) => void;
   followPlayback?: boolean;
 }) {
   return (
     <TimestampedEventLog<TranscriptSegment>
       log={transcript}
-      playbackTime={playbackTime}
+      playheadTime={playheadTime}
       onSeekToTime={onSeekToTime}
       renderEvent={(segment) => {
         return <span>{segment.text}</span>;
