@@ -10,6 +10,11 @@ export function isoToMs(iso8601Duration: string): number {
   return duration.total({ unit: "milliseconds" });
 }
 
+export function msToIso(ms: number): string {
+  const duration = Temporal.Duration.from({ milliseconds: ms });
+  return duration.toString();
+}
+
 /**
  * Formats an ISO 8601 Duration into a string representation of minutes and seconds.
  * @param iso8601 - The ISO 8601 Duration to format.

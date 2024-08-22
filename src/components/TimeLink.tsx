@@ -1,6 +1,6 @@
 import React from "react";
 
-import { formatMs } from "utils/duration";
+import { formatMs, msToIso } from "utils/duration";
 
 interface TimeLinkProps {
   milliseconds?: number;
@@ -37,7 +37,7 @@ export default function TimeLink({
           onClick(milliseconds);
         }}
       >
-        {formatMs(milliseconds)}
+        <time dateTime={msToIso(milliseconds)}>{formatMs(milliseconds)}</time>
 
         {children}
       </a>

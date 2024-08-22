@@ -8,7 +8,7 @@
 - [ ] Create edit overlay when editing any of the annotations, drawing from the left side of the screen
 - [ ] Add a "close in" to fine-tune the time range of an annotation in the editor
 - [ ] Can select group of highlights to combine into an episode
-- [ ] Can edit transcript in side panel
+- [ ] Can edit transcript in side panel: https://github.com/lovasoa/react-contenteditable
 - [ ] Add ability to hide the left sidebar
 - [ ] Add document-wide keyboard shortcuts for editor
 - [ ] Add slot for actions on whole form, can we extract child components and have more slots. context to avoid prop drilling?
