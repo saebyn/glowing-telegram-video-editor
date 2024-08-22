@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { format } from "utils/duration";
+import VideoPlayerProgressBar from "./VideoPlayerProgressBar";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -63,7 +64,6 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
       if (videoRef.current) {
         videoRef.current.currentTime =
           (progress / 100) * videoRef.current.duration;
-        setIsPlaying(true);
       }
     };
 
@@ -128,20 +128,11 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
             {timestamp}
           </span>
 
-          <div
-            className="relative ml-4 mt-3 h-4 flex-1 cursor-pointer rounded-full bg-gray-800 dark:bg-gray-200"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const progress = (x / rect.width) * 100;
-              seekToPercent(progress);
-            }}
-          >
-            <div
-              className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-200 dark:bg-gray-800"
-              style={{ left: `calc(${progress}% - 2px)` }}
-            ></div>
-          </div>
+          <VideoPlayerProgressBar
+            progress={progress}
+            seekToPercent={seekToPercent}
+            duration={videoRef.current?.duration || 0}
+          />
 
           <button
             className={`ml-4 rounded px-4 py-2 ${

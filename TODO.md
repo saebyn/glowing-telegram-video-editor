@@ -1,6 +1,5 @@
 # Future features
 
-- [ ] Allow dragging of the timeline and progress bar to change the current playback position
 - [ ] Add a "playback speed" control
 - [ ] Implement filtering search in sidebar
 - [ ] Make zooming on the timeline pan towards the mouse cursor
@@ -13,4 +12,3 @@
 - [ ] Add ability to hide the left sidebar
 - [ ] Add document-wide keyboard shortcuts for editor
 - [ ] Add slot for actions on whole form, can we extract child components and have more slots. context to avoid prop drilling?
-- [ ] Add hover on VideoPlayer progress bar to show time
