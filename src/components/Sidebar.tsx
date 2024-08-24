@@ -1,5 +1,7 @@
 import { VideoMetadata } from "types";
 import TimeLink from "./TimeLink";
+import AnimatedHamburgerIconButton from "./AnimatedHamburgerIconButton";
+import { useState } from "react";
 
 const timeHighlightMargin = 5000;
 
@@ -12,11 +14,28 @@ function Sidebar({
   onSeekToTime: (milliseconds: number) => void;
   playheadTime?: number;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!isExpanded) {
+    return (
+      <aside className="h-full w-20 bg-white shadow-md dark:bg-gray-900 dark:text-gray-200">
+        <AnimatedHamburgerIconButton
+          isExpanded={isExpanded}
+          onClick={() => setIsExpanded(!isExpanded)}
+        />
+      </aside>
+    );
+  }
+
   return (
     <aside
-      className="w-64 overflow-y-scroll bg-white shadow-md dark:bg-gray-900 dark:text-gray-200
+      className="w-96 overflow-y-scroll bg-white shadow-md dark:bg-gray-900 dark:text-gray-200
     "
     >
+      <AnimatedHamburgerIconButton
+        isExpanded={isExpanded}
+        onClick={() => setIsExpanded(!isExpanded)}
+      />
       <div className="p-4">
         <input
           type="search"
