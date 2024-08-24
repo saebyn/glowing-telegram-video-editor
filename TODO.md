@@ -1,6 +1,5 @@
 # Future features
 
-- [ ] Add a "playback speed" control
 - [ ] Implement filtering search in sidebar
 - [ ] Make zooming on the timeline pan towards the mouse cursor
 - [ ] Add storybook setup for components and reorg components into folders according to the atomic design principles

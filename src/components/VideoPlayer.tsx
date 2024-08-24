@@ -1,12 +1,6 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
-import { format } from "utils/duration";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import VideoPlayerProgressBar from "./VideoPlayerProgressBar";
+import VideoPlayerControls from "./VideoPlayerControls";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -21,21 +15,6 @@ export interface VideoPlayerRef {
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
   function VideoPlayer({ videoUrl, onTimeUpdate, onEnd }, ref) {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [isMuted, setIsMuted] = useState(false);
-    const [isLooping, setIsLooping] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-
-    useEffect(() => {
-      if (videoRef.current) {
-        videoRef.current.muted = isMuted;
-      }
-    }, [isMuted]);
-
-    useEffect(() => {
-      if (videoRef.current) {
-        videoRef.current.loop = isLooping;
-      }
-    }, [isLooping]);
 
     const timeUpdate = () => {
       if (videoRef.current) {
@@ -67,33 +46,6 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     };
 
-    const play = () => {
-      if (videoRef.current) {
-        videoRef.current.play().then(() => {
-          setIsPlaying(true);
-        });
-      }
-    };
-
-    const pause = () => {
-      if (videoRef.current) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      }
-    };
-
-    const toggleMute = () => {
-      setIsMuted((muted) => !muted);
-    };
-
-    const toggleLoop = () => {
-      setIsLooping((looping) => !looping);
-    };
-
-    const timestamp = format(
-      `PT${videoRef.current?.currentTime.toFixed(0) || 0}S`,
-    );
-
     return (
       <>
         <video
@@ -107,52 +59,13 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
           Your browser does not support the video tag.
         </video>
 
-        <div className="m-4 flex items-start">
-          {!isPlaying ? (
-            <button
-              className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
-              onClick={play}
-            >
-              Play
-            </button>
-          ) : (
-            <button
-              className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
-              onClick={pause}
-            >
-              Pause
-            </button>
-          )}
-
-          <span className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white">
-            {timestamp}
-          </span>
-
+        <VideoPlayerControls video={videoRef.current}>
           <VideoPlayerProgressBar
             progress={progress}
             seekToPercent={seekToPercent}
             duration={videoRef.current?.duration || 0}
           />
-
-          <button
-            className={`ml-4 rounded px-4 py-2 ${
-              isMuted ? "bg-gray-200" : "bg-gray-600 text-white"
-            }`}
-            onClick={toggleMute}
-          >
-            Mute
-          </button>
-
-          <button
-            className={`
-            ml-4 rounded px-4 py-2
-            ${videoRef.current?.loop ? "bg-gray-200" : "bg-gray-600 text-white"}
-            `}
-            onClick={toggleLoop}
-          >
-            Loop
-          </button>
-        </div>
+        </VideoPlayerControls>
       </>
     );
   },
