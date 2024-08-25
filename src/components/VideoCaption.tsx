@@ -14,7 +14,7 @@ interface VideoCaptionProps {
 function VideoCaption({ playheadTime, transcript }: VideoCaptionProps) {
   // Find the nearby transcript segments to display
   const nearestTranscriptSegmentIndex = transcript.findIndex(
-    (segment) => segment.timestamp_start >= playheadTime,
+    (segment) => segment.timestamp >= playheadTime,
   );
 
   return (
@@ -28,7 +28,7 @@ function VideoCaption({ playheadTime, transcript }: VideoCaptionProps) {
               (index - nearestTranscriptSegmentIndex) * 10000
             }px)`,
           }}
-          key={segment.timestamp_start}
+          key={segment.timestamp}
         >
           {segment.text}
         </div>

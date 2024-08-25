@@ -1,9 +1,10 @@
 import { VideoMetadata } from "types";
-import TimeLink from "./TimeLink";
 import AnimatedHamburgerIconButton from "./AnimatedHamburgerIconButton";
 import { useState } from "react";
+import NavEntry from "./NavEntry";
+import HeadingLink from "./HeadingLink";
 
-const timeHighlightMargin = 5000;
+export const timeHighlightMargin = 5000;
 
 function Sidebar({
   content,
@@ -96,54 +97,3 @@ function Sidebar({
 }
 
 export default Sidebar;
-
-function HeadingLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      className="block p-4 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
-    >
-      {children}
-    </a>
-  );
-}
-
-function NavEntry({
-  timestamp,
-  description,
-  onSeekToTime,
-  playheadTime,
-}: {
-  timestamp: number;
-  description?: string;
-  onSeekToTime: (milliseconds: number) => void;
-  playheadTime?: number;
-}) {
-  const shouldHighlight =
-    playheadTime && Math.abs(playheadTime - timestamp) < timeHighlightMargin;
-
-  return (
-    <li
-      key={`error-${timestamp}`}
-      className={`ml-4 ${
-        shouldHighlight ? "bg-gray-300 dark:bg-gray-600" : ""
-      }`}
-    >
-      <TimeLink
-        className="p-4 text-gray-700 dark:text-gray-200"
-        href={`#${timestamp}`}
-        milliseconds={timestamp}
-        onClick={onSeekToTime}
-      >
-        {" "}
-        - {description?.substring(0, 30)}...
-      </TimeLink>
-    </li>
-  );
-}
