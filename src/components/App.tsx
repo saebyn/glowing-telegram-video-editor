@@ -11,6 +11,7 @@ import ChatHistory from "./ChatHistory";
 import VideoPlayer, { VideoPlayerRef } from "./VideoPlayer";
 import { TimelineProvider } from "./TimelineContext";
 import TimelineControls from "./TimelineControls";
+import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 
 function App() {
   const [playheadTime, setPlayheadTime] = useState(0);
@@ -20,6 +21,14 @@ function App() {
   function handleSeekToTime(milliseconds: number) {
     videoPlayerRef.current?.seekTo(milliseconds);
   }
+
+  useKeyboardShortcuts({
+    "1": () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.seekTo(0);
+      }
+    },
+  });
 
   const content = parseContent(rawContent);
 
