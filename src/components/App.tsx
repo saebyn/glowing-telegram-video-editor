@@ -4,13 +4,14 @@ import TimeTable from "./TimeTable";
 import parseContent from "utils/parseData";
 import Heading from "./Heading";
 import Viewport from "./Viewport";
-import Transcript from "./Transcript";
 import { useRef, useState } from "react";
-import Timeline from "./Timeline";
-import ChatHistory from "./ChatHistory";
 import VideoPlayer, { VideoPlayerRef } from "./VideoPlayer";
 import { TimelineProvider } from "./TimelineContext";
 import TimelineControls from "./TimelineControls";
+import TimestampedEventLog from "./TimestampedEventLog";
+import { ChatMessage, TranscriptSegment } from "types";
+import Timeline from "./Timeline";
+import EditableTimestampedEventLog from "./EditableTimestampedEventLog";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 
 function App() {
@@ -56,10 +57,18 @@ function App() {
                 />
               }
               chatHistory={
-                <ChatHistory
-                  chatHistory={content.chat_history}
+                <TimestampedEventLog<ChatMessage>
+                  log={content.chat_history}
                   playheadTime={playheadTime}
                   onSeekToTime={handleSeekToTime}
+                  renderEvent={(chat) => {
+                    return (
+                      <>
+                        <span className="font-bold">{chat.username}</span>:{" "}
+                        {chat.message}
+                      </>
+                    );
+                  }}
                   followPlayback={followPlayback}
                 />
               }
@@ -71,10 +80,20 @@ function App() {
                 />
               }
               transcript={
-                <Transcript
-                  transcript={content.transcript}
+                <EditableTimestampedEventLog<TranscriptSegment>
+                  log={content.transcript}
+                  onChange={(updatedSegment) => {
+                    console.log(updatedSegment);
+                  }}
+                  onAdd={(newSegment) => {
+                    console.log(newSegment);
+                  }}
+                  onRemove={(segment) => {
+                    console.log(segment);
+                  }}
                   playheadTime={playheadTime}
                   onSeekToTime={handleSeekToTime}
+                  contentField="text"
                   followPlayback={followPlayback}
                 />
               }

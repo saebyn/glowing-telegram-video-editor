@@ -7,8 +7,4 @@
 - [ ] Create edit overlay when editing any of the annotations, drawing from the left side of the screen
 - [ ] Add a "close in" to fine-tune the time range of an annotation in the editor
 - [ ] Can select group of highlights to combine into an episode
-- [ ] Can edit transcript in side panel: https://github.com/lovasoa/react-contenteditable
-  - [ ] make sure the editable area is sufficiently large and expands as needed
-  - [ ] make sure the editable area is scrollable
-  - [ ] show blank lines with a timestamp when no timestamp is present, so that I can add transcripts for missing parts
 - [ ] Add slot for actions on whole form, can we extract child components and have more slots. context to avoid prop drilling?
