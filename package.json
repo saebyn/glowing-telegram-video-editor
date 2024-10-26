@@ -1,7 +1,9 @@
 {
-  "name": "transcript-editor",
-  "description": "A transcript editor for the web",
+  "name": "glowing-telegram-video-editor",
+  "description": "A video editor component for glowing-telegram",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "author": "saebynx@gmail.com",
   "private": true,
   "type": "module",
   "scripts": {
