@@ -10,10 +10,6 @@ dist-ssr
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
 # production
 /build
 
@@ -33,5 +29,5 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# vercel
-.vercel
+# test media
+*.mp4
