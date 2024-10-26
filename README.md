@@ -8,7 +8,7 @@ Everything written below is written from the perspective of what I'm planning to
 
 ## Overview
 
-The Glowing Telegram Video Editor is a web-based Single Page Application (SPA) designed to review and edit video highlights, moments that require additional attention, and possible transcription errors. This application aims to provide an intuitive interface for vetting and correcting data to feed into an automated pipeline that posts edited stream VODs to YouTube.
+The Glowing Telegram Video Editor is a web-based Single Page Application (SPA) designed to review and edit video highlights, moments that require additional attention, and possible transcription errors, and select clips for rendering. This application aims to provide an intuitive interface for vetting and correcting data to feed into an automated pipeline that posts edited stream VODs to YouTube.
 
 It is part of the larger glowing-telegram tool: https://github.com/saebyn/glowing-telegram
 
