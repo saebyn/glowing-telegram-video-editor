@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import VideoPlayerProgressBar from "./VideoPlayerProgressBar";
 import VideoPlayerControls from "./VideoPlayerControls";
 
@@ -14,42 +14,38 @@ export interface VideoPlayerRef {
 
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
   function VideoPlayer({ videoUrl, onTimeUpdate, onEnd }, ref) {
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const [video, setVideo] = useState<HTMLVideoElement | null>(null);
 
     const timeUpdate = () => {
-      if (videoRef.current) {
-        onTimeUpdate?.(videoRef.current.currentTime * 1000);
+      if (video) {
+        onTimeUpdate?.(video.currentTime * 1000);
       }
     };
 
-    const progress =
-      ((videoRef.current?.currentTime || 0) /
-        (videoRef.current?.duration || 1)) *
-      100;
+    const progress = ((video?.currentTime || 0) / (video?.duration || 1)) * 100;
 
     useImperativeHandle(
       ref,
       () => ({
         seekTo: (milliseconds: number) => {
-          if (videoRef.current) {
-            videoRef.current.currentTime = milliseconds / 1000;
+          if (video) {
+            video.currentTime = milliseconds / 1000;
           }
         },
       }),
-      [],
+      [video],
     );
 
     const seekToPercent = (progress: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime =
-          (progress / 100) * videoRef.current.duration;
+      if (video) {
+        video.currentTime = (progress / 100) * video.duration;
       }
     };
 
     return (
       <>
         <video
-          ref={videoRef}
+          ref={setVideo}
           className="w-full"
           onTimeUpdate={timeUpdate}
           onEnded={onEnd}
@@ -59,11 +55,11 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
           Your browser does not support the video tag.
         </video>
 
-        <VideoPlayerControls video={videoRef.current}>
+        <VideoPlayerControls video={video}>
           <VideoPlayerProgressBar
             progress={progress}
             seekToPercent={seekToPercent}
-            duration={videoRef.current?.duration || 0}
+            duration={video?.duration || 0}
           />
         </VideoPlayerControls>
       </>

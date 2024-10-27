@@ -33,10 +33,6 @@ export default function VideoPlayerControls({
     }
   }, [speed, video]);
 
-  if (!video) {
-    return null;
-  }
-
   const play = () => {
     if (video) {
       video.play().then(() => {
@@ -114,29 +110,16 @@ export default function VideoPlayerControls({
 
       <select
         className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
+        defaultValue={speed}
         onChange={(e) => setSpeed(parseFloat(e.target.value))}
       >
-        <option value="0.5" selected={speed === 0.5}>
-          0.5x
-        </option>
-        <option value="1" selected={speed === 1}>
-          1x
-        </option>
-        <option value="1.5" selected={speed === 1.5}>
-          1.5x
-        </option>
-        <option value="2" selected={speed === 2}>
-          2x
-        </option>
-        <option value="5" selected={speed === 5}>
-          5x
-        </option>
-        <option value="10" selected={speed === 10}>
-          10x
-        </option>
-        <option value="25" selected={speed === 25}>
-          25x
-        </option>
+        <option value="0.5">0.5x</option>
+        <option value="1">1x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+        <option value="5">5x</option>
+        <option value="10">10x</option>
+        <option value="25">25x</option>
       </select>
     </div>
   );
