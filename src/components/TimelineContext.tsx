@@ -4,6 +4,7 @@ import {
   getLensLength,
   getVisibleElements,
   panLens,
+  relativeToTime,
   resetLens,
   Timeline,
   TimelineItem,
@@ -47,6 +48,7 @@ const zoomFactor = 1.1;
 
 interface TimelineHookResult {
   timeToRelative(time: number): number;
+  relativeToTime(relative: number): number;
   pan(deltaMs: number): void;
   zoomIn(): void;
   zoomOut(): void;
@@ -64,6 +66,9 @@ export const useLens = (): TimelineHookResult => {
   return {
     timeToRelative(time: number) {
       return timeToRelative(context.lens, time);
+    },
+    relativeToTime(relative: number) {
+      return relativeToTime(context.lens, relative);
     },
     pan(deltaMs: number) {
       context.setLens((lens) => panLens(lens, deltaMs));

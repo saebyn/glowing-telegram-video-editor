@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] On load, the video does not appear nor do the controls to play it
 - [ ] Add a "loading" state to the video player?
 - [ ] Support multiple videos in the timeline in sequence
 - [ ] Implement filtering search in sidebar

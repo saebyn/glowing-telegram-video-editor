@@ -130,7 +130,8 @@ export default function Timeline({
 
     /**
      * If the user is dragging, don't seek to the time.
-     * Dragging is detected by the mouse moving more than 250ms
+     * Dragging is detected by the movement of the mouse
+     * lasting longer than 250ms.
      */
     if (new Date().getTime() - dragging > 250) {
       return;
@@ -141,7 +142,7 @@ export default function Timeline({
     const offsetXInContainer = event.pageX - containerRef.current.offsetLeft;
 
     const relativeClick = offsetXInContainer / containerPixelWidth;
-    const clickMs = Math.round(relativeClick * lens.getLength());
+    const clickMs = Math.round(lens.relativeToTime(relativeClick));
 
     if (onSeekToTime) {
       onSeekToTime(clickMs);
