@@ -52,7 +52,8 @@ function VideoSelectionPage() {
               videoPlayer={
                 <VideoPlayer
                   ref={videoPlayerRef}
-                  videoUrl={content.video_url}
+                  media={content.media}
+                  length={content.length}
                   onTimeUpdate={(time) => setPlayheadTime(time)}
                 />
               }
