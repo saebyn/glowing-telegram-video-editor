@@ -1,4 +1,4 @@
-import { VideoMetadata } from "types";
+import { Section, VideoMetadata } from "types";
 import AnimatedHamburgerIconButton from "./AnimatedHamburgerIconButton";
 import { useState } from "react";
 import NavEntry from "./NavEntry";
@@ -15,6 +15,7 @@ function Sidebar({
   onSeekToTime: (milliseconds: number) => void;
   playheadTime?: number;
 }) {
+  const [filter, setFilter] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!isExpanded) {
@@ -37,19 +38,29 @@ function Sidebar({
         isExpanded={isExpanded}
         onClick={() => setIsExpanded(!isExpanded)}
       />
-      <div className="p-4">
+      <div className="relative p-4">
         <input
           type="search"
           placeholder="Filter..."
-          className="w-full rounded border p-2 dark:bg-gray-800"
+          className="w-full rounded border p-2 pr-10 dark:bg-gray-800"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
         />
+        {filter && (
+          <button
+            className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
+            onClick={() => setFilter("")}
+          >
+            ❌
+          </button>
+        )}
       </div>
       <nav className="mt-4">
         <ul>
           <li>
             <HeadingLink href="#highlights">Highlights</HeadingLink>
           </li>
-          {content.highlights.map((highlight) => (
+          {content.highlights.filter(matchesFilter(filter)).map((highlight) => (
             <NavEntry
               key={`highlight-${highlight.timestamp}`}
               {...highlight}
@@ -65,7 +76,7 @@ function Sidebar({
           <li>
             <HeadingLink href="#attentions">Attentions</HeadingLink>
           </li>
-          {content.attentions.map((attention) => (
+          {content.attentions.filter(matchesFilter(filter)).map((attention) => (
             <NavEntry
               key={`attention-${attention.timestamp}`}
               {...attention}
@@ -78,14 +89,16 @@ function Sidebar({
               Transcription Errors
             </HeadingLink>
           </li>
-          {content.transcription_errors.map((error) => (
-            <NavEntry
-              key={`error-${error.timestamp}`}
-              {...error}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
-            />
-          ))}
+          {content.transcription_errors
+            .filter(matchesFilter(filter))
+            .map((error) => (
+              <NavEntry
+                key={`error-${error.timestamp}`}
+                {...error}
+                playheadTime={playheadTime}
+                onSeekToTime={onSeekToTime}
+              />
+            ))}
 
           <li>
             <HeadingLink href="#top">Back to Top</HeadingLink>
@@ -94,6 +107,18 @@ function Sidebar({
       </nav>
     </aside>
   );
+}
+
+function matchesFilter(filter: string): (highlight: Section) => boolean {
+  return (highlight) => {
+    return [
+      highlight.category,
+      highlight.description,
+      highlight.reasoning,
+    ].some((field) => {
+      return field?.toLowerCase().includes(filter.toLowerCase());
+    });
+  };
 }
 
 export default Sidebar;
