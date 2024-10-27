@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createLens, zoomIn, getLensLength } from "./timeline";
+import { createLens, zoomIn, getLensLength, zoomOut } from "./timeline";
 
 describe("timeline", () => {
   describe("zoom", () => {
@@ -17,7 +17,7 @@ describe("timeline", () => {
       const factor = 1.1;
 
       const zoomedLens = zoomIn(lens, factor);
-      const zoomedOutLens = zoomIn(zoomedLens, factor);
+      const zoomedOutLens = zoomOut(zoomedLens, factor);
       const zoomedInLens = zoomIn(zoomedOutLens, factor);
 
       expect(getLensLength(zoomedInLens)).toBe(910);
