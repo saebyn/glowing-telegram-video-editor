@@ -1,6 +1,6 @@
-import Button from "./Button";
-import { useLens } from "./TimelineContext";
-import TimelineLegend from "./TimelineLegend";
+import Button from "components/atoms/Button";
+import { useLens } from "components/TimelineContext";
+import TimelineLegend from "components/TimelineLegend";
 
 export type TimelineControlsProps = {
   followPlayback: boolean;

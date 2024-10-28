@@ -1,5 +1,5 @@
-import { timeHighlightMargin } from "./Sidebar";
-import TimeLink from "./TimeLink";
+import { timeHighlightMargin } from "components/organisms/Sidebar";
+import TimeLink from "components/atoms/TimeLink";
 
 export default function NavEntry({
   timestamp,

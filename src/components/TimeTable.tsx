@@ -1,6 +1,6 @@
 import React from "react";
 import { Section } from "types";
-import TimeLink from "./TimeLink";
+import TimeLink from "./atoms/TimeLink";
 
 function TimeTable({
   rows,

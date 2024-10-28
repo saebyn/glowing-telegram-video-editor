@@ -1,20 +1,20 @@
 import rawContent from "data.json";
-import Sidebar from "./Sidebar";
-import TimeTable from "./TimeTable";
+import Sidebar from "components/organisms/Sidebar";
+import TimeTable from "components/TimeTable";
 import parseContent from "utils/parseData";
-import Heading from "./Heading";
-import Viewport from "./Viewport";
+import Heading from "components/atoms/Heading";
+import Viewport from "components/Viewport";
 import { useRef, useState } from "react";
-import VideoPlayer, { VideoPlayerRef } from "./VideoPlayer";
-import { TimelineProvider } from "./TimelineContext";
-import TimelineControls from "./TimelineControls";
-import TimestampedEventLog from "./TimestampedEventLog";
+import VideoPlayer, { VideoPlayerRef } from "components/VideoPlayer";
+import { TimelineProvider } from "components/TimelineContext";
+import TimelineControls from "components/TimelineControls";
+import TimestampedEventLog from "components/TimestampedEventLog";
 import { ChatMessage, TranscriptSegment } from "types";
-import Timeline from "./Timeline";
-import EditableTimestampedEventLog from "./EditableTimestampedEventLog";
+import Timeline from "components/Timeline";
+import EditableTimestampedEventLog from "components/EditableTimestampedEventLog";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 
-function App() {
+function VideoSelectionPage() {
   const [playheadTime, setPlayheadTime] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
@@ -144,4 +144,4 @@ function App() {
   );
 }
 
-export default App;
+export default VideoSelectionPage;

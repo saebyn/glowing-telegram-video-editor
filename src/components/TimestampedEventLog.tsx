@@ -1,5 +1,5 @@
 import { LogEvent } from "types";
-import TimeLink from "./TimeLink";
+import TimeLink from "./atoms/TimeLink";
 import { createRef } from "react";
 import useScrollToNearestElementToTime from "../hooks/useScrollToNearestElementToTime";
 

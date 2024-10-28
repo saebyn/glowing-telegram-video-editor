@@ -1,13 +1,13 @@
 import { VideoMetadata } from "types";
 import { createTimeline, generateKey } from "utils/timeline";
 import { useEffect, useRef, useState } from "react";
-import { useLens } from "./TimelineContext";
+import { useLens } from "components/TimelineContext";
 import {
   TimelineElementType,
   timelineElementTypeColors,
-} from "./TimelineLegend";
-import TimeSegmentMarker from "./TimeSegmentMarker";
-import TimelineElement from "./TimelineElement";
+} from "components/TimelineLegend";
+import TimeSegmentMarker from "components/TimeSegmentMarker";
+import TimelineElement from "components/TimelineElement";
 
 export default function Timeline({
   content: {

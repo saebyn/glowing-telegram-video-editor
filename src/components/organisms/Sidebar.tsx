@@ -1,8 +1,10 @@
-import { Section, VideoMetadata } from "types";
-import AnimatedHamburgerIconButton from "./AnimatedHamburgerIconButton";
 import { useState } from "react";
-import NavEntry from "./NavEntry";
-import HeadingLink from "./HeadingLink";
+
+import HeadingLink from "components/atoms/HeadingLink";
+import NavEntry from "components/molecules/NavEntry";
+import AnimatedHamburgerIconButton from "components/atoms/AnimatedHamburgerIconButton";
+import Search from "components/atoms/Search";
+import { Section, VideoMetadata } from "types";
 
 export const timeHighlightMargin = 5000;
 
@@ -39,21 +41,7 @@ function Sidebar({
         onClick={() => setIsExpanded(!isExpanded)}
       />
       <div className="relative p-4">
-        <input
-          type="search"
-          placeholder="Filter..."
-          className="w-full rounded border p-2 pr-10 dark:bg-gray-800"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-        {filter && (
-          <button
-            className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
-            onClick={() => setFilter("")}
-          >
-            ❌
-          </button>
-        )}
+        <Search text={filter} setText={setFilter} label="Filter..." />
       </div>
       <nav className="mt-4">
         <ul>

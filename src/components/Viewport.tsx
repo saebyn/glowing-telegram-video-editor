@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import Tab, { TabContainer } from "./Tab";
+import Tab, { TabContainer } from "components/atoms/Tab";
 
 type ViewportProps = {
   videoPlayer?: ReactNode;
