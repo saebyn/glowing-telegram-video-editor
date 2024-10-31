@@ -1,7 +1,17 @@
 {
   "title": "Coding Livestream 1",
-  "video_url": "/ep131.mp4",
-  "length": "PT56M35S",
+  "media": [
+    {
+      "url": "/ep131.mp4",
+      "mime_type": "video/mp4",
+      "length": "PT56M35S"
+    },
+    {
+      "url": "/ep131.mp4",
+      "mime_type": "video/mp4",
+      "length": "PT56M35S"
+    }
+  ],
   "transcript": [
     {
       "timestamp_start": "PT0S",

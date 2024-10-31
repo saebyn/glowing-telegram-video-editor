@@ -15,7 +15,13 @@ export default function parseContent(
 ): VideoMetadata {
   return {
     title: rawContent.title,
-    video_url: rawContent.video_url,
+    media: rawContent.media.map((item, index) => ({
+      ...item,
+      length: isoToMs(item.length),
+      offset: rawContent.media
+        .slice(0, index)
+        .reduce((acc, item) => acc + isoToMs(item.length), 0),
+    })),
     chat_history: rawContent.chat_history.map((item) => parseSection(item)),
     transcript: rawContent.transcript.map((item) => parseSection(item)),
     highlights: rawContent.highlights.map((item) => parseSection(item)),
@@ -24,7 +30,10 @@ export default function parseContent(
       parseSection(item),
     ),
     silences: rawContent.silences.map((item) => parseSection(item)),
-    length: isoToMs(rawContent.length),
+    length: rawContent.media.reduce(
+      (acc, item) => acc + isoToMs(item.length),
+      0,
+    ),
   };
 }
 

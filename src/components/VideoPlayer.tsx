@@ -1,9 +1,12 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
+
 import VideoPlayerProgressBar from "components/VideoPlayerProgressBar";
 import VideoPlayerControls from "components/VideoPlayerControls";
+import { MediaFile } from "types";
 
 interface VideoPlayerProps {
-  videoUrl: string;
+  media: MediaFile[];
+  length: number;
   onTimeUpdate?: (time: number) => void;
   onEnd?: () => void;
 }
@@ -13,7 +16,7 @@ export interface VideoPlayerRef {
 }
 
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  function VideoPlayer({ videoUrl, onTimeUpdate, onEnd }, ref) {
+  function VideoPlayer({ media, length, onTimeUpdate, onEnd }, ref) {
     const [video, setVideo] = useState<HTMLVideoElement | null>(null);
 
     const timeUpdate = () => {

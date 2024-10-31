@@ -22,14 +22,36 @@ export interface RawChatMessage {
  */
 export interface RawVideoMetadata {
   title: string;
-  video_url: string;
-  length: string;
+  /**
+   * A list of video files, in playback order.
+   */
+  media: {
+    url: string;
+    mime_type: string;
+    /**
+     * Length of the video in ISO 8601 duration format.
+     */
+    length: string;
+  }[];
   highlights: RawSection[];
   attentions: RawSection[];
   transcription_errors: RawSection[];
   silences: RawSection[];
   chat_history: RawChatMessage[];
   transcript: RawTranscriptSegment[];
+}
+
+export interface MediaFile {
+  url: string;
+  mime_type: string;
+  /**
+   * Length of the video in milliseconds.
+   */
+  length: number;
+  /**
+   * How much time has elapsed in the video in milliseconds before this video.
+   */
+  offset: number;
 }
 
 /**
@@ -39,9 +61,13 @@ export interface RawVideoMetadata {
  */
 export interface VideoMetadata {
   title: string;
-  video_url: string;
   /**
-   * Length of the video in milliseconds.
+   * A list of videos, in playback order.
+   */
+  media: MediaFile[];
+  /**
+   * Total duration of the videos in milliseconds.
+   * This is the sum of all the `media` lengths.
    */
   length: number;
   highlights: Section[];
