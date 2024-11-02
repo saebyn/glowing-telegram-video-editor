@@ -4,7 +4,7 @@ import HeadingLink from "components/atoms/HeadingLink";
 import NavEntry from "components/molecules/NavEntry";
 import AnimatedHamburgerIconButton from "components/atoms/AnimatedHamburgerIconButton";
 import Search from "components/atoms/Search";
-import { Section, VideoMetadata } from "types";
+import type { Section, VideoMetadata } from "types";
 
 export const timeHighlightMargin = 5000;
 
@@ -57,7 +57,10 @@ function Sidebar({
             />
           ))}
           <li>
-            <button className="block w-full p-4 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700">
+            <button
+              type="button"
+              className="block w-full p-4 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
               Add New
             </button>
           </li>

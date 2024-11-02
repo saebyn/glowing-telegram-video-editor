@@ -1,4 +1,4 @@
-import {
+import type {
   RawVideoMetadata,
   VideoMetadata,
   RawChatMessage,
@@ -40,14 +40,14 @@ function parseSection(
       message: item.message,
       timestamp: isoToMs(item.timestamp),
     };
-  } else {
-    return {
-      ...item,
-      timestamp: isoToMs(item.timestamp_start),
-      timestamp_end:
-        "timestamp_end" in item && item.timestamp_end
-          ? isoToMs(item.timestamp_end)
-          : undefined,
-    };
   }
+
+  return {
+    ...item,
+    timestamp: isoToMs(item.timestamp_start),
+    timestamp_end:
+      "timestamp_end" in item && item.timestamp_end
+        ? isoToMs(item.timestamp_end)
+        : undefined,
+  };
 }

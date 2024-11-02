@@ -9,6 +9,7 @@ export default function Tab({
 }) {
   return (
     <button
+      type="button"
       className={`mb-4 rounded bg-gray-300 px-4 py-2 text-center text-xl font-bold dark:bg-gray-400 ${
         active ? "" : "bg-gray-400 dark:bg-gray-500"
       }`}

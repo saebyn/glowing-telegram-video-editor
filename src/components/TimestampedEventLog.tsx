@@ -1,4 +1,4 @@
-import { LogEvent } from "types";
+import type { LogEvent } from "types";
 import TimeLink from "./atoms/TimeLink";
 import { createRef } from "react";
 import useScrollToNearestElementToTime from "../hooks/useScrollToNearestElementToTime";

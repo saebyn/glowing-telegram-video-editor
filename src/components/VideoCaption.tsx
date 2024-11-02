@@ -1,4 +1,4 @@
-import { TranscriptSegment } from "types";
+import type { TranscriptSegment } from "types";
 
 interface VideoCaptionProps {
   playheadTime: number;

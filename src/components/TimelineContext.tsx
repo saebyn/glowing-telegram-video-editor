@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import type React from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   createLens,
   getLensLength,
@@ -6,9 +7,9 @@ import {
   panLens,
   relativeToTime,
   resetLens,
-  Timeline,
-  TimelineItem,
-  TimelineLens,
+  type Timeline,
+  type TimelineItem,
+  type TimelineLens,
   timeToRelative,
   zoomIn,
   zoomOut,

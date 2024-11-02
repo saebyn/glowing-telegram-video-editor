@@ -240,9 +240,9 @@ export function panLens(
 ): TimelineLens {
   if (milliseconds < 0) {
     return panLeft(lens, -milliseconds);
-  } else {
-    return panRight(lens, milliseconds);
   }
+
+  return panRight(lens, milliseconds);
 }
 
 /**

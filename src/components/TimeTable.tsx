@@ -1,5 +1,5 @@
 import React from "react";
-import { Section } from "types";
+import type { Section } from "types";
 import TimeLink from "./atoms/TimeLink";
 
 function TimeTable({
@@ -72,12 +72,18 @@ function TimeTable({
               )}
               <td className="border-b px-4 py-2 text-right">
                 {canEdit && (
-                  <button className="mx-2 rounded bg-green-500 px-2 py-1 text-white">
+                  <button
+                    type="button"
+                    className="mx-2 rounded bg-green-500 px-2 py-1 text-white"
+                  >
                     Edit
                   </button>
                 )}
 
-                <button className="rounded bg-red-500 px-2 py-1 text-white">
+                <button
+                  type="button"
+                  className="rounded bg-red-500 px-2 py-1 text-white"
+                >
                   Delete
                 </button>
               </td>

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { format } from "utils/duration";
 
 interface VideoPlayerControlsProps {
@@ -62,6 +62,7 @@ export default function VideoPlayerControls({
     <div className="m-4 flex items-start">
       {!isPlaying ? (
         <button
+          type="button"
           className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
           onClick={play}
         >
@@ -69,6 +70,7 @@ export default function VideoPlayerControls({
         </button>
       ) : (
         <button
+          type="button"
           className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
           onClick={pause}
         >
@@ -83,6 +85,7 @@ export default function VideoPlayerControls({
       {children}
 
       <button
+        type="button"
         className={`ml-4 rounded px-4 py-2 ${
           isMuted ? "bg-gray-200" : "bg-gray-600 text-white"
         }`}
@@ -92,6 +95,7 @@ export default function VideoPlayerControls({
       </button>
 
       <button
+        type="button"
         className={`
             ml-4 rounded px-4 py-2
             ${video?.loop ? "bg-gray-200" : "bg-gray-600 text-white"}
@@ -102,6 +106,7 @@ export default function VideoPlayerControls({
       </button>
 
       <button
+        type="button"
         className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
         onClick={() => video?.requestFullscreen()}
       >
@@ -111,7 +116,7 @@ export default function VideoPlayerControls({
       <select
         className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
         defaultValue={speed}
-        onChange={(e) => setSpeed(parseFloat(e.target.value))}
+        onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
       >
         <option value="0.5">0.5x</option>
         <option value="1">1x</option>

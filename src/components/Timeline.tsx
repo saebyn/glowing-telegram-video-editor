@@ -1,9 +1,9 @@
-import { VideoMetadata } from "types";
+import type { VideoMetadata } from "types";
 import { createTimeline, generateKey } from "utils/timeline";
 import { useEffect, useRef, useState } from "react";
 import { useLens } from "components/TimelineContext";
 import {
-  TimelineElementType,
+  type TimelineElementType,
   timelineElementTypeColors,
 } from "components/TimelineLegend";
 import TimeSegmentMarker from "components/TimeSegmentMarker";
@@ -63,7 +63,7 @@ export default function Timeline({
     return () => {
       container.removeEventListener("wheel", handleWheel);
     };
-  }, [containerRef, lens]);
+  }, [lens]);
 
   const timeline = createTimeline<TimelineElementType>([
     ...silences.map((silence) => ({
