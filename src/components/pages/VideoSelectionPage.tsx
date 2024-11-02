@@ -1,18 +1,18 @@
-import rawContent from "data.json";
-import Sidebar from "components/organisms/Sidebar";
+import EditableTimestampedEventLog from "components/EditableTimestampedEventLog";
 import TimeTable from "components/TimeTable";
-import parseContent from "utils/parseData";
-import Heading from "components/atoms/Heading";
-import Viewport from "components/Viewport";
-import { useRef, useState } from "react";
-import VideoPlayer, { type VideoPlayerRef } from "components/VideoPlayer";
+import Timeline from "components/Timeline";
 import { TimelineProvider } from "components/TimelineContext";
 import TimelineControls from "components/TimelineControls";
 import TimestampedEventLog from "components/TimestampedEventLog";
-import type { ChatMessage, TranscriptSegment } from "types";
-import Timeline from "components/Timeline";
-import EditableTimestampedEventLog from "components/EditableTimestampedEventLog";
+import VideoPlayer, { type VideoPlayerRef } from "components/VideoPlayer";
+import Viewport from "components/Viewport";
+import Heading from "components/atoms/Heading";
+import Sidebar from "components/organisms/Sidebar";
+import rawContent from "data.json";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
+import { useRef, useState } from "react";
+import type { ChatMessage, TranscriptSegment } from "types";
+import parseContent from "utils/parseData";
 
 function VideoSelectionPage() {
   const [playheadTime, setPlayheadTime] = useState(0);

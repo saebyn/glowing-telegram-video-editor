@@ -1,6 +1,6 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
-import VideoPlayerProgressBar from "components/VideoPlayerProgressBar";
 import VideoPlayerControls from "components/VideoPlayerControls";
+import VideoPlayerProgressBar from "components/VideoPlayerProgressBar";
+import { forwardRef, useImperativeHandle, useState } from "react";
 
 interface VideoPlayerProps {
   videoUrl: string;

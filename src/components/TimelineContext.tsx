@@ -1,15 +1,15 @@
 import type React from "react";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
 import {
+  type Timeline,
+  type TimelineItem,
+  type TimelineLens,
   createLens,
   getLensLength,
   getVisibleElements,
   panLens,
   relativeToTime,
   resetLens,
-  type Timeline,
-  type TimelineItem,
-  type TimelineLens,
   timeToRelative,
   zoomIn,
   zoomOut,

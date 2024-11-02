@@ -1,8 +1,8 @@
 import { createRef } from "react";
 
+import TimeLink from "components/atoms/TimeLink";
 import useScrollToNearestElementToTime from "hooks/useScrollToNearestElementToTime";
 import type { LogEvent } from "types";
-import TimeLink from "components/atoms/TimeLink";
 
 interface EditableTimestampedEventLogProps<T extends LogEvent> {
   log: T[];

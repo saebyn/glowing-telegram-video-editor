@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import HeadingLink from "components/atoms/HeadingLink";
-import NavEntry from "components/molecules/NavEntry";
 import AnimatedHamburgerIconButton from "components/atoms/AnimatedHamburgerIconButton";
+import HeadingLink from "components/atoms/HeadingLink";
 import Search from "components/atoms/Search";
+import NavEntry from "components/molecules/NavEntry";
 import type { Section, VideoMetadata } from "types";
 
 export const timeHighlightMargin = 5000;

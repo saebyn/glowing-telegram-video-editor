@@ -1,12 +1,12 @@
 import type {
-  RawVideoMetadata,
-  VideoMetadata,
-  RawChatMessage,
   ChatMessage,
+  RawChatMessage,
   RawSection,
-  Section,
   RawTranscriptSegment,
+  RawVideoMetadata,
+  Section,
   TranscriptSegment,
+  VideoMetadata,
 } from "types";
 import { isoToMs } from "./duration";
 

@@ -1,7 +1,7 @@
-import type { LogEvent } from "types";
-import TimeLink from "./atoms/TimeLink";
 import { createRef } from "react";
+import type { LogEvent } from "types";
 import useScrollToNearestElementToTime from "../hooks/useScrollToNearestElementToTime";
+import TimeLink from "./atoms/TimeLink";
 
 interface TimestampedEventLogProps<T extends LogEvent> {
   log: T[];
