@@ -1,8 +1,12 @@
 {
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
+    "source.organizeImports.biome": "explicit"
   },
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "editor.defaultFormatter": "biomejs.biome",
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
 }

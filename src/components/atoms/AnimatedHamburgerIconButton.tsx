@@ -9,6 +9,7 @@ export default function AnimatedHamburgerIconButton({
 }: AnimatedHamburgerIconButtonProps) {
   return (
     <button
+      type="button"
       className=" p-6 "
       onClick={onClick}
       aria-label="Toggle navigation menu"

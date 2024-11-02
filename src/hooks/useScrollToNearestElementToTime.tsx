@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { LogEvent } from "types";
+import type { LogEvent } from "types";
 
 /**
  * A hook that finds the nearest element to the given time in the log
@@ -43,7 +43,7 @@ function findNearestElementToTime<T extends LogEvent>(
   log: T[],
 ): number | null {
   let nearestElementIndex: number | null = null;
-  let nearestDistance = Infinity;
+  let nearestDistance = Number.POSITIVE_INFINITY;
 
   for (let index = 0; index < log.length; index++) {
     const item = log[index];

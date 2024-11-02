@@ -1,13 +1,13 @@
-import { VideoMetadata } from "types";
-import { createTimeline, generateKey } from "utils/timeline";
-import { useEffect, useRef, useState } from "react";
+import TimeSegmentMarker from "components/TimeSegmentMarker";
 import { useLens } from "components/TimelineContext";
+import TimelineElement from "components/TimelineElement";
 import {
-  TimelineElementType,
+  type TimelineElementType,
   timelineElementTypeColors,
 } from "components/TimelineLegend";
-import TimeSegmentMarker from "components/TimeSegmentMarker";
-import TimelineElement from "components/TimelineElement";
+import { useEffect, useRef, useState } from "react";
+import type { VideoMetadata } from "types";
+import { createTimeline, generateKey } from "utils/timeline";
 
 export default function Timeline({
   content: {
@@ -51,10 +51,16 @@ export default function Timeline({
 
       const deltaY = event.deltaY;
 
+      // x coordinate of the mouse relative to the container
+      const x = event.pageX - container.offsetLeft;
+
+      // relativeX is the x coordinate of the mouse relative to the container width
+      const relativeX = x / container.clientWidth;
+
       if (deltaY > 0) {
-        lens.zoomOut();
+        lens.zoomOut(relativeX);
       } else {
-        lens.zoomIn();
+        lens.zoomIn(relativeX);
       }
     };
 
@@ -63,7 +69,7 @@ export default function Timeline({
     return () => {
       container.removeEventListener("wheel", handleWheel);
     };
-  }, [containerRef, lens]);
+  }, [lens]);
 
   const timeline = createTimeline<TimelineElementType>([
     ...silences.map((silence) => ({

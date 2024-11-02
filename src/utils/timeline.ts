@@ -144,6 +144,29 @@ export function zoomIn(lens: TimelineLens, factor: number): TimelineLens {
     endMilliseconds: Math.round(center + halfLength / factor),
   };
 }
+/**
+ * Zoom in towards a specific point
+ */
+export function zoomInTowards(
+  lens: TimelineLens,
+  factor: number,
+  relativeX: number,
+): TimelineLens {
+  console.assert(factor > 1, "factor must be greater than 1");
+  console.assert(relativeX >= 0 && relativeX <= 1, "x must be between 0 and 1");
+
+  const targetCenter = relativeToTime(lens, relativeX);
+  const targetWidth = (lens.endMilliseconds - lens.startMilliseconds) / factor;
+
+  const shiftLeft = Math.max(0, targetCenter - targetWidth / 2);
+
+  return {
+    ...lens,
+
+    startMilliseconds: Math.round(shiftLeft),
+    endMilliseconds: Math.round(shiftLeft + targetWidth),
+  };
+}
 
 /**
  * Zoom out the lens
@@ -165,6 +188,33 @@ export function zoomOut(lens: TimelineLens, factor: number): TimelineLens {
       Math.round(center + halfLength * factor),
       lens.timelineDurationMilliseconds,
     ),
+  };
+}
+
+/**
+ * Zoom out away from a specific point
+ *
+ * If the lens would be zoomed out past the entire timeline, the lens should
+ * be adjusted to focus on the entire timeline.
+ */
+export function zoomOutTowards(
+  lens: TimelineLens,
+  factor: number,
+  relativeX: number,
+): TimelineLens {
+  console.assert(factor > 1, "factor must be greater than 1");
+  console.assert(relativeX >= 0 && relativeX <= 1, "x must be between 0 and 1");
+
+  const targetCenter = relativeToTime(lens, relativeX);
+  const targetWidth = (lens.endMilliseconds - lens.startMilliseconds) * factor;
+
+  const shiftLeft = Math.max(0, targetCenter - targetWidth / 2);
+
+  return {
+    ...lens,
+
+    startMilliseconds: Math.round(shiftLeft),
+    endMilliseconds: Math.round(shiftLeft + targetWidth),
   };
 }
 
@@ -240,9 +290,9 @@ export function panLens(
 ): TimelineLens {
   if (milliseconds < 0) {
     return panLeft(lens, -milliseconds);
-  } else {
-    return panRight(lens, milliseconds);
   }
+
+  return panRight(lens, milliseconds);
 }
 
 /**

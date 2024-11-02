@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "lint:vscode",
+      "problemMatcher": {
+        "owner": "biome",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": {
+          "regexp": "^::(error|warning) title=(.+),file=(.+),line=(\\d+),endLine=(\\d+),col=(\\d+),endColumn=(\\d+)::(.+)$",
+          "severity": 1,
+          "file": 3,
+          "line": 4,
+          "endLine": 5,
+          "column": 6,
+          "endColumn": 7,
+          "code": 2,
+          "message": 8
+        }
+      },
+      "label": "npm: lint",
+      "detail": "biome lint"
+    },
+    {
+      "type": "npm",
+      "script": "format",
+      "problemMatcher": [],
+      "label": "npm: format",
+      "detail": "biome format"
+    }
+  ]
+}

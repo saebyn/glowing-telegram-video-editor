@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { format, isoToSeconds } from "./duration";
 
 describe("duration", () => {

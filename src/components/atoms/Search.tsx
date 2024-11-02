@@ -16,6 +16,7 @@ function Search({ text, setText, label }: SearchProps) {
       />
       {text && (
         <button
+          type="button"
           className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
           onClick={() => setText("")}
           title="Clear filter"

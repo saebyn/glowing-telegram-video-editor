@@ -1,8 +1,8 @@
 import { createRef } from "react";
 
-import useScrollToNearestElementToTime from "hooks/useScrollToNearestElementToTime";
-import { LogEvent } from "types";
 import TimeLink from "components/atoms/TimeLink";
+import useScrollToNearestElementToTime from "hooks/useScrollToNearestElementToTime";
+import type { LogEvent } from "types";
 
 interface EditableTimestampedEventLogProps<T extends LogEvent> {
   log: T[];
@@ -58,6 +58,7 @@ export default function EditableTimestampedEventLog<T extends LogEvent>({
             {/* button that appears on hover of each log entry, allowing a user either to delete the entry or add a new entry after it */}
             <div className="absolute  bottom-0 right-1/2 hidden group-hover:block">
               <button
+                type="button"
                 className=" m-2 text-lg text-red-600 hover:text-red-800"
                 onClick={() => {
                   onRemove(entry);
@@ -66,6 +67,7 @@ export default function EditableTimestampedEventLog<T extends LogEvent>({
                 🗑
               </button>
               <button
+                type="button"
                 className="m-2 text-lg text-green-600 hover:text-green-800"
                 onClick={() => {
                   const newEvent = {

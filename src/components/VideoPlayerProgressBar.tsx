@@ -67,7 +67,7 @@ export default function VideoPlayerProgressBar({
       <div
         className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-200 dark:bg-gray-800"
         style={{ left: `calc(${progress}% - 8px)` }}
-      ></div>
+      />
       {/* Hover */}
       {hoverTime !== null && !isDragging && (
         <div

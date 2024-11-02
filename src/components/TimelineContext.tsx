@@ -1,17 +1,18 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import type React from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
 import {
+  type Timeline,
+  type TimelineItem,
+  type TimelineLens,
   createLens,
   getLensLength,
   getVisibleElements,
   panLens,
   relativeToTime,
   resetLens,
-  Timeline,
-  TimelineItem,
-  TimelineLens,
   timeToRelative,
-  zoomIn,
-  zoomOut,
+  zoomInTowards,
+  zoomOutTowards,
 } from "utils/timeline";
 
 interface TimelineContextProps {
@@ -50,8 +51,8 @@ interface TimelineHookResult {
   timeToRelative(time: number): number;
   relativeToTime(relative: number): number;
   pan(deltaMs: number): void;
-  zoomIn(): void;
-  zoomOut(): void;
+  zoomIn(relativeX: number): void;
+  zoomOut(relativeX: number): void;
   reset(): void;
   getVisibleElements<T>(timeline: Timeline<T>): TimelineItem<T>[];
   getLength(): number;
@@ -73,11 +74,11 @@ export const useLens = (): TimelineHookResult => {
     pan(deltaMs: number) {
       context.setLens((lens) => panLens(lens, deltaMs));
     },
-    zoomIn() {
-      context.setLens((lens) => zoomIn(lens, zoomFactor));
+    zoomIn(relativeX: number) {
+      context.setLens((lens) => zoomInTowards(lens, zoomFactor, relativeX));
     },
-    zoomOut() {
-      context.setLens((lens) => zoomOut(lens, zoomFactor));
+    zoomOut(relativeX: number) {
+      context.setLens((lens) => zoomOutTowards(lens, zoomFactor, relativeX));
     },
     reset() {
       context.setLens((lens) => resetLens(lens));

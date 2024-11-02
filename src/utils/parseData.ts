@@ -1,12 +1,12 @@
-import {
-  RawVideoMetadata,
-  VideoMetadata,
-  RawChatMessage,
+import type {
   ChatMessage,
+  RawChatMessage,
   RawSection,
-  Section,
   RawTranscriptSegment,
+  RawVideoMetadata,
+  Section,
   TranscriptSegment,
+  VideoMetadata,
 } from "types";
 import { isoToMs } from "./duration";
 
@@ -49,14 +49,14 @@ function parseSection(
       message: item.message,
       timestamp: isoToMs(item.timestamp),
     };
-  } else {
-    return {
-      ...item,
-      timestamp: isoToMs(item.timestamp_start),
-      timestamp_end:
-        "timestamp_end" in item && item.timestamp_end
-          ? isoToMs(item.timestamp_end)
-          : undefined,
-    };
   }
+
+  return {
+    ...item,
+    timestamp: isoToMs(item.timestamp_start),
+    timestamp_end:
+      "timestamp_end" in item && item.timestamp_end
+        ? isoToMs(item.timestamp_end)
+        : undefined,
+  };
 }
