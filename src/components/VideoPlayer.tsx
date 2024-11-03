@@ -74,8 +74,37 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
     // biome-ignore lint/correctness/useExhaustiveDependencies: These are used in the callback
     useEffect(syncVideoState, [isPlaying, isMuted, speed]);
 
+    useEffect(() => {
+      if (videoRef.current === null) {
+        return;
+      }
+
+      videoRef.current.src = media[currentVideoIndex].url;
+      videoRef.current.load();
+    }, [currentVideoIndex, media]);
+
+    useEffect(() => {
+      if (videoRef.current === null) {
+        return;
+      }
+
+      if (videoRef.current.currentTime !== currentVideoOffset / 1000) {
+        videoRef.current.currentTime = currentVideoOffset / 1000;
+      }
+    }, [currentVideoOffset]);
+
     function handleCanPlay() {
       console.log("Can play");
+      syncVideoState();
+    }
+
+    function handleEnded() {
+      console.log("Ended");
+
+      if (currentVideoIndex < media.length - 1) {
+        setCurrentVideoIndex((index) => index + 1);
+        setCurrentVideoOffset(0);
+      }
     }
 
     /**
@@ -111,6 +140,18 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
       setSpeed(newSpeed);
     }
 
+    function handleLoadStart() {
+      console.log("Load start");
+    }
+
+    function handleLoadedData() {
+      console.log("Loaded data");
+    }
+
+    function handleLoadedMetadata() {
+      console.log("Loaded metadata");
+    }
+
     const playheadTime = media[currentVideoIndex].offset + currentVideoOffset;
 
     return (
@@ -120,8 +161,12 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
           className="w-full"
           onTimeUpdate={handleTimeUpdate}
           onCanPlay={handleCanPlay}
+          onEnded={handleEnded}
           onError={console.error}
-          src={media[currentVideoIndex].url}
+          onLoadStart={handleLoadStart}
+          onLoadedData={handleLoadedData}
+          onLoadedMetadata={handleLoadedMetadata}
+          onStalled={console.error}
         >
           Your browser does not support the video tag.
         </video>
