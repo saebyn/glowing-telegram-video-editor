@@ -2,14 +2,14 @@ import { useState } from "react";
 import { format } from "utils/duration";
 
 interface ProgressBarProps {
-  progress: number;
-  seekToPercent: (progress: number) => void;
+  playheadTime: number;
+  seekTo: (milliseconds: number) => void;
   duration: number;
 }
 
 export default function VideoPlayerProgressBar({
-  progress,
-  seekToPercent,
+  playheadTime,
+  seekTo,
   duration,
 }: ProgressBarProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -28,8 +28,7 @@ export default function VideoPlayerProgressBar({
     const x = e.clientX - rect.left;
     const width = rect.width;
     const progress = x / width;
-    console.log("progress", progress);
-    seekToPercent(progress * 100.0);
+    seekTo(progress * duration);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -38,7 +37,7 @@ export default function VideoPlayerProgressBar({
     const width = rect.width;
     const progress = x / width;
     if (isDragging) {
-      seekToPercent(progress * 100.0);
+      seekTo(progress * duration);
     } else {
       // show hover effect
       // check if the mouse is inside the progress bar
@@ -55,6 +54,8 @@ export default function VideoPlayerProgressBar({
     setHoverTime(null);
   };
 
+  const playbackPercentage = (playheadTime / duration) * 100;
+
   return (
     <div
       className="relative ml-4 mt-3 h-4 flex-1 cursor-pointer rounded-full bg-gray-800 dark:bg-gray-200"
@@ -66,7 +67,7 @@ export default function VideoPlayerProgressBar({
       {/* Progress */}
       <div
         className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-200 dark:bg-gray-800"
-        style={{ left: `calc(${progress}% - 8px)` }}
+        style={{ left: `calc(${playbackPercentage}% - 8px)` }}
       />
       {/* Hover */}
       {hoverTime !== null && !isDragging && (
@@ -75,7 +76,7 @@ export default function VideoPlayerProgressBar({
           style={{ left: `calc(${(hoverTime / duration) * 100}% - 8px)` }}
         >
           <div className="absolute top-0 -mt-8 rounded bg-black/50 px-2 py-1 text-xs text-white">
-            {format(`PT${hoverTime.toFixed(0)}S`)}
+            {format(`PT${(hoverTime / 1000).toFixed(0)}S`)}
           </div>
         </div>
       )}
