@@ -1,8 +1,7 @@
-
 import VideoPlayerControls from "components/VideoPlayerControls";
 import VideoPlayerProgressBar from "components/VideoPlayerProgressBar";
 import { forwardRef, useImperativeHandle, useState } from "react";
-import types { MediaFile } from "types";
+import type { MediaFile } from "types";
 
 interface VideoPlayerProps {
   media: MediaFile[];
