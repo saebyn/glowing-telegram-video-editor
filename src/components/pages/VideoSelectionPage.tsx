@@ -1,18 +1,20 @@
-import EditableTimestampedEventLog from "components/EditableTimestampedEventLog";
-import TimeTable from "components/TimeTable";
-import Timeline from "components/Timeline";
-import { TimelineProvider } from "components/TimelineContext";
-import TimelineControls from "components/TimelineControls";
-import TimestampedEventLog from "components/TimestampedEventLog";
-import VideoPlayer, { type VideoPlayerRef } from "components/VideoPlayer";
-import Viewport from "components/Viewport";
-import Heading from "components/atoms/Heading";
-import Sidebar from "components/organisms/Sidebar";
-import rawContent from "data.json";
-import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
-import { useRef, useState } from "react";
-import type { ChatMessage, TranscriptSegment } from "types";
-import parseContent from "utils/parseData";
+import Heading from 'components/atoms/Heading';
+import EditableTimestampedEventLog from 'components/molecules/EditableTimestampedEventLog';
+import TimeTable from 'components/molecules/TimeTable';
+import TimelineControls from 'components/molecules/TimelineControls';
+import TimestampedEventLog from 'components/molecules/TimestampedEventLog';
+import VideoPlayer, {
+  type VideoPlayerRef,
+} from 'components/molecules/VideoPlayer';
+import Viewport from 'components/molecules/Viewport';
+import Sidebar from 'components/organisms/Sidebar';
+import Timeline from 'components/organisms/Timeline';
+import { TimelineProvider } from 'context/TimelineContext';
+import rawContent from 'data.json';
+import useKeyboardShortcuts from 'hooks/useKeyboardShortcuts';
+import { useRef, useState } from 'react';
+import type { ChatMessage, TranscriptSegment } from 'types';
+import parseContent from 'utils/parseData';
 
 function VideoSelectionPage() {
   const [playheadTime, setPlayheadTime] = useState(0);
@@ -24,7 +26,7 @@ function VideoSelectionPage() {
   }
 
   useKeyboardShortcuts({
-    "1": () => {
+    '1': () => {
       if (videoPlayerRef.current) {
         videoPlayerRef.current.seekTo(0);
       }
@@ -64,7 +66,7 @@ function VideoSelectionPage() {
                   renderEvent={(chat) => {
                     return (
                       <>
-                        <span className="font-bold">{chat.username}</span>:{" "}
+                        <span className="font-bold">{chat.username}</span>:{' '}
                         {chat.message}
                       </>
                     );

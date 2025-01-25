@@ -1,6 +1,5 @@
-import React from "react";
-import type { Section } from "types";
-import TimeLink from "./atoms/TimeLink";
+import type { Section } from 'types';
+import TimeLink from '../atoms/TimeLink';
 
 function TimeTable({
   rows,
@@ -25,7 +24,7 @@ function TimeTable({
         <thead>
           <tr>
             <th className="border-b px-4 py-2">
-              {includeEnd ? "Start Time" : "Time"}
+              {includeEnd ? 'Start Time' : 'Time'}
             </th>
 
             {includeEnd && <th className="border-b px-4 py-2">End Time</th>}
@@ -47,8 +46,8 @@ function TimeTable({
                 playheadTime &&
                 row.timestamp <= playheadTime &&
                 (row.timestamp_end || 0) >= playheadTime
-                  ? "bg-gray-200 dark:bg-gray-700"
-                  : ""
+                  ? 'bg-gray-200 dark:bg-gray-700'
+                  : ''
               }`}
             >
               <td className="border-b px-4 py-2">

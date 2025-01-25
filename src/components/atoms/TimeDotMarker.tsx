@@ -1,4 +1,4 @@
-import { useLens } from "components/TimelineContext";
+import { useLens } from 'context/TimelineContext';
 
 export function TimeDotMarker({
   timestampMilliseconds,
