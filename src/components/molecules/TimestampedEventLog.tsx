@@ -1,7 +1,7 @@
-import { createRef } from 'react';
-import type { LogEvent } from 'types';
-import useScrollToNearestElementToTime from '../../hooks/useScrollToNearestElementToTime';
-import TimeLink from '../atoms/TimeLink';
+import { createRef } from "react";
+import type { LogEvent } from "types";
+import useScrollToNearestElementToTime from "../../hooks/useScrollToNearestElementToTime";
+import TimeLink from "../atoms/TimeLink";
 
 interface TimestampedEventLogProps<T extends LogEvent> {
   log: T[];
@@ -33,11 +33,11 @@ export default function TimestampedEventLog<T extends LogEvent>({
           <li
             key={`entry-${entry.timestamp}`}
             className={`mb-2 ${
-              i === nearestElementIndex ? 'bg-gray-200 dark:bg-gray-700' : ''
+              i === nearestElementIndex ? "bg-gray-200 dark:bg-gray-700" : ""
             }`}
             data-index={i}
           >
-            <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} />{' '}
+            <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} />{" "}
             {renderEvent(entry)}
           </li>
         ))}

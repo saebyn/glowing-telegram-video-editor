@@ -1,4 +1,4 @@
-import { useLens } from '../../context/TimelineContext';
+import { useLens } from "../../context/TimelineContext";
 
 export default function TimeSegmentMarker({
   startMilliseconds,
@@ -18,7 +18,7 @@ export default function TimeSegmentMarker({
   const width =
     relativeWidth !== undefined
       ? `max(${relativeWidth * 100.0}%, 0.125rem)`
-      : '0.125rem';
+      : "0.125rem";
 
   return (
     <div

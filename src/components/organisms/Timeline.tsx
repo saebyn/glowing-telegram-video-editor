@@ -1,13 +1,13 @@
-import TimeSegmentMarker from 'components/atoms/TimeSegmentMarker';
+import TimeSegmentMarker from "components/atoms/TimeSegmentMarker";
 import {
   type TimelineElementType,
   timelineElementTypeColors,
-} from 'components/atoms/TimelineLegend';
-import TimelineElement from 'components/molecules/TimelineElement';
-import { useLens } from 'context/TimelineContext';
-import { useEffect, useRef, useState } from 'react';
-import type { VideoMetadata } from 'types';
-import { createTimeline, generateKey } from 'utils/timeline';
+} from "components/atoms/TimelineLegend";
+import TimelineElement from "components/molecules/TimelineElement";
+import { useLens } from "context/TimelineContext";
+import { useEffect, useRef, useState } from "react";
+import type { VideoMetadata } from "types";
+import { createTimeline, generateKey } from "utils/timeline";
 
 export default function Timeline({
   content: {
@@ -30,12 +30,12 @@ export default function Timeline({
   const [dragging, setDragging] = useState(0);
 
   useEffect(() => {
-    document.addEventListener('mouseup', handleDragEnd);
-    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener("mouseup", handleDragEnd);
+    document.addEventListener("mousemove", handleDrag);
 
     return () => {
-      document.removeEventListener('mouseup', handleDragEnd);
-      document.removeEventListener('mousemove', handleDrag);
+      document.removeEventListener("mouseup", handleDragEnd);
+      document.removeEventListener("mousemove", handleDrag);
     };
   });
 
@@ -64,36 +64,36 @@ export default function Timeline({
       }
     };
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener("wheel", handleWheel);
     };
   }, [lens]);
 
   const timeline = createTimeline<TimelineElementType>([
     ...silences.map((silence) => ({
-      type: 'silence' as TimelineElementType,
+      type: "silence" as TimelineElementType,
       startMilliseconds: silence.timestamp,
       endMilliseconds: silence.timestamp_end && silence.timestamp_end,
     })),
     ...highlights.map((highlight) => ({
-      type: 'highlight' as TimelineElementType,
+      type: "highlight" as TimelineElementType,
       startMilliseconds: highlight.timestamp,
       endMilliseconds: highlight.timestamp_end && highlight.timestamp_end,
     })),
     ...attentions.map((attention) => ({
-      type: 'attention' as TimelineElementType,
+      type: "attention" as TimelineElementType,
       startMilliseconds: attention.timestamp,
       endMilliseconds: attention.timestamp_end && attention.timestamp_end,
     })),
     ...transcription_errors.map((error) => ({
-      type: 'error' as TimelineElementType,
+      type: "error" as TimelineElementType,
       startMilliseconds: error.timestamp,
       endMilliseconds: error.timestamp_end && error.timestamp_end,
     })),
     ...chat_history.map((chat) => ({
-      type: 'chat' as TimelineElementType,
+      type: "chat" as TimelineElementType,
       startMilliseconds: chat.timestamp,
     })),
   ]);

@@ -1,10 +1,10 @@
-import type { TimelineItem } from 'utils/timeline';
-import { TimeDotMarker } from '../atoms/TimeDotMarker';
-import TimeSegmentMarker from '../atoms/TimeSegmentMarker';
+import type { TimelineItem } from "utils/timeline";
+import { TimeDotMarker } from "../atoms/TimeDotMarker";
+import TimeSegmentMarker from "../atoms/TimeSegmentMarker";
 import {
   type TimelineElementType,
   timelineElementTypeColors,
-} from '../atoms/TimelineLegend';
+} from "../atoms/TimelineLegend";
 
 interface TimelineElementProps {
   content: TimelineItem<TimelineElementType>;
@@ -12,7 +12,7 @@ interface TimelineElementProps {
 export default function TimelineElement({
   content: { startMilliseconds, endMilliseconds, type },
 }: TimelineElementProps) {
-  if (type === 'chat') {
+  if (type === "chat") {
     return (
       <TimeDotMarker
         timestampMilliseconds={startMilliseconds}
@@ -21,15 +21,15 @@ export default function TimelineElement({
     );
   }
 
-  let className = '';
-  if (type === 'silence') {
-    className = 'z-0 h-16 ';
-  } else if (type === 'highlight') {
-    className = 'z-10 h-12 ';
-  } else if (type === 'attention') {
-    className = 'z-20 h-10 ';
-  } else if (type === 'error') {
-    className = 'z-30 h-8 ';
+  let className = "";
+  if (type === "silence") {
+    className = "z-0 h-16 ";
+  } else if (type === "highlight") {
+    className = "z-10 h-12 ";
+  } else if (type === "attention") {
+    className = "z-20 h-10 ";
+  } else if (type === "error") {
+    className = "z-30 h-8 ";
   }
 
   className += timelineElementTypeColors[type];
