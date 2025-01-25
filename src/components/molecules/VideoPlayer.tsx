@@ -1,6 +1,6 @@
-import VideoPlayerControls from "components/VideoPlayerControls";
-import VideoPlayerProgressBar from "components/VideoPlayerProgressBar";
-import { forwardRef, useImperativeHandle, useState } from "react";
+import VideoPlayerControls from 'components/atoms/VideoPlayerControls';
+import VideoPlayerProgressBar from 'components/atoms/VideoPlayerProgressBar';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -44,6 +44,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
     return (
       <>
+        {/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
         <video
           ref={setVideo}
           className="w-full"

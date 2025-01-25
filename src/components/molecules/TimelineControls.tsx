@@ -1,6 +1,6 @@
-import { useLens } from "components/TimelineContext";
-import TimelineLegend from "components/TimelineLegend";
-import Button from "components/atoms/Button";
+import Button from 'components/atoms/Button';
+import TimelineLegend from 'components/atoms/TimelineLegend';
+import { useLens } from 'context/TimelineContext';
 
 export type TimelineControlsProps = {
   followPlayback: boolean;
@@ -18,11 +18,11 @@ export default function TimelineControls({
   };
 
   const handleZoomIn = () => {
-    lens.zoomIn();
+    lens.zoomIn(0.5);
   };
 
   const handleZoomOut = () => {
-    lens.zoomOut();
+    lens.zoomOut(0.5);
   };
 
   return (
