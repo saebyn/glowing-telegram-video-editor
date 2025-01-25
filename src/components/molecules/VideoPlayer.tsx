@@ -1,6 +1,7 @@
-import VideoPlayerControls from 'components/atoms/VideoPlayerControls';
-import VideoPlayerProgressBar from 'components/atoms/VideoPlayerProgressBar';
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import VideoPlayerControls from "components/atoms/VideoPlayerControls";
+import VideoPlayerProgressBar from "components/atoms/VideoPlayerProgressBar";
+import Hls from "hls.js";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -15,6 +16,16 @@ export interface VideoPlayerRef {
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
   function VideoPlayer({ videoUrl, onTimeUpdate, onEnd }, ref) {
     const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+
+    useEffect(() => {
+      if (!video) {
+        return;
+      }
+
+      const hls = new Hls();
+      hls.loadSource(videoUrl);
+      hls.attachMedia(video);
+    }, [video, videoUrl]);
 
     const timeUpdate = () => {
       if (video) {
@@ -42,6 +53,18 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     };
 
+    if (!Hls.isSupported()) {
+      return (
+        <div>
+          <h1>HLS is not supported</h1>
+          <p>
+            HLS is not supported in this browser. Please try a different browser
+            to view this content.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <>
         {/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
@@ -52,7 +75,6 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
           onEnded={onEnd}
           onError={console.error}
         >
-          <source type="video/mp4" src={videoUrl} />
           Your browser does not support the video tag.
         </video>
 
