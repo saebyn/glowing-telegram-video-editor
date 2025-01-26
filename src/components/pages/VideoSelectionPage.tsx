@@ -10,11 +10,11 @@ import Viewport from "components/molecules/Viewport";
 import Sidebar from "components/organisms/Sidebar";
 import Timeline from "components/organisms/Timeline";
 import { TimelineProvider } from "context/TimelineContext";
-import rawContent from "data.json";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 import { useRef, useState } from "react";
 import type { ChatMessage, TranscriptSegment } from "types";
 import parseContent from "utils/parseData";
+import rawContent from "../../data.json";
 
 function VideoSelectionPage() {
   const [playheadTime, setPlayheadTime] = useState(0);
