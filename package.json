@@ -1,14 +1,17 @@
 {
-  "name": "glowing-telegram-video-editor",
+  "name": "@saebyn/glowing-telegram-video-editor",
   "description": "A video editor component for glowing-telegram",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
   "author": "saebynx@gmail.com",
   "private": true,
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "rollup -c --watch",
+    "build": "rollup -c",
+    "dev:app": "vite",
+    "build:app": "tsc && vite build",
     "serve": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -23,12 +26,21 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "hls.js": "^1.5.20",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "temporal-polyfill": "^0.2.5"
+  },
+  "peerDependencies": {
+    "react": "^18",
+    "react-dom": "^18"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@chromatic-com/storybook": "^3.2.4",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
     "@storybook/addon-essentials": "^8.5.0",
     "@storybook/addon-interactions": "^8.5.0",
     "@storybook/addon-links": "^8.5.0",
@@ -47,12 +59,9 @@
     "autoprefixer": "^10.4.19",
     "globals": "^15.14.0",
     "happy-dom": "^16.7.0",
-    "hls.js": "^1.5.20",
     "postcss": "^8.5.1",
+    "rollup-plugin-postcss": "^4.0.2",
     "storybook": "^8.2.7",
-    "tailwindcss": "^3.4.17",
-    "tailwindcss-animate": "^1.0.7",
-    "temporal-polyfill": "^0.2.5",
     "typescript": "^5.7.3",
     "vite": "^6.0.10",
     "vite-tsconfig-paths": "^5.1.4",

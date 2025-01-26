@@ -6,8 +6,6 @@ import Search from "components/atoms/Search";
 import NavEntry from "components/molecules/NavEntry";
 import type { Section, VideoMetadata } from "types";
 
-export const timeHighlightMargin = 5000;
-
 function Sidebar({
   content,
   onSeekToTime,
