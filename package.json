@@ -1,7 +1,7 @@
 {
   "name": "@saebyn/glowing-telegram-video-editor",
   "description": "A video editor component for glowing-telegram",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "AGPL-3.0-only",
   "author": "saebynx@gmail.com",
   "repository": {
@@ -10,9 +10,13 @@
   },
   "type": "module",
   "main": "dist/index.js",
+  "sponsor": {
+    "url": "https://github.com/sponsors/saebyn"
+  },
   "scripts": {
     "dev": "rollup -c --watch",
     "build": "rollup -c",
+    "prepublishOnly": "npm run build",
     "dev:app": "vite",
     "build:app": "tsc && vite build",
     "serve": "vite preview",
