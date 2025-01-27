@@ -2,6 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 import json from '@rollup/plugin-json';
 import postcss from 'rollup-plugin-postcss';
 import nodeResolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from './tailwind.config.mjs';
 
@@ -12,7 +13,7 @@ const rollupConfig = {
   input: 'src/index.ts',
 
   jsx: true,
-
+  external: ['react', 'react-dom'],
   output: {
     dir: 'dist',
     format: 'esm',
@@ -27,8 +28,8 @@ const rollupConfig = {
       },
     }),
     nodeResolve({
-      resolveOnly: ['tailwindcss', 'hls.js'],
     }),
+    commonjs(),
     json(),
     postcss({
       config: {
