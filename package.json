@@ -1,12 +1,12 @@
 {
   "name": "@saebyn/glowing-telegram-video-editor",
   "description": "A video editor component for glowing-telegram",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "AGPL-3.0-only",
   "author": "saebynx@gmail.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/saebyn/glowing-telegram-video-editor"
+    "url": "git+https://github.com/saebyn/glowing-telegram-video-editor.git"
   },
   "type": "module",
   "main": "dist/index.js",
