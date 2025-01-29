@@ -12,11 +12,13 @@ import Timeline from "components/organisms/Timeline";
 import { TimelineProvider } from "context/TimelineContext";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 import { useRef, useState } from "react";
-import type { ChatMessage, TranscriptSegment } from "types";
-import parseContent from "utils/parseData";
-import rawContent from "../../data.json";
+import type { ChatMessage, TranscriptSegment, VideoMetadata } from "types";
 
-function VideoSelectionPage() {
+interface VideoSelectionPageProps {
+  content: VideoMetadata;
+}
+
+function VideoSelectionPage({ content }: VideoSelectionPageProps) {
   const [playheadTime, setPlayheadTime] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
@@ -32,8 +34,6 @@ function VideoSelectionPage() {
       }
     },
   });
-
-  const content = parseContent(rawContent);
 
   return (
     <TimelineProvider contentLength={content.length}>
