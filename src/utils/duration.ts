@@ -40,9 +40,13 @@ export function formatMs(ms: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
-  const [stringSeconds, stringFractionDigits] = remainingSeconds
+  let [stringSeconds, stringFractionDigits] = remainingSeconds
     .toPrecision(2)
     .split(".");
+
+  if (stringFractionDigits === "0") {
+    stringFractionDigits = "";
+  }
 
   return `${String(minutes).padStart(2, "0")}:${stringSeconds.padStart(2, "0")}${stringFractionDigits ? `.${stringFractionDigits}` : ""}`;
 }
