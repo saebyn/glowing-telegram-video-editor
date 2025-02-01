@@ -41,7 +41,7 @@ function TimeTable({
         <tbody>
           {rows.map((row) => (
             <tr
-              key={`row-${row.timestamp}`}
+              key={`row-${row.category}-${row.timestamp}`}
               className={`${
                 playheadTime &&
                 row.timestamp <= playheadTime &&
