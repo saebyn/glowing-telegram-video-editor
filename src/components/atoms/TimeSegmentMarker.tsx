@@ -3,11 +3,13 @@ import { useLens } from "../../context/TimelineContext";
 export default function TimeSegmentMarker({
   startMilliseconds,
   endMilliseconds,
+  text,
   className,
 }: {
   startMilliseconds: number;
   endMilliseconds: number | undefined;
   className: string;
+  text: string;
 }) {
   const { timeToRelative } = useLens();
 
@@ -22,6 +24,7 @@ export default function TimeSegmentMarker({
 
   return (
     <div
+      title={text}
       className={`absolute top-1/2 size-1 -translate-y-1/2 ${className}`}
       style={{
         left: `${timeToRelative(startMilliseconds) * 100.0}%`,

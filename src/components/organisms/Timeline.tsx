@@ -76,25 +76,30 @@ export default function Timeline({
       type: "silence" as TimelineElementType,
       startMilliseconds: silence.timestamp,
       endMilliseconds: silence.timestamp_end && silence.timestamp_end,
+      text: silence.description || "",
     })),
     ...highlights.map((highlight) => ({
       type: "highlight" as TimelineElementType,
       startMilliseconds: highlight.timestamp,
       endMilliseconds: highlight.timestamp_end && highlight.timestamp_end,
+      text: highlight.description || "",
     })),
     ...attentions.map((attention) => ({
       type: "attention" as TimelineElementType,
       startMilliseconds: attention.timestamp,
       endMilliseconds: attention.timestamp_end && attention.timestamp_end,
+      text: attention.description || "",
     })),
     ...transcription_errors.map((error) => ({
       type: "error" as TimelineElementType,
       startMilliseconds: error.timestamp,
       endMilliseconds: error.timestamp_end && error.timestamp_end,
+      text: error.description || "",
     })),
     ...chat_history.map((chat) => ({
       type: "chat" as TimelineElementType,
       startMilliseconds: chat.timestamp,
+      text: chat.username,
     })),
   ]);
   const elements = lens.getVisibleElements(timeline);
@@ -169,6 +174,7 @@ export default function Timeline({
       <TimeSegmentMarker
         startMilliseconds={playheadTime}
         endMilliseconds={undefined}
+        text=""
         className={`z-50 h-16 ${timelineElementTypeColors.cursor}`}
       />
     </div>
