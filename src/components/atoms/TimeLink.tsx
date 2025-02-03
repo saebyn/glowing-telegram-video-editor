@@ -38,14 +38,14 @@ export default function TimeLink({
         }}
       >
         <time dateTime={msToIso(milliseconds)}>{formatMs(milliseconds)}</time>
-
+        &nbsp;
         {children}
       </a>
     );
   }
   return (
     <>
-      {formatMs(milliseconds)}
+      {formatMs(milliseconds)}&nbsp;
       {children}
     </>
   );
