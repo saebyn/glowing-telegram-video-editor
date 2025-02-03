@@ -10,7 +10,7 @@ function Button({
 }) {
   return (
     <button
-      className={`mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400 ${className}`}
+      className={`mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400 hover:bg-gray-400 active:bg-gray-500 dark:hover:bg-gray-500 dark:active:bg-gray-600 hover:text-white active:text-white dark:hover:text-white dark:active:text-white ${className}`}
       {...props}
     >
       {children}

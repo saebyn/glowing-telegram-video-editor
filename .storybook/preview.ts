@@ -11,6 +11,10 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
+    darkMode: {
+      // Set the initial theme
+      current: 'light',
+    },
   },
 
   tags: ["autodocs"]
