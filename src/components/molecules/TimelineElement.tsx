@@ -10,7 +10,7 @@ interface TimelineElementProps {
   content: TimelineItem<TimelineElementType>;
 }
 export default function TimelineElement({
-  content: { startMilliseconds, endMilliseconds, type },
+  content: { startMilliseconds, endMilliseconds, type, text },
 }: TimelineElementProps) {
   if (type === "chat") {
     return (
@@ -39,6 +39,7 @@ export default function TimelineElement({
       startMilliseconds={startMilliseconds}
       endMilliseconds={endMilliseconds}
       className={className}
+      text={text}
     />
   );
 }
