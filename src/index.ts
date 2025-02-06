@@ -1,4 +1,5 @@
 import "tailwindcss/tailwind.css";
+import "material-symbols";
 
 import VideoSelectionPage from "components/pages/VideoSelectionPage";
 

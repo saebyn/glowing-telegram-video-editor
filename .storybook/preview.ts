@@ -2,6 +2,8 @@ import type { Preview } from "@storybook/react";
 
 // import the tailwindcss styles
 import "tailwindcss/tailwind.css";
+// import the material-symbols
+import "material-symbols";
 
 const preview: Preview = {
   parameters: {

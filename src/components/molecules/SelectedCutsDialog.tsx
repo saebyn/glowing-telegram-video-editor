@@ -1,10 +1,6 @@
 import Button from "components/atoms/Button";
 import IconButton from "components/atoms/IconButton";
 
-import DownIcon from "@material-symbols/svg-400/outlined/arrow_downward.svg?react";
-import UpIcon from "@material-symbols/svg-400/outlined/arrow_upward.svg?react";
-import CloseIcon from "@material-symbols/svg-400/outlined/close.svg?react";
-
 import DEFAULT_KEYFRAME_SRC from "assets/logo.svg";
 
 type Cut = {
@@ -73,24 +69,21 @@ export default function SelectedCutsDialog({
             <div className="flex space-x-1">
               <IconButton
                 onClick={() => handleRemove(cut.id)}
-                className="p-1 text-xs"
-              >
-                <CloseIcon width={16} height={16} title="Remove" />
-              </IconButton>
+                icon="close"
+                title="Remove"
+              />
               <IconButton
                 onClick={() => handleReorder(index, "up")}
                 disabled={index === 0}
-                className="p-1 text-xs"
-              >
-                <UpIcon width={16} height={16} title="Move up" />
-              </IconButton>
+                icon="arrow_upward"
+                title="Move up"
+              />
               <IconButton
                 onClick={() => handleReorder(index, "down")}
                 disabled={index === cuts.length - 1}
-                className="p-1 text-xs"
-              >
-                <DownIcon width={16} height={16} title="Move down" />
-              </IconButton>
+                icon="arrow_downward"
+                title="Move down"
+              />
             </div>
           </li>
         ))}
