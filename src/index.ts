@@ -1,5 +1,5 @@
 import "tailwindcss/tailwind.css";
-import "material-symbols";
+import "material-symbols/outlined.css";
 
 import VideoSelectionPage from "components/pages/VideoSelectionPage";
 
