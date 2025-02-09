@@ -41,7 +41,7 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
     const clip: VideoClip = {
       id: section.timestamp.toString(),
       start: section.timestamp,
-      end: (section.timestamp_end || section.timestamp + 10000) / 1000,
+      end: section.timestamp_end || section.timestamp + 10000,
     };
 
     setSelectedClips((prevClips) => {
