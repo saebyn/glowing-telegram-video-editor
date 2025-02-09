@@ -25,6 +25,7 @@ export interface TimelineItem<ElementType> {
   startMilliseconds: number;
   endMilliseconds?: number;
   text: string;
+  originIndex: number;
 }
 
 /**

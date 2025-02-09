@@ -11,6 +11,7 @@ interface VideoPlayerProps {
 
 export interface VideoPlayerRef {
   seekTo: (milliseconds: number) => void;
+  togglePlay: () => void;
 }
 
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
@@ -41,6 +42,16 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
         seekTo: (milliseconds: number) => {
           if (video) {
             video.currentTime = milliseconds / 1000;
+          }
+        },
+
+        togglePlay: () => {
+          if (video) {
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
           }
         },
       }),

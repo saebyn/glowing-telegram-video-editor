@@ -22,8 +22,7 @@
     "types": [
       "vite/client",
       "vitest/globals",
-      "@testing-library/jest-dom",
-      "vite-plugin-svgr/client"
+      "@testing-library/jest-dom"
     ],
   },
   "include": [

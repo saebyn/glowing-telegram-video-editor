@@ -6,7 +6,7 @@ import {
 import TimelineElement from "components/molecules/TimelineElement";
 import { useLens } from "context/TimelineContext";
 import { useEffect, useRef, useState } from "react";
-import type { VideoMetadata } from "types";
+import type { Section, VideoMetadata } from "types";
 import { createTimeline, generateKey } from "utils/timeline";
 
 export default function Timeline({
@@ -19,10 +19,12 @@ export default function Timeline({
   },
   playheadTime,
   onSeekToTime,
+  onItemSelect,
 }: {
   content: VideoMetadata;
   playheadTime: number;
   onSeekToTime?: (time: number) => void;
+  onItemSelect?: (item: Section) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lens = useLens();
@@ -72,34 +74,39 @@ export default function Timeline({
   }, [lens]);
 
   const timeline = createTimeline<TimelineElementType>([
-    ...silences.map((silence) => ({
+    ...silences.map((silence, index) => ({
       type: "silence" as TimelineElementType,
       startMilliseconds: silence.timestamp,
       endMilliseconds: silence.timestamp_end && silence.timestamp_end,
       text: silence.description || "",
+      originIndex: index,
     })),
-    ...highlights.map((highlight) => ({
+    ...highlights.map((highlight, index) => ({
       type: "highlight" as TimelineElementType,
       startMilliseconds: highlight.timestamp,
       endMilliseconds: highlight.timestamp_end && highlight.timestamp_end,
       text: highlight.description || "",
+      originIndex: index,
     })),
-    ...attentions.map((attention) => ({
+    ...attentions.map((attention, index) => ({
       type: "attention" as TimelineElementType,
       startMilliseconds: attention.timestamp,
       endMilliseconds: attention.timestamp_end && attention.timestamp_end,
       text: attention.description || "",
+      originIndex: index,
     })),
-    ...transcription_errors.map((error) => ({
+    ...transcription_errors.map((error, index) => ({
       type: "error" as TimelineElementType,
       startMilliseconds: error.timestamp,
       endMilliseconds: error.timestamp_end && error.timestamp_end,
       text: error.description || "",
+      originIndex: index,
     })),
-    ...chat_history.map((chat) => ({
+    ...chat_history.map((chat, index) => ({
       type: "chat" as TimelineElementType,
       startMilliseconds: chat.timestamp,
       text: chat.username,
+      originIndex: index,
     })),
   ]);
   const elements = lens.getVisibleElements(timeline);
@@ -148,6 +155,13 @@ export default function Timeline({
       return;
     }
 
+    /**
+     * If the user is holding down the shift key, don't seek to the time.
+     */
+    if (event.shiftKey) {
+      return;
+    }
+
     const containerPixelWidth = containerRef.current.clientWidth;
 
     const offsetXInContainer = event.pageX - containerRef.current.offsetLeft;
@@ -168,10 +182,41 @@ export default function Timeline({
       onClick={handleContainerClick}
     >
       {elements.map((content) => (
-        <TimelineElement key={generateKey(content)} content={content} />
+        <TimelineElement
+          key={generateKey(content)}
+          content={content}
+          onClick={() => {
+            if (onItemSelect) {
+              let source: Section[];
+
+              switch (content.type) {
+                case "silence":
+                  source = silences;
+                  break;
+                case "highlight":
+                  source = highlights;
+                  break;
+                case "attention":
+                  source = attentions;
+                  break;
+                case "error":
+                  source = transcription_errors;
+                  break;
+                case "chat":
+                  source = chat_history;
+                  break;
+                default:
+                  throw new Error("Invalid type");
+              }
+
+              onItemSelect(source[content.originIndex] as Section);
+            }
+          }}
+        />
       ))}
 
       <TimeSegmentMarker
+        onClick={() => {}}
         startMilliseconds={playheadTime}
         endMilliseconds={undefined}
         text=""

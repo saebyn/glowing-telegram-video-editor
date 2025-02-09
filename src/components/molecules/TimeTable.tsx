@@ -7,16 +7,20 @@ function TimeTable({
   includeReasoning = false,
   includeCategory = false,
   canEdit = false,
+  canClip = false,
   playheadTime,
   onSeekToTime,
+  onClip,
 }: {
   rows: Section[];
   includeEnd?: boolean;
   includeReasoning?: boolean;
   includeCategory?: boolean;
   canEdit?: boolean;
+  canClip?: boolean;
   playheadTime?: number;
   onSeekToTime?: (milliseconds: number) => void;
+  onClip?: (section: Section) => void;
 }) {
   return (
     <section className="mb-6 text-gray-700 dark:text-gray-200">
@@ -76,6 +80,16 @@ function TimeTable({
                     className="mx-2 rounded bg-green-500 px-2 py-1 text-white"
                   >
                     Edit
+                  </button>
+                )}
+
+                {canClip && (
+                  <button
+                    type="button"
+                    className="mx-2 rounded bg-blue-500 px-2 py-1 text-white"
+                    onClick={() => onClip?.(row)}
+                  >
+                    Clip
                   </button>
                 )}
 
