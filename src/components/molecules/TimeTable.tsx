@@ -28,19 +28,21 @@ function TimeTable({
       <table className="min-w-full rounded bg-white shadow-md dark:bg-gray-600">
         <thead>
           <tr>
-            <th className="border-b px-4 py-2">
+            <th className="border-b px-4 py-2 text-start">
               {includeEnd ? "Start Time" : "Time"}
             </th>
 
-            {includeEnd && <th className="border-b px-4 py-2">End Time</th>}
+            {includeEnd && (
+              <th className="border-b px-4 py-2 text-start">End Time</th>
+            )}
             {includeCategory && (
-              <th className="border-b px-4 py-2">Category</th>
+              <th className="border-b px-4 py-2 text-start">Category</th>
             )}
-            <th className="border-b px-4 py-2">Description</th>
+            <th className="border-b px-4 py-2 text-start">Description</th>
             {includeReasoning && (
-              <th className="border-b px-4 py-2">Reasoning</th>
+              <th className="border-b px-4 py-2 text-start">Reasoning</th>
             )}
-            <th className="border-b px-4 py-2">Actions</th>
+            <th className="border-b px-4 py-2 text-start">Actions</th>
           </tr>
         </thead>
         <tbody>
