@@ -176,7 +176,7 @@ export default function Timeline({
 
   return (
     <div
-      className="relative h-16 cursor-pointer select-none overflow-hidden rounded bg-gray-200 dark:bg-gray-600"
+      className="relative h-16 cursor-crosshair select-none overflow-hidden rounded bg-gray-200 dark:bg-gray-600"
       ref={containerRef}
       onMouseDown={handleDragStart}
       onClick={handleContainerClick}
