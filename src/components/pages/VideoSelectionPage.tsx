@@ -1,4 +1,7 @@
 import Heading from "components/atoms/Heading";
+import ClipSelectionDialog, {
+  type VideoClip,
+} from "components/molecules/ClipSelectionDialog";
 import EditableTimestampedEventLog from "components/molecules/EditableTimestampedEventLog";
 import TimeTable from "components/molecules/TimeTable";
 import TimelineControls from "components/molecules/TimelineControls";
@@ -12,19 +15,36 @@ import Timeline from "components/organisms/Timeline";
 import { TimelineProvider } from "context/TimelineContext";
 import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
 import { useRef, useState } from "react";
-import type { ChatMessage, TranscriptSegment, VideoMetadata } from "types";
+import type {
+  ChatMessage,
+  Section,
+  TranscriptSegment,
+  VideoMetadata,
+} from "types";
 
 interface VideoSelectionPageProps {
   content: VideoMetadata;
+  onExport?: (clips: VideoClip[]) => void;
 }
 
-function VideoSelectionPage({ content }: VideoSelectionPageProps) {
+function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
   const [playheadTime, setPlayheadTime] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const [selectedClips, setSelectedClips] = useState<VideoClip[]>([]);
 
   function handleSeekToTime(milliseconds: number) {
     videoPlayerRef.current?.seekTo(milliseconds);
+  }
+
+  function appendSectionToClips(section: Section) {
+    const clip: VideoClip = {
+      id: section.timestamp.toString(),
+      start: section.timestamp,
+      end: (section.timestamp_end || section.timestamp + 10000) / 1000,
+    };
+
+    setSelectedClips((prevClips) => [...prevClips, clip]);
   }
 
   useKeyboardShortcuts({
@@ -33,11 +53,29 @@ function VideoSelectionPage({ content }: VideoSelectionPageProps) {
         videoPlayerRef.current.seekTo(0);
       }
     },
+    " ": () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.togglePlay();
+      }
+    },
   });
 
   return (
     <TimelineProvider contentLength={content.length}>
       <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
+        <ClipSelectionDialog
+          show={selectedClips.length > 0}
+          clips={selectedClips}
+          onExport={() => {
+            onExport?.(selectedClips);
+          }}
+          onClear={() => setSelectedClips([])}
+          onReorder={(newClips) => setSelectedClips(newClips)}
+          onRemove={(id) =>
+            setSelectedClips(selectedClips.filter((clip) => clip.id !== id))
+          }
+        />
+
         <Sidebar
           content={content}
           onSeekToTime={handleSeekToTime}
@@ -79,6 +117,7 @@ function VideoSelectionPage({ content }: VideoSelectionPageProps) {
                   content={content}
                   playheadTime={playheadTime}
                   onSeekToTime={handleSeekToTime}
+                  onItemSelect={appendSectionToClips}
                 />
               }
               transcript={
@@ -117,6 +156,8 @@ function VideoSelectionPage({ content }: VideoSelectionPageProps) {
               includeEnd
               includeReasoning
               canEdit
+              canClip
+              onClip={appendSectionToClips}
             />
 
             <Heading level={2} id="attentions">

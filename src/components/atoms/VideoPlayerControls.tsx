@@ -33,6 +33,15 @@ export default function VideoPlayerControls({
     }
   }, [speed, video]);
 
+  useEffect(() => {
+    // handle events from the video element that change the state
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    video?.addEventListener("play", handlePlay);
+    video?.addEventListener("pause", handlePause);
+  }, [video]);
+
   const play = () => {
     if (video) {
       video.play().then(() => {

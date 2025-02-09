@@ -1,3 +1,4 @@
+import { action } from "@storybook/addon-actions";
 import VideoSelectionPage from "./VideoSelectionPage";
 
 export default {
@@ -11,12 +12,12 @@ export const Default = {
     content: {
       title: "Test Video",
       video_url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-
-      length: 1000 * 60 * 60,
+      // 10 minutes, 34 seconds, in milliseconds
+      length: 634000,
       highlights: [
         {
           timestamp: 0,
-          timestamp_end: 1000 * 60 * 60,
+          timestamp_end: 10000,
           description: "This is a test highlight",
           reasoning: "This is the reasoning for the highlight",
         },
@@ -27,5 +28,6 @@ export const Default = {
       chat_history: [],
       transcript: [],
     },
+    onExport: action("Export"),
   },
 };

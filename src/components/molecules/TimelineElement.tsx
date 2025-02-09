@@ -8,9 +8,11 @@ import {
 
 interface TimelineElementProps {
   content: TimelineItem<TimelineElementType>;
+  onClick: () => void;
 }
 export default function TimelineElement({
   content: { startMilliseconds, endMilliseconds, type, text },
+  onClick,
 }: TimelineElementProps) {
   if (type === "chat") {
     return (
@@ -36,6 +38,7 @@ export default function TimelineElement({
 
   return (
     <TimeSegmentMarker
+      onClick={onClick}
       startMilliseconds={startMilliseconds}
       endMilliseconds={endMilliseconds}
       className={className}

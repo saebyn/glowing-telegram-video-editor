@@ -1,10 +1,10 @@
 import { action } from "@storybook/addon-actions";
 
-import SelectedCutsDialog from "./SelectedCutsDialog";
+import ClipSelectionDialog from "./ClipSelectionDialog";
 
 export default {
   title: "Molecules/SelectedCutsDialog",
-  component: SelectedCutsDialog,
+  component: ClipSelectionDialog,
   tags: ["molecules"],
   decorators: [
     (story: () => React.ReactNode) => (
@@ -15,7 +15,7 @@ export default {
 
 export const Default = () => {
   return (
-    <SelectedCutsDialog
+    <ClipSelectionDialog
       cuts={[
         {
           id: "1",
@@ -33,7 +33,7 @@ export const Default = () => {
 
 export const MultipleCuts = () => {
   return (
-    <SelectedCutsDialog
+    <ClipSelectionDialog
       cuts={[
         {
           id: "1",

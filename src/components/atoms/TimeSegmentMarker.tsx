@@ -5,11 +5,13 @@ export default function TimeSegmentMarker({
   endMilliseconds,
   text,
   className,
+  onClick,
 }: {
   startMilliseconds: number;
   endMilliseconds: number | undefined;
   className: string;
   text: string;
+  onClick?: () => void;
 }) {
   const { timeToRelative } = useLens();
 
@@ -25,6 +27,7 @@ export default function TimeSegmentMarker({
   return (
     <div
       title={text}
+      onClick={onClick}
       className={`absolute top-1/2 size-1 -translate-y-1/2 ${className}`}
       style={{
         left: `${timeToRelative(startMilliseconds) * 100.0}%`,
