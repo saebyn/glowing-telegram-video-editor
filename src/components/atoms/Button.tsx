@@ -22,7 +22,7 @@ function Button({
   );
 }
 
-function getVariantClass(variant: string) {
+function getVariantClass(variant: "primary" | "danger" | "secondary" | "default") {
   switch (variant) {
     case "primary":
       return "bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 active:bg-blue-700 dark:hover:bg-blue-700 dark:active:bg-blue-800 hover:text-white active:text-white dark:hover:text-white dark:active:text-white";
