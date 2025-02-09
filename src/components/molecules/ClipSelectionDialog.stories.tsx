@@ -16,7 +16,7 @@ export default {
 export const Default = () => {
   return (
     <ClipSelectionDialog
-      cuts={[
+      clips={[
         {
           id: "1",
           start: 0,
@@ -36,7 +36,7 @@ export const MultipleCuts = () => {
   return (
     <ClipSelectionDialog
       show={true}
-      cuts={[
+      clips={[
         {
           id: "1",
           start: 0,
