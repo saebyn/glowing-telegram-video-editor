@@ -1,3 +1,4 @@
+import Button from "components/atoms/Button";
 import type React from "react";
 
 function IconButton({
@@ -9,17 +10,13 @@ function IconButton({
   className?: string;
   icon: string;
   text?: string;
+  variant?: "primary" | "danger" | "secondary" | "default";
 }) {
   return (
-    <button
-      className={`flex items-center rounded bg-gray-300 dark:bg-gray-400 hover:bg-gray-400 active:bg-gray-500 dark:hover:bg-gray-500 dark:active:bg-gray-600 hover:text-white active:text-white dark:hover:text-white dark:active:text-white disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed
-
-        ${className}`}
-      {...props}
-    >
+    <Button className={`flex items-center ${className}`} {...props}>
       <span className="material-symbols-outlined size-5 m-2">{icon}</span>
       {text ? <span className="m-2 mr-4">{text}</span> : null}
-    </button>
+    </Button>
   );
 }
 
