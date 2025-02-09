@@ -58,6 +58,26 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
         videoPlayerRef.current.togglePlay();
       }
     },
+    ArrowLeft: () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.seekTo(playheadTime - 250);
+      }
+    },
+    ArrowRight: () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.seekTo(playheadTime + 250);
+      }
+    },
+    "Shift+ArrowLeft": () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.seekTo(playheadTime - 1000);
+      }
+    },
+    "Shift+ArrowRight": () => {
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.seekTo(playheadTime + 1000);
+      }
+    },
   });
 
   return (
