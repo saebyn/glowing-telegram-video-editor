@@ -21,6 +21,12 @@ export const Default = {
           description: "This is a test highlight",
           reasoning: "This is the reasoning for the highlight",
         },
+        {
+          timestamp: 20000,
+          timestamp_end: 30000,
+          description: "This is another test highlight",
+          reasoning: "This is the reasoning for the highlight",
+        },
       ],
       attentions: [],
       transcription_errors: [],

@@ -23,8 +23,10 @@ export const Default = () => {
           end: 10,
         },
       ]}
+      onCopyStartTime={action("onCopyStartTime")}
+      onCopyEndTime={action("onCopyEndTime")}
+      onExport={action("onExport")}
       show={true}
-      onClose={action("onClose")}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
@@ -53,7 +55,9 @@ export const MultipleCuts = () => {
           end: 30,
         },
       ]}
-      onClose={action("onClose")}
+      onCopyStartTime={action("onCopyStartTime")}
+      onCopyEndTime={action("onCopyEndTime")}
+      onExport={action("onExport")}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
