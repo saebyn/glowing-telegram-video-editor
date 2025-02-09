@@ -23,6 +23,7 @@ export const Default = () => {
           end: 10,
         },
       ]}
+      show={true}
       onClose={action("onClose")}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
@@ -34,6 +35,7 @@ export const Default = () => {
 export const MultipleCuts = () => {
   return (
     <ClipSelectionDialog
+      show={true}
       cuts={[
         {
           id: "1",
