@@ -44,7 +44,14 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
       end: (section.timestamp_end || section.timestamp + 10000) / 1000,
     };
 
-    setSelectedClips((prevClips) => [...prevClips, clip]);
+    setSelectedClips((prevClips) => {
+      const prevClipsWithoutNew = prevClips.filter(
+        (prevClip) => prevClip.id !== clip.id,
+      );
+
+      return [...prevClipsWithoutNew, clip];
+    });
+  }
   }
 
   useKeyboardShortcuts({
