@@ -1,3 +1,4 @@
+import Button from "components/atoms/Button";
 import type { Section } from "types";
 import TimeLink from "../atoms/TimeLink";
 
@@ -75,30 +76,23 @@ function TimeTable({
               )}
               <td className="border-b px-4 py-2 text-right">
                 {canEdit && (
-                  <button
-                    type="button"
-                    className="mx-2 rounded bg-green-500 px-2 py-1 text-white"
-                  >
+                  <Button className="mx-2 rounded  text-white bg-green-500 dark:bg-green-600 dark:text-white">
                     Edit
-                  </button>
+                  </Button>
                 )}
 
                 {canClip && (
-                  <button
-                    type="button"
-                    className="mx-2 rounded bg-blue-500 px-2 py-1 text-white"
+                  <Button
+                    className="mx-2 rounded bg-blue-500 text-white dark:!bg-blue-600 dark:text-white"
                     onClick={() => onClip?.(row)}
                   >
                     Clip
-                  </button>
+                  </Button>
                 )}
 
-                <button
-                  type="button"
-                  className="rounded bg-red-500 px-2 py-1 text-white"
-                >
+                <Button className="rounded bg-red-500 text-white dark:bg-red-600 dark:text-white">
                   Delete
-                </button>
+                </Button>
               </td>
             </tr>
           ))}
