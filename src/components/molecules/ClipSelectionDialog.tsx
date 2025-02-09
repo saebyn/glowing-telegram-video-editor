@@ -2,10 +2,17 @@ import Button from "components/atoms/Button";
 import IconButton from "components/atoms/IconButton";
 
 import DEFAULT_KEYFRAME_SRC from "assets/logo.svg";
+import { formatMs } from "utils/duration";
 
 export type VideoClip = {
   id: string;
+  /**
+   * Start time in milliseconds
+   */
   start: number;
+  /**
+   * End time in milliseconds
+   */
   end: number;
   keyframeSrc?: string;
 };
@@ -76,7 +83,7 @@ export default function ClipSelectionDialog({
               className="mr-2"
             />
             <div className="flex-grow">
-              Clip {clip.id}: {clip.start}s - {clip.end}s
+              {formatMs(clip.start)} - {formatMs(clip.end)}
             </div>
             <div className="flex space-x-1">
               <IconButton
