@@ -7,7 +7,14 @@ interface KeyActionMap {
 const useKeyboardShortcuts = (keyActionMap: KeyActionMap) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = `${event.ctrlKey ? "Ctrl+" : ""}${event.key}`;
+      const keyParts = [
+        event.ctrlKey ? "Ctrl" : "",
+        event.shiftKey ? "Shift" : "",
+        event.altKey ? "Alt" : "",
+        event.metaKey ? "Meta" : "",
+        event.key,
+      ].filter((part) => part !== "");
+      const key = `${keyParts.join("+")}`;
       if (keyActionMap[key]) {
         event.preventDefault();
         keyActionMap[key](event);
