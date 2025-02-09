@@ -1,9 +1,15 @@
+import autoprefixer from 'autoprefixer';
 import typescript from '@rollup/plugin-typescript';
 import json from '@rollup/plugin-json';
 import postcss from 'rollup-plugin-postcss';
+import postcssImport from 'postcss-import';
+import postcssUrl from 'postcss-url';
+import copy from 'rollup-plugin-copy';
+import tailwind from 'tailwindcss';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import tailwindcss from 'tailwindcss';
+import svg from 'rollup-plugin-svg';
+
 import tailwindConfig from './tailwind.config.mjs';
 
 /**
@@ -31,11 +37,18 @@ const rollupConfig = {
     }),
     commonjs(),
     json(),
+    svg({
+      base64: true,
+    }),
     postcss({
-      config: {
-        path: './postcss.config.mjs',
-      },
-      plugins: [tailwindcss(tailwindConfig)],
+      plugins: [
+        postcssImport(),
+        postcssUrl({
+          url: "inline",
+        }),
+        tailwind(tailwindConfig),
+        autoprefixer(),
+      ],
     }),
   ],
 };
