@@ -1,8 +1,8 @@
 import Button from "components/atoms/Button";
 import IconButton from "components/atoms/IconButton";
 
-import DEFAULT_KEYFRAME_SRC from "assets/logo.svg";
-import { formatMs } from "utils/duration";
+import TimeLink from "components/atoms/TimeLink";
+import DEFAULT_KEYFRAME_SRC from "../../assets/logo.svg";
 
 export type VideoClip = {
   id: string;
@@ -54,20 +54,15 @@ export default function ClipSelectionDialog({
   };
 
   return (
-    <div className="fixed w-96 bg-white shadow-lg p-4 flex flex-col space-y-4 right-0 bottom-0 z-50">
+    <div className="fixed  shadow-lg p-4 flex flex-col space-y-4 right-8 bottom-2 z-50 bg-white text-gray-800 dark:bg-gray-800 dark:text-white">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Selected Clips</h2>
-        <Button
-          className="bg-red-500
-        dark:bg-red-600 hover:bg-red-600 active:bg-red-700 dark:hover:bg-red-700 dark:active:bg-red-800 hover:text-white active:text-white dark:hover:text-white dark:active:text-white
-        "
-          onClick={onClear}
-        >
+        <Button variant="danger" onClick={onClear}>
           Clear
         </Button>
 
         <IconButton
-          className="bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 active:bg-blue-700 dark:hover:bg-blue-700 dark:active:bg-blue-800 hover:text-white active:text-white dark:hover:text-white dark:active:text-white"
+          variant="primary"
           onClick={onExport}
           icon="file_export"
           text="Export"
@@ -87,13 +82,15 @@ export default function ClipSelectionDialog({
               className="mr-2"
             />
             <div className="flex-grow">
-              {formatMs(clip.start)} - {formatMs(clip.end)}
+              <TimeLink milliseconds={clip.start} />-{" "}
+              <TimeLink milliseconds={clip.end} />
             </div>
             <div className="flex space-x-1">
               <IconButton
                 onClick={() => handleRemove(clip.id)}
                 icon="close"
                 title="Remove"
+                variant="danger"
               />
               <IconButton
                 onClick={() => handleReorder(index, "up")}
@@ -111,11 +108,13 @@ export default function ClipSelectionDialog({
                 onClick={() => onCopyStartTime(clip.id)}
                 icon="line_start_square"
                 title="Copy start time from playhead"
+                variant="secondary"
               />
               <IconButton
                 onClick={() => onCopyEndTime(clip.id)}
                 icon="line_end_square"
                 title="Copy end time from playhead"
+                variant="secondary"
               />
             </div>
           </li>
