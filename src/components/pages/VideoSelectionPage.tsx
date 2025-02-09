@@ -52,6 +52,18 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
       return [...prevClipsWithoutNew, clip];
     });
   }
+
+  function handleCopyTime(startOrEnd: "start" | "end") {
+    return (id: string) => {
+      setSelectedClips((clips) =>
+        clips.map((clip) => {
+          if (clip.id === id) {
+            return { ...clip, [startOrEnd]: playheadTime };
+          }
+          return clip;
+        }),
+      );
+    };
   }
 
   useKeyboardShortcuts({
@@ -101,6 +113,8 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
           onRemove={(id) =>
             setSelectedClips(selectedClips.filter((clip) => clip.id !== id))
           }
+          onCopyStartTime={handleCopyTime("start")}
+          onCopyEndTime={handleCopyTime("end")}
         />
 
         <Sidebar

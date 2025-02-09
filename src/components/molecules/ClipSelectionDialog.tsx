@@ -24,6 +24,8 @@ interface Props {
   onExport: () => void;
   onRemove: (id: string) => void;
   onReorder: (clips: VideoClip[]) => void;
+  onCopyStartTime: (id: string) => void;
+  onCopyEndTime: (id: string) => void;
 }
 
 export default function ClipSelectionDialog({
@@ -33,6 +35,8 @@ export default function ClipSelectionDialog({
   onExport,
   onRemove,
   onReorder,
+  onCopyStartTime,
+  onCopyEndTime,
 }: Props) {
   if (!show) {
     return null;
@@ -73,7 +77,7 @@ export default function ClipSelectionDialog({
         {clips.map((clip, index) => (
           <li
             key={clip.id}
-            className="border border-gray-200 rounded p-1 flex items-center"
+            className="border border-gray-200 rounded p-1 flex items-center animate-highlight-new"
           >
             <img
               src={clip.keyframeSrc || DEFAULT_KEYFRAME_SRC}
@@ -102,6 +106,16 @@ export default function ClipSelectionDialog({
                 disabled={index === clips.length - 1}
                 icon="move_down"
                 title="Move down"
+              />
+              <IconButton
+                onClick={() => onCopyStartTime(clip.id)}
+                icon="line_start_square"
+                title="Copy start time from playhead"
+              />
+              <IconButton
+                onClick={() => onCopyEndTime(clip.id)}
+                icon="line_end_square"
+                title="Copy end time from playhead"
               />
             </div>
           </li>
