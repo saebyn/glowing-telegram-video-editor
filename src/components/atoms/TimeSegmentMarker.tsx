@@ -37,6 +37,20 @@ export default function TimeSegmentMarker({
     setIsClickable(false);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      setIsClickable(true);
+    }
+  };
+
+  const handleKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    setIsClickable(false);
+  };
+
   const handleClick = () => {
     if (isClickable && onClick) {
       onClick();
@@ -49,6 +63,10 @@ export default function TimeSegmentMarker({
       onClick={handleClick}
       onMouseEnter={handleHover}
       onMouseLeave={handleHover}
+      onMouseMove={handleHover}
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+      onKeyUp={handleKeyUp}
       className={`absolute top-1/2 size-1 -translate-y-1/2 ${className} ${isClickable ? "cursor-pointer" : ""}`}
       style={{
         left: `${timeToRelative(startMilliseconds) * 100.0}%`,
