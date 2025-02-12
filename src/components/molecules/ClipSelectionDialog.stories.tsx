@@ -30,6 +30,7 @@ export const Default = () => {
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
+      onSeekToTime={action("onSeekToTime")}
     />
   );
 };
@@ -61,6 +62,7 @@ export const MultipleCuts = () => {
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
+      onSeekToTime={action("onSeekToTime")}
     />
   );
 };
