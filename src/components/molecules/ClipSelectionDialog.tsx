@@ -2,20 +2,8 @@ import Button from "components/atoms/Button";
 import IconButton from "components/atoms/IconButton";
 
 import TimeLink from "components/atoms/TimeLink";
+import type { VideoClip } from "types";
 import DEFAULT_KEYFRAME_SRC from "../../assets/logo.svg";
-
-export type VideoClip = {
-  id: string;
-  /**
-   * Start time in milliseconds
-   */
-  start: number;
-  /**
-   * End time in milliseconds
-   */
-  end: number;
-  keyframeSrc?: string;
-};
 
 interface Props {
   clips: VideoClip[];

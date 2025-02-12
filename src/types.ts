@@ -102,3 +102,22 @@ export interface ChatMessage extends LogEvent {
    */
   message: string;
 }
+
+/**
+ * A selection within a video.
+ */
+export type VideoClip = {
+  id: string;
+  /**
+   * Start time in milliseconds
+   */
+  start: number;
+  /**
+   * End time in milliseconds
+   */
+  end: number;
+  /**
+   * URL to the keyframe image, if available.
+   */
+  keyframeSrc?: string;
+};
