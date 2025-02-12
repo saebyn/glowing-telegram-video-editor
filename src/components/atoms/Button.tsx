@@ -19,7 +19,7 @@ function Button({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" || e.key === " ") {
       onClick?.();
     }
   };
@@ -29,6 +29,7 @@ function Button({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={props.tabIndex ?? 0}
+      type="button"
       className={`mx-2 rounded px-5 py-3 max-h-12 ${variantClass} disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-200 disabled:hover:text-gray-400 disabled:active:bg-gray-200 disabled:active:text-gray-400 disabled:dark:bg-gray-700 disabled:dark:text-gray-400 disabled:dark:hover:bg-gray-700 disabled:dark:hover:text-gray-400 disabled:dark:active:bg-gray-700 disabled:dark:active:text-gray-400 ${className}`}
       {...props}
     >
