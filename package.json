@@ -9,17 +9,23 @@
     "url": "git+https://github.com/saebyn/glowing-telegram-video-editor.git"
   },
   "type": "module",
-  "main": "dist/index.js",
+  "files": ["dist"],
+  "module": "dist/glowing-telegram-video-editor.js",
+  "exports": {
+    ".": {
+      "import": "./dist/glowing-telegram-video-editor.js"
+    },
+    "./styles.css": {
+      "import": "./dist/glowing-telegram-video-editor.css"
+    }
+  },
   "sponsor": {
     "url": "https://github.com/sponsors/saebyn"
   },
   "scripts": {
-    "dev": "rollup -c --watch",
-    "build": "rollup -c",
     "prepublishOnly": "npm run build",
-    "dev:app": "vite",
-    "build:app": "tsc && vite build",
-    "serve": "vite preview",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "biome": "biome",
