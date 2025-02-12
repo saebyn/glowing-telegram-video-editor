@@ -19,6 +19,7 @@ import type {
   ChatMessage,
   Section,
   TranscriptSegment,
+  VideoClip,
   VideoMetadata,
 } from "types";
 
