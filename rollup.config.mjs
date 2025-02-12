@@ -4,7 +4,6 @@ import json from '@rollup/plugin-json';
 import postcss from 'rollup-plugin-postcss';
 import postcssImport from 'postcss-import';
 import postcssUrl from 'postcss-url';
-import copy from 'rollup-plugin-copy';
 import tailwind from 'tailwindcss';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
