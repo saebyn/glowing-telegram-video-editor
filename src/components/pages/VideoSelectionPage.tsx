@@ -1,7 +1,6 @@
+import Button from "components/atoms/Button";
 import Heading from "components/atoms/Heading";
-import ClipSelectionDialog, {
-  type VideoClip,
-} from "components/molecules/ClipSelectionDialog";
+import ClipSelectionDialog, {} from "components/molecules/ClipSelectionDialog";
 import EditableTimestampedEventLog from "components/molecules/EditableTimestampedEventLog";
 import TimeTable from "components/molecules/TimeTable";
 import TimelineControls from "components/molecules/TimelineControls";
@@ -22,6 +21,7 @@ import type {
   VideoClip,
   VideoMetadata,
 } from "types";
+import findGaps from "utils/findGaps";
 
 interface VideoSelectionPageProps {
   content: VideoMetadata;
@@ -167,12 +167,15 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                 <EditableTimestampedEventLog<TranscriptSegment>
                   log={content.transcript}
                   onChange={(updatedSegment) => {
+                    // TODO
                     console.log(updatedSegment);
                   }}
                   onAdd={(newSegment) => {
+                    // TODO
                     console.log(newSegment);
                   }}
                   onRemove={(segment) => {
+                    // TODO
                     console.log(segment);
                   }}
                   playheadTime={playheadTime}
@@ -188,6 +191,24 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                 />
               }
             />
+
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={() => {
+                  onExport?.(selectedClips);
+                }}
+                variant="primary"
+              >
+                Export
+              </Button>
+              <Button
+                onClick={async () => {
+                  setSelectedClips(await findGaps(content.silences, 1000));
+                }}
+              >
+                Clip Silences
+              </Button>
+            </div>
 
             <Heading level={2} id="highlights">
               Highlights
