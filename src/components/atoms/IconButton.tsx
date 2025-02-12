@@ -10,6 +10,7 @@ function IconButton({
   className?: string;
   icon: string;
   text?: string;
+  onClick?: () => void;
   variant?: "primary" | "danger" | "secondary" | "default";
 }) {
   return (
