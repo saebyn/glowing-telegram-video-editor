@@ -26,6 +26,7 @@ interface Props {
   onReorder: (clips: VideoClip[]) => void;
   onCopyStartTime: (id: string) => void;
   onCopyEndTime: (id: string) => void;
+  onSeekToTime: (milliseconds: number) => void;
 }
 
 export default function ClipSelectionDialog({
@@ -37,6 +38,7 @@ export default function ClipSelectionDialog({
   onReorder,
   onCopyStartTime,
   onCopyEndTime,
+  onSeekToTime,
 }: Props) {
   if (!show) {
     return null;
@@ -82,8 +84,8 @@ export default function ClipSelectionDialog({
               className="mr-2"
             />
             <div className="flex-grow">
-              <TimeLink milliseconds={clip.start} />-{" "}
-              <TimeLink milliseconds={clip.end} />
+              <TimeLink onClick={onSeekToTime} milliseconds={clip.start} />-{" "}
+              <TimeLink onClick={onSeekToTime} milliseconds={clip.end} />
             </div>
             <div className="flex space-x-1">
               <IconButton

@@ -115,6 +115,7 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
           }
           onCopyStartTime={handleCopyTime("start")}
           onCopyEndTime={handleCopyTime("end")}
+          onSeekToTime={handleSeekToTime}
         />
 
         <Sidebar
