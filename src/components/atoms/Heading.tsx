@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, JSX } from "react";
 
 type HeadingProps = React.PropsWithChildren<
   HTMLAttributes<HTMLHeadingElement>

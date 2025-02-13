@@ -9,7 +9,7 @@ import type { LogEvent } from "types";
 
 export default function useScrollToNearestElementToTime<T extends LogEvent>(
   time: number,
-  ref: React.RefObject<HTMLDivElement>,
+  ref: React.RefObject<HTMLDivElement | null>,
   log: T[],
   followPlayback: boolean,
 ): number | null {
