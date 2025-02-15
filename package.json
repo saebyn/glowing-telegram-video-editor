@@ -28,7 +28,7 @@
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "dev": "vite",
+    "dev": "vite build --watch",
     "build": "tsc && vite build",
     "test": "vitest",
     "test:ui": "vitest --ui",
