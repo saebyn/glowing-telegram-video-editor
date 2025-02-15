@@ -16,6 +16,7 @@ export default defineConfig({
       entry: resolve(__dirname, "src/index.ts"),
       formats: ["es"],
     },
+    sourcemap: true,
     rollupOptions: {
       external: ["react", "react-dom"],
     },
