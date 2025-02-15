@@ -21,7 +21,6 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
     // manage the hls instance
     useEffect(() => {
-      console.log("creating hls instance");
       const innerHls = new Hls();
 
       innerHls.loadSource(videoUrl);
@@ -29,7 +28,11 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
       setHls(innerHls);
 
       innerHls.on(Hls.Events.ERROR, (event, data) => {
-        console.error("HLS error", event, data);
+        console.error(
+          `HLS error: Type - ${data.type}, Details - ${data.details}, Fatal - ${data.fatal}`,
+          event,
+          data,
+        );
       });
 
       return () => {
