@@ -11,7 +11,8 @@ export function isoToMs(iso8601Duration: string): number {
 }
 
 export function msToIso(ms: number): string {
-  const duration = Temporal.Duration.from({ milliseconds: ms });
+  // truncate to integer, since Temporal.Duration.from() does not accept floats
+  const duration = Temporal.Duration.from({ milliseconds: ms | 0 });
   return duration.toString();
 }
 
