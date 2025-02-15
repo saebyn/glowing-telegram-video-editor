@@ -17,16 +17,38 @@ export interface VideoPlayerRef {
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(
   function VideoPlayer({ videoUrl, onTimeUpdate, onEnd }, ref) {
     const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+    const [hls, setHls] = useState<Hls | null>(null);
 
+    // manage the hls instance
     useEffect(() => {
-      if (!video) {
+      console.log("creating hls instance");
+      const innerHls = new Hls();
+
+      innerHls.loadSource(videoUrl);
+
+      setHls(innerHls);
+
+      innerHls.on(Hls.Events.ERROR, (event, data) => {
+        console.error("HLS error", event, data);
+      });
+
+      return () => {
+        innerHls.destroy();
+      };
+    }, [videoUrl]);
+
+    // manage the video element and its link to the hls instance
+    useEffect(() => {
+      if (!video || !hls) {
         return;
       }
 
-      const hls = new Hls();
-      hls.loadSource(videoUrl);
       hls.attachMedia(video);
-    }, [video, videoUrl]);
+
+      return () => {
+        hls?.detachMedia();
+      };
+    }, [video, hls]);
 
     const timeUpdate = () => {
       if (video) {
