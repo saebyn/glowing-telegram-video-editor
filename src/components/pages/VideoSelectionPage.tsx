@@ -28,6 +28,11 @@ interface VideoSelectionPageProps {
   onExport?: (clips: VideoClip[]) => void;
 }
 
+const SILENCE_CLIP_SETTINGS = {
+  minGapDuration: 30_000, // required time between clips to be considered a gap, in milliseconds
+  minSectionDuration: 60_000, // required time for a silence to be considered a valid silence, in milliseconds
+};
+
 function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
   const [playheadTime, setPlayheadTime] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
@@ -203,7 +208,12 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
               </Button>
               <Button
                 onClick={async () => {
-                  setSelectedClips(await findGaps(content.silences, 1000));
+                  setSelectedClips(
+                    await findGaps(
+                      { ...SILENCE_CLIP_SETTINGS, length: content.length },
+                      content.silences,
+                    ),
+                  );
                 }}
               >
                 Clip Silences
