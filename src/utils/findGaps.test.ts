@@ -9,9 +9,13 @@ describe("findGaps", () => {
       { timestamp: 20, timestamp_end: 30 },
       { timestamp: 40, timestamp_end: 50 },
     ];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 1,
+      length: 50,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
     expect(gaps).toEqual([
       { id: "10-20", start: 10, end: 20 },
@@ -24,9 +28,13 @@ describe("findGaps", () => {
       { timestamp: 0, timestamp_end: 10 },
       { timestamp: 11, timestamp_end: 20 },
     ];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 2,
+      length: 20,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
     expect(gaps).toEqual([]);
   });
@@ -37,9 +45,13 @@ describe("findGaps", () => {
       { timestamp: 20 },
       { timestamp: 30, timestamp_end: 40 },
     ];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 1,
+      length: 40,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
     expect(gaps).toEqual([{ id: "10-30", start: 10, end: 30 }]);
   });
@@ -49,29 +61,41 @@ describe("findGaps", () => {
       { timestamp: 0, timestamp_end: 10 },
       { timestamp: 15, timestamp_end: 25 },
     ];
-    const minGapDuration = 10;
+    const settings = {
+      minSectionDuration: 10,
+      minGapDuration: 10,
+      length: 30,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
     expect(gaps).toEqual([]);
   });
 
   it("should handle an empty array of sections", async () => {
     const sections: Section[] = [];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 1,
+      length: 50,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
-    expect(gaps).toEqual([]);
+    expect(gaps).toEqual([{ id: "0-50", start: 0, end: 50 }]);
   });
 
   it("should handle a single section", async () => {
     const sections: Section[] = [{ timestamp: 0, timestamp_end: 10 }];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 1,
+      length: 50,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
-    expect(gaps).toEqual([]);
+    expect(gaps).toEqual([expect.objectContaining({ start: 10, end: 50 })]);
   });
 
   it("should find gaps greater than or equal to the minimum gap duration but ignore gaps less than the minimum gap duration", async () => {
@@ -80,11 +104,15 @@ describe("findGaps", () => {
       { timestamp: 15, timestamp_end: 25 },
       { timestamp: 35, timestamp_end: 40 },
     ];
-    const minGapDuration = 10;
+    const settings = {
+      minSectionDuration: 1,
+      minGapDuration: 10,
+      length: 40,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
-    expect(gaps).toEqual([{ id: "25-35", start: 25, end: 35 }]);
+    expect(gaps).toEqual([expect.objectContaining({ start: 25, end: 35 })]);
   });
 
   it("should handle timestamps that are floats", async () => {
@@ -92,10 +120,30 @@ describe("findGaps", () => {
       { timestamp: 0, timestamp_end: 10.5 },
       { timestamp: 20.5, timestamp_end: 30.5 },
     ];
-    const minGapDuration = 5;
+    const settings = {
+      minSectionDuration: 5,
+      minGapDuration: 1,
+      length: 30.5,
+    };
 
-    const gaps = await findGaps(sections, minGapDuration);
+    const gaps = await findGaps(settings, sections);
 
-    expect(gaps).toEqual([{ id: "10.5-20.5", start: 10.5, end: 20.5 }]);
+    expect(gaps).toEqual([expect.objectContaining({ start: 10.5, end: 20.5 })]);
+  });
+
+  it("should return the entire duration of the video if there are no sections longer than the minimum section duration", async () => {
+    const settings = {
+      minSectionDuration: 1000,
+      minGapDuration: 1,
+      length: 50,
+    };
+    const sections: Section[] = [
+      { timestamp: 0, timestamp_end: 10 },
+      { timestamp: 15, timestamp_end: 20 },
+    ];
+
+    const gaps = await findGaps(settings, sections);
+
+    expect(gaps).toEqual([expect.objectContaining({ start: 0, end: 50 })]);
   });
 });
