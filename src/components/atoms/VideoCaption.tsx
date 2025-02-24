@@ -18,7 +18,7 @@ function VideoCaption({ playheadTime, transcript }: VideoCaptionProps) {
   );
 
   return (
-    <div className="relative h-12 overflow-hidden rounded bg-gray-900 p-2 text-gray-50 dark:bg-gray-50 dark:text-gray-900">
+    <div className="relative h-12 overflow-hidden rounded-sm bg-gray-900 p-2 text-gray-50 dark:bg-gray-50 dark:text-gray-900">
       {transcript.map((segment, index) => (
         <div
           className="absolute top-0 mx-2 h-full whitespace-nowrap transition-transform

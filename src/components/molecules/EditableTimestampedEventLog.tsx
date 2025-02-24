@@ -46,7 +46,7 @@ export default function EditableTimestampedEventLog<T extends LogEvent>({
           >
             <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} />{" "}
             <textarea
-              className="inline  w-full border-none bg-transparent pl-2 focus:border-transparent focus:outline-none focus:ring-0"
+              className="inline  w-full border-none bg-transparent pl-2 focus:border-transparent focus:outline-hidden focus:ring-0"
               value={String(entry[contentField])}
               onChange={(e) => {
                 onChange({

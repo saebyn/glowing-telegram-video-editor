@@ -10,7 +10,7 @@ function Search({ text, setText, label }: SearchProps) {
       <input
         type="search"
         placeholder={label}
-        className="w-full rounded border p-2 pr-10 dark:bg-gray-800"
+        className="w-full rounded-sm border p-2 pr-10 dark:bg-gray-800"
         value={text}
         onChange={(e) => setText(e.target.value)}
       />

@@ -25,7 +25,7 @@ function TimeTable({
 }) {
   return (
     <section className="mb-6 text-gray-700 dark:text-gray-200">
-      <table className="min-w-full rounded bg-white shadow-md dark:bg-gray-600">
+      <table className="min-w-full rounded-sm bg-white shadow-md dark:bg-gray-600">
         <thead>
           <tr>
             <th className="border-b px-4 py-2 text-start">
@@ -78,21 +78,21 @@ function TimeTable({
               )}
               <td className="border-b px-4 py-2 text-right">
                 {canEdit && (
-                  <Button className="mx-2 rounded  text-white bg-green-500 dark:bg-green-600 dark:text-white">
+                  <Button className="mx-2 rounded-sm  text-white bg-green-500 dark:bg-green-600 dark:text-white">
                     Edit
                   </Button>
                 )}
 
                 {canClip && (
                   <Button
-                    className="mx-2 rounded bg-blue-500 text-white dark:!bg-blue-600 dark:text-white"
+                    className="mx-2 rounded-sm bg-blue-500 text-white dark:!bg-blue-600 dark:text-white"
                     onClick={() => onClip?.(row)}
                   >
                     Clip
                   </Button>
                 )}
 
-                <Button className="rounded bg-red-500 text-white dark:bg-red-600 dark:text-white">
+                <Button className="rounded-sm bg-red-500 text-white dark:bg-red-600 dark:text-white">
                   Delete
                 </Button>
               </td>

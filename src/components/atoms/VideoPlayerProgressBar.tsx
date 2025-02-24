@@ -74,7 +74,7 @@ export default function VideoPlayerProgressBar({
           className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-400 dark:bg-gray-600"
           style={{ left: `calc(${(hoverTime / duration) * 100}% - 8px)` }}
         >
-          <div className="absolute top-0 -mt-8 rounded bg-black/50 px-2 py-1 text-xs text-white">
+          <div className="absolute top-0 -mt-8 rounded-sm bg-black/50 px-2 py-1 text-xs text-white">
             {format(`PT${hoverTime.toFixed(0)}S`)}
           </div>
         </div>
