@@ -27,7 +27,7 @@ export default function TimelineControls({
 
   return (
     <div
-      className="mt-4 rounded bg-gray-200
+      className="mt-4 rounded-sm bg-gray-200
               p-4 text-gray-800 dark:bg-gray-700 dark:text-gray-200
               "
     >
@@ -35,13 +35,13 @@ export default function TimelineControls({
 
       <Button onClick={handleZoomIn}>Zoom In</Button>
       <Button
-        className="mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400"
+        className="mx-2 rounded-sm bg-gray-300 px-4 py-2 dark:bg-gray-400"
         onClick={handleZoomOut}
       >
         Zoom Out
       </Button>
       <Button
-        className="mx-2 rounded bg-gray-300 px-4 py-2 dark:bg-gray-400"
+        className="mx-2 rounded-sm bg-gray-300 px-4 py-2 dark:bg-gray-400"
         onClick={handleReset}
       >
         Reset

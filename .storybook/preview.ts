@@ -1,7 +1,7 @@
 import type { Preview } from "@storybook/react";
 
 // import the tailwindcss styles
-import "tailwindcss";
+import "tailwindcss/index.css";
 // import the material-symbols
 import "material-symbols";
 

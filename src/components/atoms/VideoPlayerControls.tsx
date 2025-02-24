@@ -72,7 +72,7 @@ export default function VideoPlayerControls({
       {!isPlaying ? (
         <button
           type="button"
-          className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
+          className="rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
           onClick={play}
         >
           Play
@@ -80,14 +80,14 @@ export default function VideoPlayerControls({
       ) : (
         <button
           type="button"
-          className="rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
+          className="rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
           onClick={pause}
         >
           Pause
         </button>
       )}
 
-      <span className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white">
+      <span className="ml-4 rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white">
         {timestamp}
       </span>
 
@@ -95,7 +95,7 @@ export default function VideoPlayerControls({
 
       <button
         type="button"
-        className={`ml-4 rounded px-4 py-2 ${
+        className={`ml-4 rounded-sm px-4 py-2 ${
           isMuted ? "bg-gray-200" : "bg-gray-600 text-white"
         }`}
         onClick={toggleMute}
@@ -106,7 +106,7 @@ export default function VideoPlayerControls({
       <button
         type="button"
         className={`
-            ml-4 rounded px-4 py-2
+            ml-4 rounded-sm px-4 py-2
             ${video?.loop ? "bg-gray-200" : "bg-gray-600 text-white"}
             `}
         onClick={toggleLoop}
@@ -116,14 +116,14 @@ export default function VideoPlayerControls({
 
       <button
         type="button"
-        className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
+        className="ml-4 rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
         onClick={() => video?.requestFullscreen()}
       >
         Fullscreen
       </button>
 
       <select
-        className="ml-4 rounded bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
+        className="ml-4 rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
         defaultValue={speed}
         onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
       >

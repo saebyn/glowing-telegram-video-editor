@@ -62,7 +62,7 @@ export default function ClipSelectionDialog({
         {clips.map((clip, index) => (
           <li
             key={clip.id}
-            className="border border-gray-200 rounded p-1 flex items-center animate-highlight-new"
+            className="border border-gray-200 rounded-sm p-1 flex items-center animate-highlight-new"
           >
             <img
               src={clip.keyframeSrc || DEFAULT_KEYFRAME_SRC}

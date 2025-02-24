@@ -29,7 +29,7 @@ function Viewport({
 
   return (
     <section className="mb-6">
-      <div className="rounded p-4 shadow-md">
+      <div className="rounded-sm p-4 shadow-md">
         <div className=" mb-4 grid w-full grid-cols-3">
           <div className="col-span-2">{videoPlayer}</div>
 
