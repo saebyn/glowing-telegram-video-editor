@@ -1,5 +1,5 @@
+import { format } from "@/utils/duration";
 import { type ReactNode, useEffect, useState } from "react";
-import { format } from "utils/duration";
 
 interface VideoPlayerControlsProps {
   video: HTMLVideoElement | null;

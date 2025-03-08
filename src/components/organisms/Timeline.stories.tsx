@@ -1,4 +1,4 @@
-import { TimelineProvider } from "context/TimelineContext";
+import { TimelineProvider } from "@/context/TimelineContext";
 import Timeline from "./Timeline";
 
 import { action } from "@storybook/addon-actions";

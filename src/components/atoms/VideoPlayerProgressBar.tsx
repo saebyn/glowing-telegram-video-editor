@@ -1,5 +1,5 @@
+import { format } from "@/utils/duration";
 import { useState } from "react";
-import { format } from "utils/duration";
 
 interface ProgressBarProps {
   progress: number;

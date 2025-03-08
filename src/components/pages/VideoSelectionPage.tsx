@@ -1,27 +1,27 @@
-import Button from "components/atoms/Button";
-import Heading from "components/atoms/Heading";
-import ClipSelectionDialog, {} from "components/molecules/ClipSelectionDialog";
-import EditableTimestampedEventLog from "components/molecules/EditableTimestampedEventLog";
-import TimeTable from "components/molecules/TimeTable";
-import TimelineControls from "components/molecules/TimelineControls";
-import TimestampedEventLog from "components/molecules/TimestampedEventLog";
+import Button from "@/components/atoms/Button";
+import Heading from "@/components/atoms/Heading";
+import ClipSelectionDialog, {} from "@/components/molecules/ClipSelectionDialog";
+import EditableTimestampedEventLog from "@/components/molecules/EditableTimestampedEventLog";
+import TimeTable from "@/components/molecules/TimeTable";
+import TimelineControls from "@/components/molecules/TimelineControls";
+import TimestampedEventLog from "@/components/molecules/TimestampedEventLog";
 import VideoPlayer, {
   type VideoPlayerRef,
-} from "components/molecules/VideoPlayer";
-import Viewport from "components/molecules/Viewport";
-import Sidebar from "components/organisms/Sidebar";
-import Timeline from "components/organisms/Timeline";
-import { TimelineProvider } from "context/TimelineContext";
-import useKeyboardShortcuts from "hooks/useKeyboardShortcuts";
-import { useRef, useState } from "react";
+} from "@/components/molecules/VideoPlayer";
+import Viewport from "@/components/molecules/Viewport";
+import Sidebar from "@/components/organisms/Sidebar";
+import Timeline from "@/components/organisms/Timeline";
+import { TimelineProvider } from "@/context/TimelineContext";
+import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import type {
   ChatMessage,
   Section,
   TranscriptSegment,
   VideoClip,
   VideoMetadata,
-} from "types";
-import findGaps from "utils/findGaps";
+} from "@/types";
+import findGaps from "@/utils/findGaps";
+import { useRef, useState } from "react";
 
 interface VideoSelectionPageProps {
   content: VideoMetadata;

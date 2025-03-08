@@ -1,4 +1,4 @@
-import Tab, { TabContainer } from "components/atoms/Tab";
+import Tab, { TabContainer } from "@/components/atoms/Tab";
 import { type ReactNode, useState } from "react";
 
 type ViewportProps = {

@@ -1,4 +1,4 @@
-import { TimelineProvider } from "context/TimelineContext";
+import { TimelineProvider } from "@/context/TimelineContext";
 import { TimeDotMarker } from "./TimeDotMarker";
 
 export default {

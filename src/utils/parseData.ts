@@ -7,7 +7,7 @@ import type {
   Section,
   TranscriptSegment,
   VideoMetadata,
-} from "types";
+} from "@/types";
 import { isoToMs } from "./duration";
 
 export default function parseContent(

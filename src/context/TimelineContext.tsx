@@ -1,5 +1,3 @@
-import type React from "react";
-import { type ReactNode, createContext, useContext, useState } from "react";
 import {
   type Timeline,
   type TimelineItem,
@@ -13,7 +11,9 @@ import {
   timeToRelative,
   zoomInTowards,
   zoomOutTowards,
-} from "utils/timeline";
+} from "@/utils/timeline";
+import type React from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
 
 interface TimelineContextProps {
   lens: TimelineLens;
