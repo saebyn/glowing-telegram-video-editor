@@ -1,5 +1,5 @@
-import Button from "components/atoms/Button";
-import type { Section } from "types";
+import Button from "@/components/atoms/Button";
+import type { Section } from "@/types";
 import TimeLink from "../atoms/TimeLink";
 
 function TimeTable({

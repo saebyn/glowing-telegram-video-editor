@@ -1,13 +1,13 @@
-import TimeSegmentMarker from "components/atoms/TimeSegmentMarker";
+import TimeSegmentMarker from "@/components/atoms/TimeSegmentMarker";
 import {
   type TimelineElementType,
   timelineElementTypeColors,
-} from "components/atoms/TimelineLegend";
-import TimelineElement from "components/molecules/TimelineElement";
-import { useLens } from "context/TimelineContext";
+} from "@/components/atoms/TimelineLegend";
+import TimelineElement from "@/components/molecules/TimelineElement";
+import { useLens } from "@/context/TimelineContext";
+import type { Section, VideoMetadata } from "@/types";
+import { createTimeline, generateKey } from "@/utils/timeline";
 import { useEffect, useRef, useState } from "react";
-import type { Section, VideoMetadata } from "types";
-import { createTimeline, generateKey } from "utils/timeline";
 
 export default function Timeline({
   content: {

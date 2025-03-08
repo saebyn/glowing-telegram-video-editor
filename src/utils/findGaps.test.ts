@@ -1,4 +1,4 @@
-import type { Section } from "types";
+import type { Section } from "@/types";
 import { describe, expect, it } from "vitest";
 import findGaps from "./findGaps";
 

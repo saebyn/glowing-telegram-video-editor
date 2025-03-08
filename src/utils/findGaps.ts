@@ -1,4 +1,4 @@
-import type { Section, VideoClip } from "types";
+import type { Section, VideoClip } from "@/types";
 
 type Settings = {
   /**

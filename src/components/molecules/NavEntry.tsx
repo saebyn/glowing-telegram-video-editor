@@ -1,4 +1,4 @@
-import TimeLink from "components/atoms/TimeLink";
+import TimeLink from "@/components/atoms/TimeLink";
 
 export const timeHighlightMargin = 5000;
 

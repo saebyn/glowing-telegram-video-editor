@@ -1,10 +1,10 @@
-import type { TimelineItem } from "utils/timeline";
-import { TimeDotMarker } from "../atoms/TimeDotMarker";
-import TimeSegmentMarker from "../atoms/TimeSegmentMarker";
+import { TimeDotMarker } from "@/components/atoms/TimeDotMarker";
+import TimeSegmentMarker from "@/components/atoms/TimeSegmentMarker";
 import {
   type TimelineElementType,
   timelineElementTypeColors,
-} from "../atoms/TimelineLegend";
+} from "@/components/atoms/TimelineLegend";
+import type { TimelineItem } from "@/utils/timeline";
 
 interface TimelineElementProps {
   content: TimelineItem<TimelineElementType>;

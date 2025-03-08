@@ -1,6 +1,6 @@
 import type React from "react";
 
-import { formatMs, msToIso } from "utils/duration";
+import { formatMs, msToIso } from "@/utils/duration";
 
 interface TimeLinkProps {
   milliseconds?: number;

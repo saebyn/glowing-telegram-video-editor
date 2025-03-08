@@ -1,5 +1,5 @@
-import VideoPlayerControls from "components/atoms/VideoPlayerControls";
-import VideoPlayerProgressBar from "components/atoms/VideoPlayerProgressBar";
+import VideoPlayerControls from "@/components/atoms/VideoPlayerControls";
+import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
 import Hls from "hls.js";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 

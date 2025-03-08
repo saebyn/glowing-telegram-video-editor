@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": "./src",
     "target": "esnext",
     "lib": [
       "dom",
@@ -24,6 +23,11 @@
       "vitest/globals",
       "@testing-library/jest-dom"
     ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
     "src"

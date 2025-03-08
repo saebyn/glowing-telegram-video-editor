@@ -1,8 +1,8 @@
-import Button from "components/atoms/Button";
-import IconButton from "components/atoms/IconButton";
+import Button from "@/components/atoms/Button";
+import IconButton from "@/components/atoms/IconButton";
 
-import TimeLink from "components/atoms/TimeLink";
-import type { VideoClip } from "types";
+import TimeLink from "@/components/atoms/TimeLink";
+import type { VideoClip } from "@/types";
 import DEFAULT_KEYFRAME_SRC from "../../assets/logo.svg";
 
 interface Props {
