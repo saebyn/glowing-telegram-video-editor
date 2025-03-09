@@ -43,5 +43,6 @@ export const Default = {
     },
     playheadTime: 0,
     onSeekToTime: action("onSeekToTime"),
+    onItemSelect: action("onItemSelect")
   },
 };

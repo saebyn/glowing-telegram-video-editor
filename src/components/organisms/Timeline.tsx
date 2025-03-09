@@ -6,6 +6,7 @@ import {
 import TimelineElement from "@/components/molecules/TimelineElement";
 import { useLens } from "@/context/TimelineContext";
 import type { Section, VideoMetadata } from "@/types";
+import { formatMs } from "@/utils/duration";
 import { createTimeline, generateKey } from "@/utils/timeline";
 import { useEffect, useRef, useState } from "react";
 
@@ -29,15 +30,24 @@ export default function Timeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const lens = useLens();
 
-  const [dragging, setDragging] = useState(0);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [hoverLocation, setHoverLocation] = useState<number | null>(null);
+
+  function isDragging() {
+    if (dragging === null) {
+      return false;
+    }
+
+    return new Date().getTime() - dragging > 250;
+  }
 
   useEffect(() => {
     document.addEventListener("mouseup", handleDragEnd);
-    document.addEventListener("mousemove", handleDrag);
+    document.addEventListener("mousemove", handleGlobalMouseMove);
 
     return () => {
       document.removeEventListener("mouseup", handleDragEnd);
-      document.removeEventListener("mousemove", handleDrag);
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
     };
   });
 
@@ -118,27 +128,49 @@ export default function Timeline({
   const handleDragEnd = (e: MouseEvent) => {
     e.preventDefault();
 
-    setTimeout(() => {
-      setDragging(0);
-    }, 0);
+    setDragging(null);
   };
 
-  const handleDrag = (event: MouseEvent) => {
-    if (dragging === 0) {
-      return;
-    }
-
+  const handleGlobalMouseMove = (event: MouseEvent) => {
     if (!containerRef.current) {
       return;
     }
 
-    const { movementX } = event;
+    const container = containerRef.current;
 
-    const containerPixelWidth = containerRef.current.clientWidth;
-    const relativeMovement = movementX / containerPixelWidth;
-    const deltaMs = Math.round(-relativeMovement * lens.getLength());
+    if (isDragging()) {
+      setHoverLocation(null);
 
-    lens.pan(deltaMs);
+      const { movementX } = event;
+
+      const relativeMovement = movementX / container.clientWidth;
+      const deltaMs = Math.round(-relativeMovement * lens.getLength());
+
+      lens.pan(deltaMs);
+    }
+  };
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    const container = containerRef.current;
+
+    if (!isDragging()) {
+      // Set the hover state with the location
+      // x coordinate of the mouse relative to the container
+      const x = event.pageX - container.offsetLeft;
+
+      // relativeX is the x coordinate of the mouse relative to the container width
+      const relativeX = x / container.clientWidth;
+
+      setHoverLocation(relativeX);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoverLocation(null);
   };
 
   const handleContainerClick = (event: React.MouseEvent) => {
@@ -151,7 +183,7 @@ export default function Timeline({
      * Dragging is detected by the movement of the mouse
      * lasting longer than 250ms.
      */
-    if (new Date().getTime() - dragging > 250) {
+    if (isDragging()) {
       return;
     }
 
@@ -179,8 +211,20 @@ export default function Timeline({
       className="relative h-16 cursor-crosshair select-none overflow-hidden rounded-sm bg-gray-200 dark:bg-gray-600"
       ref={containerRef}
       onMouseDown={handleDragStart}
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
       onClick={handleContainerClick}
     >
+      {hoverLocation && (
+        <div
+          className="p-8 absolute top-0 z-50
+        "
+          style={{ left: `${hoverLocation * 100}%` }}
+        >
+          {formatMs(lens.relativeToTime(hoverLocation))}
+        </div>
+      )}
+
       {elements.map((content) => (
         <TimelineElement
           key={generateKey(content)}
