@@ -215,15 +215,7 @@ export default function Timeline({
       onMouseMove={handleMouseMove}
       onClick={handleContainerClick}
     >
-      {hoverLocation && (
-        <div
-          className="p-8 absolute top-0 z-50
-        "
-          style={{ left: `${hoverLocation * 100}%` }}
-        >
-          {formatMs(lens.relativeToTime(hoverLocation))}
-        </div>
-      )}
+      <TimelineHover hoverLocation={hoverLocation} lens={lens} />
 
       {elements.map((content) => (
         <TimelineElement
@@ -266,6 +258,28 @@ export default function Timeline({
         text=""
         className={`z-50 h-16 ${timelineElementTypeColors.cursor}`}
       />
+    </div>
+  );
+}
+
+function TimelineHover({
+  hoverLocation,
+  lens,
+}: {
+  hoverLocation: number | null;
+  lens: ReturnType<typeof useLens>;
+}) {
+  if (hoverLocation === null) {
+    return null;
+  }
+
+  return (
+    <div
+      className="p-8 absolute top-0 z-50
+        "
+      style={{ left: `${hoverLocation * 100}%` }}
+    >
+      {formatMs(lens.relativeToTime(hoverLocation))}
     </div>
   );
 }
