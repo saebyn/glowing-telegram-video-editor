@@ -34,7 +34,7 @@ export default function AudioMixerPanel({
 }: AudioMixerPanelProps) {
   const handleChannelChange = (updatedChannel: AudioChannel) => {
     const updatedChannels = channels.map((channel) =>
-      channel.id === updatedChannel.id ? updatedChannel : channel
+      channel.id === updatedChannel.id ? updatedChannel : channel,
     );
     onChange(updatedChannels);
   };
@@ -58,8 +58,8 @@ export default function AudioMixerPanel({
   };
 
   const allMuted = channels.every((channel) => channel.muted);
-  const hasChanges = channels.some((channel) => 
-    channel.level !== 1.0 || channel.muted
+  const hasChanges = channels.some(
+    (channel) => channel.level !== 1.0 || channel.muted,
   );
 
   return (
@@ -115,7 +115,8 @@ export default function AudioMixerPanel({
       {channels.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            {channels.filter(c => !c.muted).length} of {channels.length} channels active
+            {channels.filter((c) => !c.muted).length} of {channels.length}{" "}
+            channels active
           </div>
         </div>
       )}

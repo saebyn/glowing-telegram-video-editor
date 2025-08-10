@@ -24,7 +24,7 @@ export default function AudioLevelSlider({
   disabled = false,
 }: AudioLevelSliderProps) {
   const sliderId = `audio-slider-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLevel = Number.parseFloat(event.target.value);
     onChange(newLevel);
@@ -33,7 +33,10 @@ export default function AudioLevelSlider({
   return (
     <div className="flex flex-col space-y-1">
       {label && (
-        <label htmlFor={sliderId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor={sliderId}
+          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           {label}
         </label>
       )}

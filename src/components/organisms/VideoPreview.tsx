@@ -1,8 +1,15 @@
-import VideoPlayer, { type VideoPlayerRef } from "@/components/molecules/VideoPlayer";
+import Button from "@/components/atoms/Button";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
-import Button from "@/components/atoms/Button";
-import type { PreviewSettings, AudioChannel, WaveformData, VideoClip } from "@/types";
+import VideoPlayer, {
+  type VideoPlayerRef,
+} from "@/components/molecules/VideoPlayer";
+import type {
+  AudioChannel,
+  PreviewSettings,
+  VideoClip,
+  WaveformData,
+} from "@/types";
 import { useRef, useState } from "react";
 
 interface VideoPreviewProps {
@@ -92,7 +99,7 @@ export default function VideoPreview({
   };
 
   const hasAudioChanges = settings.audioChannels.some(
-    (channel) => channel.level !== 1.0 || channel.muted
+    (channel) => channel.level !== 1.0 || channel.muted,
   );
 
   return (
@@ -165,7 +172,9 @@ export default function VideoPreview({
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-2">
         <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
           <div>
-            {settings.cutlist.length} clips selected • {settings.audioChannels.filter(c => !c.muted).length} of {settings.audioChannels.length} audio channels active
+            {settings.cutlist.length} clips selected •{" "}
+            {settings.audioChannels.filter((c) => !c.muted).length} of{" "}
+            {settings.audioChannels.length} audio channels active
           </div>
           <div>
             {regenerating && "Generating preview..."}
