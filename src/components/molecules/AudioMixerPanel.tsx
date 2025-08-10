@@ -23,6 +23,10 @@ interface AudioMixerPanelProps {
    * Whether save is in progress
    */
   saving?: boolean;
+  /**
+   * Whether channel names can be edited
+   */
+  allowNameEdit?: boolean;
 }
 
 export default function AudioMixerPanel({
@@ -31,6 +35,7 @@ export default function AudioMixerPanel({
   onSave,
   disabled = false,
   saving = false,
+  allowNameEdit = false,
 }: AudioMixerPanelProps) {
   const handleChannelChange = (updatedChannel: AudioChannel) => {
     const updatedChannels = channels.map((channel) =>
@@ -107,6 +112,7 @@ export default function AudioMixerPanel({
               channel={channel}
               onChange={handleChannelChange}
               disabled={disabled}
+              allowNameEdit={allowNameEdit}
             />
           ))
         )}
