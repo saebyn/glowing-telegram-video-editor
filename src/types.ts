@@ -121,3 +121,59 @@ export type VideoClip = {
    */
   keyframeSrc?: string;
 };
+
+/**
+ * Audio channel information for preview
+ */
+export interface AudioChannel {
+  id: string;
+  name: string;
+  /**
+   * Audio level from 0.0 to 1.0
+   */
+  level: number;
+  /**
+   * Whether this channel is muted
+   */
+  muted: boolean;
+}
+
+/**
+ * Waveform data for visualization
+ */
+export interface WaveformData {
+  /**
+   * Audio channel ID this waveform belongs to
+   */
+  channelId: string;
+  /**
+   * Array of amplitude values for visualization
+   */
+  amplitudes: number[];
+  /**
+   * Duration this waveform data represents in milliseconds
+   */
+  duration: number;
+  /**
+   * Sample rate of the waveform data
+   */
+  sampleRate: number;
+}
+
+/**
+ * Preview settings for video rendering
+ */
+export interface PreviewSettings {
+  /**
+   * Selected cutlist for preview
+   */
+  cutlist: VideoClip[];
+  /**
+   * Audio channel configurations
+   */
+  audioChannels: AudioChannel[];
+  /**
+   * Waveform data for each channel
+   */
+  waveformData: WaveformData[];
+}
