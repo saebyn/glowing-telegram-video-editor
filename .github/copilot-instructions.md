@@ -7,7 +7,7 @@ Glowing Telegram Video Editor is a React TypeScript component library for review
 ## Working Effectively
 
 ### Bootstrap and Build Repository
-- Install dependencies: `npm ci` -- takes 48 seconds. NEVER CANCEL. Set timeout to 120+ seconds.
+- Install dependencies: `npm ci` -- takes 48 seconds. NEVER CANCEL. Set timeout to 90-120 seconds.
 - Run typecheck: `npm run typecheck` -- takes 3 seconds
 - Build the library: `npm run build` -- takes 10 seconds. NEVER CANCEL. Set timeout to 30+ minutes.
 - Run tests: `npm run test` -- takes 3 seconds (18 tests pass). NEVER CANCEL. Set timeout to 30+ minutes.
