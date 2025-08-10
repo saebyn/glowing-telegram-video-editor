@@ -1,3 +1,5 @@
+import React, { useId } from 'react';
+
 interface AudioLevelSliderProps {
   /**
    * Current audio level from 0.0 to 1.0
@@ -23,7 +25,7 @@ export default function AudioLevelSlider({
   label,
   disabled = false,
 }: AudioLevelSliderProps) {
-  const sliderId = `audio-slider-${Math.random().toString(36).substr(2, 9)}`;
+  const sliderId = useId();
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLevel = Number.parseFloat(event.target.value);
