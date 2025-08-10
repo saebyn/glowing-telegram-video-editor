@@ -1,14 +1,19 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import AudioLevelSlider from "@/components/atoms/AudioLevelSlider";
 import AudioChannelControl from "@/components/atoms/AudioChannelControl";
+import AudioLevelSlider from "@/components/atoms/AudioLevelSlider";
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPreview from "@/components/organisms/VideoPreview";
 
-import type { AudioChannel, WaveformData, VideoClip, PreviewSettings } from "@/types";
+import type {
+  AudioChannel,
+  PreviewSettings,
+  VideoClip,
+  WaveformData,
+} from "@/types";
 
 describe("Video Preview Components", () => {
   const sampleAudioChannel: AudioChannel = {
@@ -42,7 +47,7 @@ describe("Video Preview Components", () => {
   it("renders AudioLevelSlider", () => {
     const onChange = vi.fn();
     const { container } = render(
-      <AudioLevelSlider level={0.5} onChange={onChange} label="Test" />
+      <AudioLevelSlider level={0.5} onChange={onChange} label="Test" />,
     );
     expect(container.querySelector("input[type='range']")).toBeTruthy();
   });
@@ -50,14 +55,14 @@ describe("Video Preview Components", () => {
   it("renders AudioChannelControl", () => {
     const onChange = vi.fn();
     const { getByText } = render(
-      <AudioChannelControl channel={sampleAudioChannel} onChange={onChange} />
+      <AudioChannelControl channel={sampleAudioChannel} onChange={onChange} />,
     );
     expect(getByText("Test Channel")).toBeTruthy();
   });
 
   it("renders WaveformDisplay", () => {
     const { container } = render(
-      <WaveformDisplay waveformData={sampleWaveformData} />
+      <WaveformDisplay waveformData={sampleWaveformData} />,
     );
     expect(container.querySelector("canvas")).toBeTruthy();
   });
@@ -65,7 +70,7 @@ describe("Video Preview Components", () => {
   it("renders AudioMixerPanel", () => {
     const onChange = vi.fn();
     const { getByText } = render(
-      <AudioMixerPanel channels={[sampleAudioChannel]} onChange={onChange} />
+      <AudioMixerPanel channels={[sampleAudioChannel]} onChange={onChange} />,
     );
     expect(getByText("Audio Mixer")).toBeTruthy();
   });
@@ -77,7 +82,7 @@ describe("Video Preview Components", () => {
         playheadPosition={1500}
         cutlist={sampleClips}
         duration={5000}
-      />
+      />,
     );
     expect(getByText("Preview Timeline")).toBeTruthy();
   });
@@ -88,7 +93,7 @@ describe("Video Preview Components", () => {
         settings={sampleSettings}
         previewVideoUrl="test-url"
         duration={5000}
-      />
+      />,
     );
     expect(getByText("Video Preview")).toBeTruthy();
   });

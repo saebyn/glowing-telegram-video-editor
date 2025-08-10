@@ -1,6 +1,6 @@
+import type { AudioChannel } from "@/types";
 import { action } from "@storybook/addon-actions";
 import AudioMixerPanel from "./AudioMixerPanel";
-import type { AudioChannel } from "@/types";
 
 export default {
   title: "Molecules/AudioMixerPanel",
@@ -8,7 +8,9 @@ export default {
   tags: ["molecules"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <div className="h-[70vh] flex justify-center items-start p-4">{story()}</div>
+      <div className="h-[70vh] flex justify-center items-start p-4">
+        {story()}
+      </div>
     ),
   ],
 };
@@ -21,7 +23,7 @@ const mockChannels: AudioChannel[] = [
     muted: false,
   },
   {
-    id: "channel-2", 
+    id: "channel-2",
     name: "Microphone",
     level: 0.6,
     muted: false,
@@ -106,7 +108,7 @@ export const Saving = {
 
 export const AllMuted = {
   args: {
-    channels: mockChannels.map(channel => ({ ...channel, muted: true })),
+    channels: mockChannels.map((channel) => ({ ...channel, muted: true })),
     onChange: action("onChange"),
     onSave: action("onSave"),
     disabled: false,

@@ -1,6 +1,6 @@
-import IconButton from "./IconButton";
-import AudioLevelSlider from "./AudioLevelSlider";
 import type { AudioChannel } from "@/types";
+import AudioLevelSlider from "./AudioLevelSlider";
+import IconButton from "./IconButton";
 
 interface AudioChannelControlProps {
   /**

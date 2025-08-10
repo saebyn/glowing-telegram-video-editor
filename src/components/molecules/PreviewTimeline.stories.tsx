@@ -1,30 +1,39 @@
+import type { VideoClip, WaveformData } from "@/types";
 import { action } from "@storybook/addon-actions";
 import PreviewTimeline from "./PreviewTimeline";
-import type { WaveformData, VideoClip } from "@/types";
 
 export default {
-  title: "Molecules/PreviewTimeline", 
+  title: "Molecules/PreviewTimeline",
   component: PreviewTimeline,
   tags: ["molecules"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <div className="h-[70vh] flex justify-center items-start p-4 overflow-x-auto">{story()}</div>
+      <div className="h-[70vh] flex justify-center items-start p-4 overflow-x-auto">
+        {story()}
+      </div>
     ),
   ],
 };
 
 // Generate sample waveform data
-const generateWaveformData = (channelId: string, samples: number = 400): WaveformData => {
+const generateWaveformData = (
+  channelId: string,
+  samples = 400,
+): WaveformData => {
   const amplitudes: number[] = [];
   for (let i = 0; i < samples; i++) {
     // Generate different patterns for different channels
     let amplitude = 0;
     if (channelId === "channel-1") {
       // Game audio - more complex waveform
-      amplitude = Math.sin((i / samples) * Math.PI * 6) * 0.6 + Math.sin((i / samples) * Math.PI * 12) * 0.3;
+      amplitude =
+        Math.sin((i / samples) * Math.PI * 6) * 0.6 +
+        Math.sin((i / samples) * Math.PI * 12) * 0.3;
     } else if (channelId === "channel-2") {
       // Microphone - speech-like pattern
-      amplitude = Math.sin((i / samples) * Math.PI * 3) * 0.4 + (Math.random() - 0.5) * 0.2;
+      amplitude =
+        Math.sin((i / samples) * Math.PI * 3) * 0.4 +
+        (Math.random() - 0.5) * 0.2;
     } else {
       // Desktop audio - more uniform
       amplitude = Math.sin((i / samples) * Math.PI * 4) * 0.5;
@@ -48,18 +57,18 @@ const mockWaveformData: WaveformData[] = [
 const mockCutlist: VideoClip[] = [
   {
     id: "clip-1",
-    start: 5000,  // 5 seconds
-    end: 25000,   // 25 seconds
+    start: 5000, // 5 seconds
+    end: 25000, // 25 seconds
   },
   {
-    id: "clip-2", 
+    id: "clip-2",
     start: 40000, // 40 seconds
-    end: 70000,   // 70 seconds
+    end: 70000, // 70 seconds
   },
   {
     id: "clip-3",
     start: 90000, // 90 seconds
-    end: 110000,  // 110 seconds
+    end: 110000, // 110 seconds
   },
 ];
 
@@ -98,12 +107,12 @@ export const LongTimeline = {
       {
         id: "clip-4",
         start: 150000, // 2.5 minutes
-        end: 210000,   // 3.5 minutes
+        end: 210000, // 3.5 minutes
       },
       {
         id: "clip-5",
         start: 240000, // 4 minutes
-        end: 280000,   // 4:40
+        end: 280000, // 4:40
       },
     ],
     duration: 300000, // 5 minutes

@@ -1,6 +1,6 @@
+import type { WaveformData } from "@/types";
 import { action } from "@storybook/addon-actions";
 import WaveformDisplay from "./WaveformDisplay";
-import type { WaveformData } from "@/types";
 
 export default {
   title: "Atoms/WaveformDisplay",
@@ -9,7 +9,7 @@ export default {
 };
 
 // Generate sample waveform data
-const generateWaveformData = (samples: number = 200): WaveformData => {
+const generateWaveformData = (samples = 200): WaveformData => {
   const amplitudes: number[] = [];
   for (let i = 0; i < samples; i++) {
     // Generate a mix of sine waves for realistic waveform

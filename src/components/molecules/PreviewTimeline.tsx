@@ -1,5 +1,5 @@
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
-import type { WaveformData, VideoClip } from "@/types";
+import type { VideoClip, WaveformData } from "@/types";
 import { formatMs } from "@/utils/duration";
 
 interface PreviewTimelineProps {
@@ -49,7 +49,7 @@ export default function PreviewTimeline({
 }: PreviewTimelineProps) {
   const colors = [
     "#3b82f6", // blue
-    "#10b981", // emerald  
+    "#10b981", // emerald
     "#f59e0b", // amber
     "#ef4444", // red
     "#8b5cf6", // violet
@@ -93,7 +93,7 @@ export default function PreviewTimeline({
               </div>
             );
           })}
-          
+
           {/* Playhead indicator */}
           <div
             className="absolute top-0 h-full w-0.5 bg-red-500 z-10"

@@ -61,12 +61,12 @@ export default function WaveformDisplay({
     const halfHeight = height / 2;
 
     ctx.fillStyle = color;
-    
+
     for (let i = 0; i < amplitudes.length; i++) {
       const amplitude = Math.abs(amplitudes[i]);
       const barHeight = amplitude * halfHeight;
       const x = i * barWidth;
-      
+
       // Draw positive amplitude
       ctx.fillRect(x, halfHeight - barHeight, barWidth - 1, barHeight);
       // Draw negative amplitude (mirrored)
@@ -95,7 +95,7 @@ export default function WaveformDisplay({
     const x = event.clientX - rect.left;
     const relativeX = x / width;
     const seekTime = relativeX * waveformData.duration;
-    
+
     onSeek(Math.max(0, Math.min(seekTime, waveformData.duration)));
   };
 
@@ -107,9 +107,10 @@ export default function WaveformDisplay({
       event.preventDefault();
       const step = waveformData.duration * 0.05; // 5% step
       const currentTime = playheadPosition || 0;
-      const newTime = event.key === "ArrowLeft" 
-        ? Math.max(0, currentTime - step)
-        : Math.min(waveformData.duration, currentTime + step);
+      const newTime =
+        event.key === "ArrowLeft"
+          ? Math.max(0, currentTime - step)
+          : Math.min(waveformData.duration, currentTime + step);
       onSeek(newTime);
     }
   };

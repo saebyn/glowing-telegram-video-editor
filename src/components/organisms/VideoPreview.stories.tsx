@@ -1,6 +1,11 @@
+import type {
+  AudioChannel,
+  PreviewSettings,
+  VideoClip,
+  WaveformData,
+} from "@/types";
 import { action } from "@storybook/addon-actions";
 import VideoPreview from "./VideoPreview";
-import type { PreviewSettings, AudioChannel, WaveformData, VideoClip } from "@/types";
 
 export default {
   title: "Organisms/VideoPreview",
@@ -17,14 +22,21 @@ export default {
 };
 
 // Generate sample waveform data
-const generateWaveformData = (channelId: string, samples: number = 400): WaveformData => {
+const generateWaveformData = (
+  channelId: string,
+  samples = 400,
+): WaveformData => {
   const amplitudes: number[] = [];
   for (let i = 0; i < samples; i++) {
     let amplitude = 0;
     if (channelId === "channel-1") {
-      amplitude = Math.sin((i / samples) * Math.PI * 6) * 0.6 + Math.sin((i / samples) * Math.PI * 12) * 0.3;
+      amplitude =
+        Math.sin((i / samples) * Math.PI * 6) * 0.6 +
+        Math.sin((i / samples) * Math.PI * 12) * 0.3;
     } else if (channelId === "channel-2") {
-      amplitude = Math.sin((i / samples) * Math.PI * 3) * 0.4 + (Math.random() - 0.5) * 0.2;
+      amplitude =
+        Math.sin((i / samples) * Math.PI * 3) * 0.4 +
+        (Math.random() - 0.5) * 0.2;
     } else {
       amplitude = Math.sin((i / samples) * Math.PI * 4) * 0.5;
     }
@@ -68,18 +80,18 @@ const mockWaveformData: WaveformData[] = [
 const mockCutlist: VideoClip[] = [
   {
     id: "clip-1",
-    start: 10000,  // 10 seconds
-    end: 45000,    // 45 seconds
+    start: 10000, // 10 seconds
+    end: 45000, // 45 seconds
   },
   {
     id: "clip-2",
-    start: 60000,  // 1 minute
-    end: 120000,   // 2 minutes
+    start: 60000, // 1 minute
+    end: 120000, // 2 minutes
   },
   {
     id: "clip-3",
     start: 140000, // 2:20
-    end: 170000,   // 2:50
+    end: 170000, // 2:50
   },
 ];
 
@@ -92,7 +104,8 @@ const mockPreviewSettings: PreviewSettings = {
 export const Default = {
   args: {
     settings: mockPreviewSettings,
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 30000, // 30 seconds
     duration: 180000, // 3 minutes
     onSettingsChange: action("onSettingsChange"),
@@ -106,7 +119,8 @@ export const Default = {
 export const Regenerating = {
   args: {
     settings: mockPreviewSettings,
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 60000,
     duration: 180000,
     onSettingsChange: action("onSettingsChange"),
@@ -120,7 +134,8 @@ export const Regenerating = {
 export const Saving = {
   args: {
     settings: mockPreviewSettings,
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 90000,
     duration: 180000,
     onSettingsChange: action("onSettingsChange"),
@@ -138,7 +153,8 @@ export const SingleChannel = {
       audioChannels: [mockAudioChannels[0]],
       waveformData: [mockWaveformData[0]],
     },
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 45000,
     duration: 180000,
     onSettingsChange: action("onSettingsChange"),
@@ -155,7 +171,8 @@ export const EmptyCutlist = {
       ...mockPreviewSettings,
       cutlist: [],
     },
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 0,
     duration: 180000,
     onSettingsChange: action("onSettingsChange"),
@@ -170,9 +187,13 @@ export const AllMuted = {
   args: {
     settings: {
       ...mockPreviewSettings,
-      audioChannels: mockAudioChannels.map(channel => ({ ...channel, muted: true })),
+      audioChannels: mockAudioChannels.map((channel) => ({
+        ...channel,
+        muted: true,
+      })),
     },
-    previewVideoUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+    previewVideoUrl:
+      "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     playheadPosition: 75000,
     duration: 180000,
     onSettingsChange: action("onSettingsChange"),

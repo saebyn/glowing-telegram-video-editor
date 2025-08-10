@@ -1,6 +1,6 @@
+import type { AudioChannel } from "@/types";
 import { action } from "@storybook/addon-actions";
 import AudioChannelControl from "./AudioChannelControl";
-import type { AudioChannel } from "@/types";
 
 export default {
   title: "Atoms/AudioChannelControl",
@@ -16,7 +16,7 @@ const mockChannel: AudioChannel = {
 };
 
 const mockMutedChannel: AudioChannel = {
-  id: "channel-2", 
+  id: "channel-2",
   name: "Audio Track 2",
   level: 0.5,
   muted: true,
