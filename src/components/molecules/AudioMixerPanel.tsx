@@ -1,7 +1,7 @@
 import AudioChannelControl from "@/components/atoms/AudioChannelControl";
 import Button from "@/components/atoms/Button";
 import type { AudioChannel } from "@/types";
-import { isAllMuted, hasAudioChanges } from "@/utils/audioChannels";
+import { hasAudioChanges, isAllMuted } from "@/utils/audioChannels";
 
 interface AudioMixerPanelProps {
   /**

@@ -16,7 +16,7 @@ function InteractiveWrapper({
   React.ComponentProps<typeof AudioChannelNameEditor>
 >) {
   const [name, setName] = useState(initialName);
-  
+
   const handleNameChange = (newName: string) => {
     setName(newName);
     action("onNameChange")(newName);
@@ -34,15 +34,11 @@ function InteractiveWrapper({
 }
 
 export const Default = {
-  render: () => (
-    <InteractiveWrapper initialName="Audio Track 1" />
-  ),
+  render: () => <InteractiveWrapper initialName="Audio Track 1" />,
 };
 
 export const EmptyName = {
-  render: () => (
-    <InteractiveWrapper initialName="" />
-  ),
+  render: () => <InteractiveWrapper initialName="" />,
 };
 
 export const LongName = {
@@ -53,26 +49,23 @@ export const LongName = {
 
 export const CustomPlaceholder = {
   render: () => (
-    <InteractiveWrapper 
-      initialName="" 
-      placeholder="Enter audio channel name..." 
+    <InteractiveWrapper
+      initialName=""
+      placeholder="Enter audio channel name..."
     />
   ),
 };
 
 export const Disabled = {
   render: () => (
-    <InteractiveWrapper 
-      initialName="Read-only Channel" 
-      disabled={true}
-    />
+    <InteractiveWrapper initialName="Read-only Channel" disabled={true} />
   ),
 };
 
 export const DisabledEmpty = {
   render: () => (
-    <InteractiveWrapper 
-      initialName="" 
+    <InteractiveWrapper
+      initialName=""
       disabled={true}
       placeholder="No name available"
     />
@@ -80,12 +73,7 @@ export const DisabledEmpty = {
 };
 
 export const ShortMaxLength = {
-  render: () => (
-    <InteractiveWrapper 
-      initialName="Short" 
-      maxLength={10}
-    />
-  ),
+  render: () => <InteractiveWrapper initialName="Short" maxLength={10} />,
 };
 
 export const MultipleChannels = {
@@ -98,22 +86,24 @@ export const MultipleChannels = {
     ]);
 
     const handleChannelNameChange = (id: string, newName: string) => {
-      setChannels(prev => 
-        prev.map(channel => 
-          channel.id === id ? { ...channel, name: newName } : channel
-        )
+      setChannels((prev) =>
+        prev.map((channel) =>
+          channel.id === id ? { ...channel, name: newName } : channel,
+        ),
       );
       action("onNameChange")(`Channel ${id}: ${newName}`);
     };
 
     return (
       <div className="space-y-2 w-64">
-        {channels.map(channel => (
+        {channels.map((channel) => (
           <div key={channel.id} className="flex items-center space-x-2">
             <span className="text-xs text-gray-500 w-8">#{channel.id}</span>
             <AudioChannelNameEditor
               name={channel.name}
-              onNameChange={(newName) => handleChannelNameChange(channel.id, newName)}
+              onNameChange={(newName) =>
+                handleChannelNameChange(channel.id, newName)
+              }
               placeholder={`Channel ${channel.id}`}
             />
           </div>

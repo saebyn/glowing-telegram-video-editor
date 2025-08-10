@@ -4,11 +4,7 @@ import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPlayer, {
   type VideoPlayerRef,
 } from "@/components/molecules/VideoPlayer";
-import type {
-  AudioChannel,
-  PreviewSettings,
-  VideoClip,
-} from "@/types";
+import type { AudioChannel, PreviewSettings, VideoClip } from "@/types";
 import { hasAudioChanges } from "@/utils/audioChannels";
 import { useRef, useState } from "react";
 
