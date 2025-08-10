@@ -38,14 +38,14 @@ const mockChannels: AudioChannel[] = [
 ];
 
 // Interactive wrapper for testing name editing
-function InteractiveWrapper({ 
-  initialChannels, 
-  ...props 
-}: { 
+function InteractiveWrapper({
+  initialChannels,
+  ...props
+}: {
   initialChannels: AudioChannel[];
 } & Partial<React.ComponentProps<typeof AudioMixerPanel>>) {
   const [channels, setChannels] = useState(initialChannels);
-  
+
   const handleChange = (updatedChannels: AudioChannel[]) => {
     setChannels(updatedChannels);
     action("onChange")(updatedChannels);
@@ -62,20 +62,16 @@ function InteractiveWrapper({
 }
 
 export const Default = {
-  render: () => (
-    <InteractiveWrapper initialChannels={mockChannels} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={mockChannels} />,
 };
 
 export const SingleChannel = {
-  render: () => (
-    <InteractiveWrapper initialChannels={[mockChannels[0]]} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={[mockChannels[0]]} />,
 };
 
 export const ManyChannels = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannels={[
         ...mockChannels,
         {
@@ -103,51 +99,42 @@ export const ManyChannels = {
 
 export const Disabled = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannels={mockChannels}
-      disabled={true}
-    />
+    <InteractiveWrapper initialChannels={mockChannels} disabled={true} />
   ),
 };
 
 export const Saving = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannels={mockChannels}
-      saving={true}
-    />
+    <InteractiveWrapper initialChannels={mockChannels} saving={true} />
   ),
 };
 
 export const AllMuted = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannels={mockChannels.map((channel) => ({ ...channel, muted: true }))}
+    <InteractiveWrapper
+      initialChannels={mockChannels.map((channel) => ({
+        ...channel,
+        muted: true,
+      }))}
     />
   ),
 };
 
 export const NoSaveCallback = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannels={mockChannels}
-      onSave={undefined}
-    />
+    <InteractiveWrapper initialChannels={mockChannels} onSave={undefined} />
   ),
 };
 
 export const WithNameEdit = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannels={mockChannels}
-      allowNameEdit={true}
-    />
+    <InteractiveWrapper initialChannels={mockChannels} allowNameEdit={true} />
   ),
 };
 
 export const WithNameEditAndEmptyNames = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannels={[
         { id: "channel-1", name: "Named Channel", level: 0.8, muted: false },
         { id: "channel-2", name: "", level: 0.6, muted: false },
@@ -161,7 +148,7 @@ export const WithNameEditAndEmptyNames = {
 
 export const WithNameEditDisabled = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannels={mockChannels}
       allowNameEdit={true}
       disabled={true}

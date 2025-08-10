@@ -24,52 +24,41 @@ const mockMutedChannel: AudioChannel = {
 };
 
 // Interactive wrapper for testing name editing
-function InteractiveWrapper({ 
-  initialChannel, 
-  ...props 
-}: { 
+function InteractiveWrapper({
+  initialChannel,
+  ...props
+}: {
   initialChannel: AudioChannel;
 } & Partial<React.ComponentProps<typeof AudioChannelControl>>) {
   const [channel, setChannel] = useState(initialChannel);
-  
+
   const handleChange = (updatedChannel: AudioChannel) => {
     setChannel(updatedChannel);
     action("onChange")(updatedChannel);
   };
 
   return (
-    <AudioChannelControl
-      channel={channel}
-      onChange={handleChange}
-      {...props}
-    />
+    <AudioChannelControl channel={channel} onChange={handleChange} {...props} />
   );
 }
 
 export const Default = {
-  render: () => (
-    <InteractiveWrapper initialChannel={mockChannel} />
-  ),
+  render: () => <InteractiveWrapper initialChannel={mockChannel} />,
 };
 
 export const Muted = {
-  render: () => (
-    <InteractiveWrapper initialChannel={mockMutedChannel} />
-  ),
+  render: () => <InteractiveWrapper initialChannel={mockMutedChannel} />,
 };
 
 export const Disabled = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannel={mockChannel}
-      disabled={true}
-    />
+    <InteractiveWrapper initialChannel={mockChannel} disabled={true} />
   ),
 };
 
 export const LowLevel = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannel={{
         ...mockChannel,
         level: 0.1,
@@ -80,7 +69,7 @@ export const LowLevel = {
 
 export const HighLevel = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannel={{
         ...mockChannel,
         level: 1.0,
@@ -91,16 +80,13 @@ export const HighLevel = {
 
 export const WithNameEdit = {
   render: () => (
-    <InteractiveWrapper 
-      initialChannel={mockChannel}
-      allowNameEdit={true}
-    />
+    <InteractiveWrapper initialChannel={mockChannel} allowNameEdit={true} />
   ),
 };
 
 export const WithNameEditMuted = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannel={mockMutedChannel}
       allowNameEdit={true}
     />
@@ -109,7 +95,7 @@ export const WithNameEditMuted = {
 
 export const WithNameEditDisabled = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannel={mockChannel}
       allowNameEdit={true}
       disabled={true}
@@ -119,7 +105,7 @@ export const WithNameEditDisabled = {
 
 export const WithNameEditEmptyName = {
   render: () => (
-    <InteractiveWrapper 
+    <InteractiveWrapper
       initialChannel={{
         ...mockChannel,
         name: "",

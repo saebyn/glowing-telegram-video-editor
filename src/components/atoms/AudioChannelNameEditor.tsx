@@ -106,7 +106,9 @@ export default function AudioChannelNameEditor({
           ? "text-gray-500 dark:text-gray-400 cursor-not-allowed"
           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-text"
       }`}
-      title={disabled ? "Cannot edit channel name" : "Click to edit channel name"}
+      title={
+        disabled ? "Cannot edit channel name" : "Click to edit channel name"
+      }
       aria-label="Channel name (click to edit)"
     >
       {name || placeholder}
