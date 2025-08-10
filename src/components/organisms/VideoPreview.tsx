@@ -8,8 +8,8 @@ import type {
   AudioChannel,
   PreviewSettings,
   VideoClip,
-  WaveformData,
 } from "@/types";
+import { hasAudioChanges } from "@/utils/audioChannels";
 import { useRef, useState } from "react";
 
 interface VideoPreviewProps {
@@ -98,9 +98,7 @@ export default function VideoPreview({
     onSave?.(settings);
   };
 
-  const hasAudioChanges = settings.audioChannels.some(
-    (channel) => channel.level !== 1.0 || channel.muted,
-  );
+  const hasChanges = hasAudioChanges(settings.audioChannels);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-800">
@@ -121,7 +119,7 @@ export default function VideoPreview({
             <Button
               onClick={handleSave}
               variant="primary"
-              disabled={!hasAudioChanges || saving || regenerating}
+              disabled={!hasChanges || saving || regenerating}
             >
               {saving ? "Saving..." : "Save Changes"}
             </Button>
@@ -160,7 +158,7 @@ export default function VideoPreview({
             <AudioMixerPanel
               channels={settings.audioChannels}
               onChange={handleAudioChannelsChange}
-              onSave={hasAudioChanges ? handleSave : undefined}
+              onSave={hasChanges ? handleSave : undefined}
               disabled={regenerating}
               saving={saving}
             />
@@ -179,7 +177,7 @@ export default function VideoPreview({
           <div>
             {regenerating && "Generating preview..."}
             {saving && "Saving changes..."}
-            {!regenerating && !saving && hasAudioChanges && "Changes pending"}
+            {!regenerating && !saving && hasChanges && "Changes pending"}
           </div>
         </div>
       </div>

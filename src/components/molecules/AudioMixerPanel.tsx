@@ -1,6 +1,7 @@
 import AudioChannelControl from "@/components/atoms/AudioChannelControl";
 import Button from "@/components/atoms/Button";
 import type { AudioChannel } from "@/types";
+import { isAllMuted, hasAudioChanges } from "@/utils/audioChannels";
 
 interface AudioMixerPanelProps {
   /**
@@ -62,10 +63,8 @@ export default function AudioMixerPanel({
     onChange(resetChannels);
   };
 
-  const allMuted = channels.every((channel) => channel.muted);
-  const hasChanges = channels.some(
-    (channel) => channel.level !== 1.0 || channel.muted,
-  );
+  const allMuted = isAllMuted(channels);
+  const hasChanges = hasAudioChanges(channels);
 
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
