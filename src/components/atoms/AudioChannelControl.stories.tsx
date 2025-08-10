@@ -1,5 +1,6 @@
 import type { AudioChannel } from "@/types";
 import { action } from "@storybook/addon-actions";
+import { useState } from "react";
 import AudioChannelControl from "./AudioChannelControl";
 
 export default {
@@ -22,48 +23,108 @@ const mockMutedChannel: AudioChannel = {
   muted: true,
 };
 
+// Interactive wrapper for testing name editing
+function InteractiveWrapper({ 
+  initialChannel, 
+  ...props 
+}: { 
+  initialChannel: AudioChannel;
+} & Partial<React.ComponentProps<typeof AudioChannelControl>>) {
+  const [channel, setChannel] = useState(initialChannel);
+  
+  const handleChange = (updatedChannel: AudioChannel) => {
+    setChannel(updatedChannel);
+    action("onChange")(updatedChannel);
+  };
+
+  return (
+    <AudioChannelControl
+      channel={channel}
+      onChange={handleChange}
+      {...props}
+    />
+  );
+}
+
 export const Default = {
-  args: {
-    channel: mockChannel,
-    onChange: action("onChange"),
-    disabled: false,
-  },
+  render: () => (
+    <InteractiveWrapper initialChannel={mockChannel} />
+  ),
 };
 
 export const Muted = {
-  args: {
-    channel: mockMutedChannel,
-    onChange: action("onChange"),
-    disabled: false,
-  },
+  render: () => (
+    <InteractiveWrapper initialChannel={mockMutedChannel} />
+  ),
 };
 
 export const Disabled = {
-  args: {
-    channel: mockChannel,
-    onChange: action("onChange"),
-    disabled: true,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={mockChannel}
+      disabled={true}
+    />
+  ),
 };
 
 export const LowLevel = {
-  args: {
-    channel: {
-      ...mockChannel,
-      level: 0.1,
-    },
-    onChange: action("onChange"),
-    disabled: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={{
+        ...mockChannel,
+        level: 0.1,
+      }}
+    />
+  ),
 };
 
 export const HighLevel = {
-  args: {
-    channel: {
-      ...mockChannel,
-      level: 1.0,
-    },
-    onChange: action("onChange"),
-    disabled: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={{
+        ...mockChannel,
+        level: 1.0,
+      }}
+    />
+  ),
+};
+
+export const WithNameEdit = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={mockChannel}
+      allowNameEdit={true}
+    />
+  ),
+};
+
+export const WithNameEditMuted = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={mockMutedChannel}
+      allowNameEdit={true}
+    />
+  ),
+};
+
+export const WithNameEditDisabled = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={mockChannel}
+      allowNameEdit={true}
+      disabled={true}
+    />
+  ),
+};
+
+export const WithNameEditEmptyName = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannel={{
+        ...mockChannel,
+        name: "",
+      }}
+      allowNameEdit={true}
+    />
+  ),
 };

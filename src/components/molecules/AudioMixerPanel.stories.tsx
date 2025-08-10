@@ -1,5 +1,6 @@
 import type { AudioChannel } from "@/types";
 import { action } from "@storybook/addon-actions";
+import { useState } from "react";
 import AudioMixerPanel from "./AudioMixerPanel";
 
 export default {
@@ -36,92 +37,134 @@ const mockChannels: AudioChannel[] = [
   },
 ];
 
+// Interactive wrapper for testing name editing
+function InteractiveWrapper({ 
+  initialChannels, 
+  ...props 
+}: { 
+  initialChannels: AudioChannel[];
+} & Partial<React.ComponentProps<typeof AudioMixerPanel>>) {
+  const [channels, setChannels] = useState(initialChannels);
+  
+  const handleChange = (updatedChannels: AudioChannel[]) => {
+    setChannels(updatedChannels);
+    action("onChange")(updatedChannels);
+  };
+
+  return (
+    <AudioMixerPanel
+      channels={channels}
+      onChange={handleChange}
+      onSave={action("onSave")}
+      {...props}
+    />
+  );
+}
+
 export const Default = {
-  args: {
-    channels: mockChannels,
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: false,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper initialChannels={mockChannels} />
+  ),
 };
 
 export const SingleChannel = {
-  args: {
-    channels: [mockChannels[0]],
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: false,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper initialChannels={[mockChannels[0]]} />
+  ),
 };
 
 export const ManyChannels = {
-  args: {
-    channels: [
-      ...mockChannels,
-      {
-        id: "channel-4",
-        name: "Music",
-        level: 0.3,
-        muted: false,
-      },
-      {
-        id: "channel-5",
-        name: "Sound Effects",
-        level: 0.7,
-        muted: false,
-      },
-      {
-        id: "channel-6",
-        name: "Voice Chat",
-        level: 0.5,
-        muted: true,
-      },
-    ],
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: false,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={[
+        ...mockChannels,
+        {
+          id: "channel-4",
+          name: "Music",
+          level: 0.3,
+          muted: false,
+        },
+        {
+          id: "channel-5",
+          name: "Sound Effects",
+          level: 0.7,
+          muted: false,
+        },
+        {
+          id: "channel-6",
+          name: "Voice Chat",
+          level: 0.5,
+          muted: true,
+        },
+      ]}
+    />
+  ),
 };
 
 export const Disabled = {
-  args: {
-    channels: mockChannels,
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: true,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels}
+      disabled={true}
+    />
+  ),
 };
 
 export const Saving = {
-  args: {
-    channels: mockChannels,
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: false,
-    saving: true,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels}
+      saving={true}
+    />
+  ),
 };
 
 export const AllMuted = {
-  args: {
-    channels: mockChannels.map((channel) => ({ ...channel, muted: true })),
-    onChange: action("onChange"),
-    onSave: action("onSave"),
-    disabled: false,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels.map((channel) => ({ ...channel, muted: true }))}
+    />
+  ),
 };
 
 export const NoSaveCallback = {
-  args: {
-    channels: mockChannels,
-    onChange: action("onChange"),
-    // No onSave callback
-    disabled: false,
-    saving: false,
-  },
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels}
+      onSave={undefined}
+    />
+  ),
+};
+
+export const WithNameEdit = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels}
+      allowNameEdit={true}
+    />
+  ),
+};
+
+export const WithNameEditAndEmptyNames = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={[
+        { id: "channel-1", name: "Named Channel", level: 0.8, muted: false },
+        { id: "channel-2", name: "", level: 0.6, muted: false },
+        { id: "channel-3", name: "Another Named", level: 0.4, muted: true },
+        { id: "channel-4", name: "", level: 0.5, muted: false },
+      ]}
+      allowNameEdit={true}
+    />
+  ),
+};
+
+export const WithNameEditDisabled = {
+  render: () => (
+    <InteractiveWrapper 
+      initialChannels={mockChannels}
+      allowNameEdit={true}
+      disabled={true}
+    />
+  ),
 };
