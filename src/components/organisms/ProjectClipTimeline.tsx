@@ -1,7 +1,7 @@
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface ProjectClipTimelineProps {
   /**
@@ -52,6 +52,10 @@ export interface ProjectClipTimelineProps {
    * Callback when clips are dropped from pool
    */
   onClipsAdd?: (clipIds: string[], position: number) => void;
+  /**
+   * Callback when a clip is trimmed
+   */
+  onClipTrim?: (clipId: string, newStart: number, newEnd: number) => void;
 }
 
 export default function ProjectClipTimeline({
@@ -67,10 +71,18 @@ export default function ProjectClipTimeline({
   onTitleUpdate,
   onSeek,
   onClipsAdd,
+  onClipTrim,
 }: ProjectClipTimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [trimmingClip, setTrimmingClip] = useState<{
+    clipId: string;
+    edge: "start" | "end";
+    initialX: number;
+    originalStart: number;
+    originalEnd: number;
+  } | null>(null);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
@@ -150,6 +162,96 @@ export default function ProjectClipTimeline({
     onClipRemove?.(clipId);
   };
 
+  const handleTrimStart = (
+    event: React.MouseEvent,
+    clip: VideoClip,
+    edge: "start" | "end",
+  ) => {
+    event.stopPropagation();
+    event.preventDefault();
+    setTrimmingClip({
+      clipId: clip.id,
+      edge,
+      initialX: event.clientX,
+      originalStart: clip.start,
+      originalEnd: clip.end,
+    });
+  };
+
+  const handleTrimMove = useCallback(
+    (event: MouseEvent) => {
+      if (!trimmingClip || !timelineRef.current) return;
+
+      // Calculate total duration of all clips
+      const currentTotalDuration = clips.reduce(
+        (sum, c) => sum + (c.end - c.start),
+        0,
+      );
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const deltaX = event.clientX - trimmingClip.initialX;
+      const timePerPixel = currentTotalDuration / rect.width;
+      const deltaTime = deltaX * timePerPixel;
+
+      const clip = clips.find((c) => c.id === trimmingClip.clipId);
+      if (!clip) return;
+
+      let newStart = trimmingClip.originalStart;
+      let newEnd = trimmingClip.originalEnd;
+
+      if (trimmingClip.edge === "start") {
+        newStart = Math.max(
+          0,
+          Math.min(
+            trimmingClip.originalStart + deltaTime,
+            trimmingClip.originalEnd - 1000, // Minimum 1 second clip
+          ),
+        );
+      } else {
+        newEnd = Math.max(
+          trimmingClip.originalStart + 1000, // Minimum 1 second clip
+          trimmingClip.originalEnd + deltaTime,
+        );
+      }
+
+      // Update clip temporarily for visual feedback
+      const updatedClips = clips.map((c) =>
+        c.id === trimmingClip.clipId
+          ? { ...c, start: newStart, end: newEnd }
+          : c,
+      );
+      onClipsReorder?.(updatedClips);
+    },
+    [trimmingClip, clips, onClipsReorder],
+  );
+
+  const handleTrimEnd = useCallback(() => {
+    if (!trimmingClip) return;
+
+    const clip = clips.find((c) => c.id === trimmingClip.clipId);
+    if (clip && onClipTrim) {
+      onClipTrim(clip.id, clip.start, clip.end);
+    }
+
+    setTrimmingClip(null);
+  }, [trimmingClip, clips, onClipTrim]);
+
+  // Handle trim mouse events
+  useEffect(() => {
+    if (!trimmingClip) return;
+
+    const handleMouseMove = (e: MouseEvent) => handleTrimMove(e);
+    const handleMouseUp = () => handleTrimEnd();
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [trimmingClip, handleTrimMove, handleTrimEnd]);
+
   // Calculate cumulative positions for clips
   let cumulativeTime = 0;
   const clipPositions = clips.map((clip) => {
@@ -223,7 +325,7 @@ export default function ProjectClipTimeline({
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragLeave={handleDragLeave}
-                  className={`relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
+                  className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
                     dragOverIndex === index
                       ? "border-l-4 border-blue-500 pl-1"
                       : ""
@@ -234,6 +336,15 @@ export default function ProjectClipTimeline({
                   }}
                 >
                   <div className="relative h-full">
+                    {/* Start trim handle */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-0 hover:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-50"
+                      onMouseDown={(e) => handleTrimStart(e, clip, "start")}
+                      title="Trim start"
+                    >
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
+                    </div>
+
                     <ProjectClipPreview
                       id={clip.id}
                       thumbnailUrl={
@@ -247,6 +358,15 @@ export default function ProjectClipTimeline({
                       onTitleUpdate={onTitleUpdate || (() => {})}
                       showCheckbox={false}
                     />
+
+                    {/* End trim handle */}
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-0 hover:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-50"
+                      onMouseDown={(e) => handleTrimStart(e, clip, "end")}
+                      title="Trim end"
+                    >
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
+                    </div>
 
                     {/* Remove button */}
                     <button
