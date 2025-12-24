@@ -13,6 +13,7 @@ const meta = {
     onTitleUpdate: { action: "titleUpdated" },
     onSeek: { action: "seeked" },
     onClipsAdd: { action: "clipsAdded" },
+    onClipTrim: { action: "clipTrimmed" },
   },
 } satisfies Meta<typeof ProjectClipTimeline>;
 
@@ -177,6 +178,13 @@ export const Interactive: Story = {
         onClipsReorder={setClips}
         onClipRemove={(id) => setClips(clips.filter((c) => c.id !== id))}
         onSeek={setPlayhead}
+        onClipTrim={(id, newStart, newEnd) =>
+          setClips(
+            clips.map((c) =>
+              c.id === id ? { ...c, start: newStart, end: newEnd } : c,
+            ),
+          )
+        }
       />
     );
   },
