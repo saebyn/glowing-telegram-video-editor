@@ -53,9 +53,12 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
       ></div>
       <div
         className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
-        style={{ backgroundImage: `url(${hover ? props.keyframeUrls[keyframe] : props.thumbnailUrl})` }}
+        style={{
+          backgroundImage: `url(${hover ? props.keyframeUrls[keyframe] : props.thumbnailUrl})`,
+        }}
       ></div>
-      <div className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white"
+      <div
+        className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white"
         style={{ visibility: hover ? "visible" : "hidden" }}
       >
         <div
@@ -64,7 +67,10 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
         >
           {props.title || `Clip ${props.id}`}
 
-          <div aria-roledescription="edit project clip title" className="inline-block ml-2">
+          <div
+            aria-roledescription="edit project clip title"
+            className="inline-block ml-2"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-4 w-4 text-white opacity-75 inline-block cursor-pointer"
