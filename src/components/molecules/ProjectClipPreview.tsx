@@ -35,10 +35,20 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
       }, 200); // Change keyframe every 200ms
 
       return () => clearInterval(interval);
-    } else {
-      setKeyframe(0);
     }
+
+    setKeyframe(0);
   }, [hover, props.keyframeUrls.length]);
+
+  const handleClick = () => {
+    const newTitle = prompt(
+      "Enter new title:",
+      props.title || `Clip ${props.id}`,
+    );
+    if (newTitle !== null && newTitle.trim() !== "") {
+      props.onTitleUpdate(props.id, newTitle.trim());
+    }
+  };
 
   return (
     <div
@@ -50,13 +60,13 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
       <div
         className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
         style={{ backgroundImage: `url(${props.thumbnailUrl})` }}
-      ></div>
+      />
       <div
         className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
         style={{
           backgroundImage: `url(${hover ? props.keyframeUrls[keyframe] : props.thumbnailUrl})`,
         }}
-      ></div>
+      />
       <div
         className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white"
         style={{ visibility: hover ? "visible" : "hidden" }}
@@ -77,16 +87,9 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              onClick={() => {
-                const newTitle = prompt(
-                  "Enter new title:",
-                  props.title || `Clip ${props.id}`,
-                );
-                if (newTitle !== null && newTitle.trim() !== "") {
-                  props.onTitleUpdate(props.id, newTitle.trim());
-                }
-              }}
+              onClick={handleClick}
             >
+              <title>Edit Title</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -114,6 +117,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
+          <title>Drag Handle</title>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

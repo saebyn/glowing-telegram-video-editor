@@ -17,7 +17,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
+export const Default = {
   args: {
     thumbnailUrl:
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-016500.png",
@@ -40,5 +40,6 @@ export const Default: Story = {
     height: "115px",
     id: "clip-1",
     showCheckbox: false,
-  } as any,
-};
+    onTitleUpdate: (id: string, newTitle: string) => {},
+  },
+} satisfies Story;
