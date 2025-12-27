@@ -15,7 +15,8 @@ const generateWaveformData = (samples = 200): WaveformData => {
     // Generate a mix of sine waves for realistic waveform
     const freq1 = Math.sin((i / samples) * Math.PI * 4) * 0.5;
     const freq2 = Math.sin((i / samples) * Math.PI * 8) * 0.3;
-    const noise = (Math.random() - 0.5) * 0.2;
+    // Use deterministic pseudo-noise based on position instead of Math.random()
+    const noise = Math.sin((i / samples) * Math.PI * 23.5) * 0.2;
     amplitudes.push(Math.abs(freq1 + freq2 + noise));
   }
   return {
