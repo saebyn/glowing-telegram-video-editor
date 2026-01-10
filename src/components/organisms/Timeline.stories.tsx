@@ -1,7 +1,6 @@
+import { action } from "@storybook/addon-actions";
 import { TimelineProvider } from "@/context/TimelineContext";
 import Timeline from "./Timeline";
-
-import { action } from "@storybook/addon-actions";
 
 export default {
   title: "Organisms/Timeline",

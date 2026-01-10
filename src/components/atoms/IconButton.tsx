@@ -1,5 +1,5 @@
-import Button from "@/components/atoms/Button";
 import type React from "react";
+import Button from "@/components/atoms/Button";
 
 function IconButton({
   icon,

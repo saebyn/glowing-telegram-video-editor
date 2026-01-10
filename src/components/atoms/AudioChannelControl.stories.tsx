@@ -1,6 +1,6 @@
-import type { AudioChannel } from "@/types";
 import { action } from "@storybook/addon-actions";
 import { useState } from "react";
+import type { AudioChannel } from "@/types";
 import AudioChannelControl from "./AudioChannelControl";
 
 export default {

@@ -1,5 +1,5 @@
-import type { WaveformData } from "@/types";
 import { useEffect, useRef } from "react";
+import type { WaveformData } from "@/types";
 
 interface WaveformDisplayProps {
   /**

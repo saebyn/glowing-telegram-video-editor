@@ -1,5 +1,5 @@
-import type { Section } from "@/types";
 import { describe, expect, it } from "vitest";
+import type { Section } from "@/types";
 import findGaps from "./findGaps";
 
 describe("findGaps", () => {

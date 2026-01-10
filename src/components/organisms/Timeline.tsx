@@ -1,14 +1,14 @@
-import TimeSegmentMarker from "@/components/atoms/TimeSegmentMarker";
+import { useEffect, useRef, useState } from "react";
 import {
   type TimelineElementType,
   timelineElementTypeColors,
 } from "@/components/atoms/TimelineLegend";
+import TimeSegmentMarker from "@/components/atoms/TimeSegmentMarker";
 import TimelineElement from "@/components/molecules/TimelineElement";
 import { useLens } from "@/context/TimelineContext";
 import type { Section, VideoMetadata } from "@/types";
 import { formatMs } from "@/utils/duration";
 import { createTimeline, generateKey } from "@/utils/timeline";
-import { useEffect, useRef, useState } from "react";
 
 export default function Timeline({
   content: {
@@ -38,7 +38,7 @@ export default function Timeline({
       return false;
     }
 
-    return new Date().getTime() - dragging > 250;
+    return Date.now() - dragging > 250;
   }
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function Timeline({
   const elements = lens.getVisibleElements(timeline);
 
   const handleDragStart = () => {
-    setDragging(new Date().getTime());
+    setDragging(Date.now());
   };
 
   const handleDragEnd = (e: MouseEvent) => {

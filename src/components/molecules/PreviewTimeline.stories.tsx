@@ -1,5 +1,5 @@
-import type { VideoClip, WaveformData } from "@/types";
 import { action } from "@storybook/addon-actions";
+import type { VideoClip, WaveformData } from "@/types";
 import PreviewTimeline from "./PreviewTimeline";
 
 export default {

@@ -1,10 +1,10 @@
+import { action } from "@storybook/addon-actions";
 import type {
   AudioChannel,
   PreviewSettings,
   VideoClip,
   WaveformData,
 } from "@/types";
-import { action } from "@storybook/addon-actions";
 import VideoPreview from "./VideoPreview";
 
 export default {
