@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import Button from "@/components/atoms/Button";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
@@ -6,7 +7,6 @@ import VideoPlayer, {
 } from "@/components/molecules/VideoPlayer";
 import type { AudioChannel, PreviewSettings, VideoClip } from "@/types";
 import { hasAudioChanges } from "@/utils/audioChannels";
-import { useRef, useState } from "react";
 
 interface VideoPreviewProps {
   /**

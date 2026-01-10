@@ -1,10 +1,11 @@
+import { useRef, useState } from "react";
 import Button from "@/components/atoms/Button";
 import Heading from "@/components/atoms/Heading";
-import ClipSelectionDialog, {} from "@/components/molecules/ClipSelectionDialog";
+import ClipSelectionDialog from "@/components/molecules/ClipSelectionDialog";
 import EditableTimestampedEventLog from "@/components/molecules/EditableTimestampedEventLog";
-import TimeTable from "@/components/molecules/TimeTable";
 import TimelineControls from "@/components/molecules/TimelineControls";
 import TimestampedEventLog from "@/components/molecules/TimestampedEventLog";
+import TimeTable from "@/components/molecules/TimeTable";
 import VideoPlayer, {
   type VideoPlayerRef,
 } from "@/components/molecules/VideoPlayer";
@@ -21,7 +22,6 @@ import type {
   VideoMetadata,
 } from "@/types";
 import findGaps from "@/utils/findGaps";
-import { useRef, useState } from "react";
 
 interface VideoSelectionPageProps {
   content: VideoMetadata;

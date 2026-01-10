@@ -1,5 +1,5 @@
-import type { LogEvent } from "@/types";
 import { useEffect } from "react";
+import type { LogEvent } from "@/types";
 
 /**
  * A hook that finds the nearest element to the given time in the log

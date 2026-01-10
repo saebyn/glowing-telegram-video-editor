@@ -47,7 +47,7 @@ export default function TimeSegmentMarker({
     }
   };
 
-  const handleKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyUp = (_event: React.KeyboardEvent<HTMLDivElement>) => {
     setIsClickable(false);
   };
 
