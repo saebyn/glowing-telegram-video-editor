@@ -75,7 +75,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "@vitest/ui": "^3.0.2",
-    "globals": "^16.0.0",
+    "globals": "^17.3.0",
     "happy-dom": "^20.0.11",
     "material-symbols": "^0.31.3",
     "storybook": "^8.5.6",
