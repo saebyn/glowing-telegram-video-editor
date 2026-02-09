@@ -2,6 +2,8 @@ import usePreloadImages from "@/hooks/usePreloadImages";
 import { useEffect, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 
+const KEYFRAME_INTERVAL_MS = 200;
+
 type ProjectClipPreviewProps = {
   thumbnailUrl: string;
   keyframeUrls: string[];
@@ -10,7 +12,7 @@ type ProjectClipPreviewProps = {
   width: string;
   height: string;
   id: string;
-  onTitleUpdate: (id: string, newTitle: string) => void;
+  onTitleUpdate?: (id: string, newTitle: string) => void;
 } & (
   | {
       showCheckbox: true;
@@ -32,7 +34,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
     if (hover && props.keyframeUrls.length > 1) {
       const interval = setInterval(() => {
         setKeyframe((prev) => (prev + 1) % props.keyframeUrls.length);
-      }, 200); // Change keyframe every 200ms
+      }, KEYFRAME_INTERVAL_MS);
 
       return () => clearInterval(interval);
     }
@@ -41,6 +43,8 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
   }, [hover, props.keyframeUrls.length]);
 
   const handleClick = () => {
+    if (!props.onTitleUpdate) return;
+
     const newTitle = prompt(
       "Enter new title:",
       props.title || `Clip ${props.id}`,
@@ -71,23 +75,21 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
         className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white"
         style={{ visibility: hover ? "visible" : "hidden" }}
       >
-        <div
-          className="text-sm font-medium left-7 right-0 absolute"
-          aria-roledescription="project clip title"
-        >
+        <div className="text-sm font-medium left-7 right-0 absolute">
           {props.title || `Clip ${props.id}`}
 
-          <div
-            aria-roledescription="edit project clip title"
-            className="inline-block ml-2"
+          <button
+            type="button"
+            onClick={handleClick}
+            aria-label="Edit clip title"
+            className="inline-block ml-2 align-middle border-0 bg-transparent p-0 cursor-pointer"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-white opacity-75 inline-block cursor-pointer"
+              className="h-4 w-4 text-white opacity-75 inline-block"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              onClick={handleClick}
             >
               <title>Edit Title</title>
               <path
@@ -97,18 +99,18 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
               />
             </svg>
-          </div>
+          </button>
         </div>
         <div
           className="text-xs absolute right-1 bottom-1"
-          aria-roledescription="project clip duration"
+          aria-label="Duration"
         >
           {duration.toLocaleString()}
         </div>
       </div>
       <div
-        aria-roledescription="drag handle"
         className="absolute top-2 left-1 cursor-move"
+        aria-label="Drag to reorder"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -131,7 +133,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
           <label className="inline-flex items-center">
             <input
               type="checkbox"
-              aria-roledescription="select project clip"
+              aria-label="Select clip"
               className="form-checkbox h-4 w-4 text-blue-600"
               onChange={(e) => props.onSelect(props.id, e.target.checked)}
             />

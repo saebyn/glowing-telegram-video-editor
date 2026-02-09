@@ -1,4 +1,3 @@
-//import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import ProjectClipPreview from "./ProjectClipPreview";
 
@@ -40,6 +39,5 @@ export const Default = {
     height: "115px",
     id: "clip-1",
     showCheckbox: false,
-    onTitleUpdate: (id: string, newTitle: string) => {},
   },
 } satisfies Story;

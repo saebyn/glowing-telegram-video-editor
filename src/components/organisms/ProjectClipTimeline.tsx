@@ -3,6 +3,8 @@ import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const MIN_CLIP_DURATION_MS = 1000;
+
 export interface ProjectClipTimelineProps {
   /**
    * Clips arranged on the timeline
@@ -204,12 +206,12 @@ export default function ProjectClipTimeline({
           0,
           Math.min(
             trimmingClip.originalStart + deltaTime,
-            trimmingClip.originalEnd - 1000, // Minimum 1 second clip
+            trimmingClip.originalEnd - MIN_CLIP_DURATION_MS,
           ),
         );
       } else {
         newEnd = Math.max(
-          trimmingClip.originalStart + 1000, // Minimum 1 second clip
+          trimmingClip.originalStart + MIN_CLIP_DURATION_MS,
           trimmingClip.originalEnd + deltaTime,
         );
       }
@@ -262,7 +264,6 @@ export default function ProjectClipTimeline({
   });
 
   const totalClipDuration = cumulativeTime;
-  const scale = duration > 0 ? 100 / duration : 0;
 
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -337,13 +338,15 @@ export default function ProjectClipTimeline({
                 >
                   <div className="relative h-full">
                     {/* Start trim handle */}
-                    <div
-                      className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-0 hover:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-50"
+                    <button
+                      type="button"
+                      className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "start")}
+                      aria-label="Trim start of clip"
                       title="Trim start"
                     >
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
-                    </div>
+                    </button>
 
                     <ProjectClipPreview
                       id={clip.id}
@@ -355,24 +358,26 @@ export default function ProjectClipTimeline({
                       durationSeconds={durationSeconds}
                       width="100%"
                       height="100%"
-                      onTitleUpdate={onTitleUpdate || (() => {})}
+                      onTitleUpdate={onTitleUpdate}
                       showCheckbox={false}
                     />
 
                     {/* End trim handle */}
-                    <div
-                      className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-0 hover:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-50"
+                    <button
+                      type="button"
+                      className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "end")}
+                      aria-label="Trim end of clip"
                       title="Trim end"
                     >
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
-                    </div>
+                    </button>
 
                     {/* Remove button */}
                     <button
                       type="button"
                       onClick={(e) => handleRemoveClip(e, clip.id)}
-                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
                       aria-label="Remove clip"
                     >
                       <svg
