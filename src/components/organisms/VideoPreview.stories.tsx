@@ -34,9 +34,10 @@ const generateWaveformData = (
         Math.sin((i / samples) * Math.PI * 6) * 0.6 +
         Math.sin((i / samples) * Math.PI * 12) * 0.3;
     } else if (channelId === "channel-2") {
+      // Use deterministic pseudo-noise based on position instead of Math.random()
       amplitude =
         Math.sin((i / samples) * Math.PI * 3) * 0.4 +
-        (Math.random() - 0.5) * 0.2;
+        Math.sin((i / samples) * Math.PI * 23.5) * 0.2;
     } else {
       amplitude = Math.sin((i / samples) * Math.PI * 4) * 0.5;
     }
