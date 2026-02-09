@@ -1,5 +1,5 @@
-import type { VideoClip } from "@/types";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { VideoClip } from "@/types";
 import ProjectClipPool from "./ProjectClipPool";
 
 const meta = {

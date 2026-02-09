@@ -1,6 +1,6 @@
-import type { VideoClip } from "@/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
+import type { VideoClip } from "@/types";
 import ProjectClipTimeline from "./ProjectClipTimeline";
 
 const meta = {
