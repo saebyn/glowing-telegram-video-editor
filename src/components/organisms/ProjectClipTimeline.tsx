@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
@@ -86,6 +86,11 @@ export default function ProjectClipTimeline({
     originalEnd: number;
   } | null>(null);
 
+  // Calculate total duration of all clips
+  const totalClipDuration = useMemo(() => {
+    return clips.reduce((total, clip) => total + (clip.end - clip.start), 0);
+  }, [clips]);
+
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
     index: number,
@@ -154,9 +159,9 @@ export default function ProjectClipTimeline({
     const rect = timelineRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const percentage = x / rect.width;
-    const time = percentage * duration;
+    const time = percentage * totalClipDuration;
 
-    onSeek(Math.max(0, Math.min(duration, time)));
+    onSeek(Math.max(0, Math.min(totalClipDuration, time)));
   };
 
   const handleRemoveClip = (event: React.MouseEvent, clipId: string) => {
@@ -263,8 +268,6 @@ export default function ProjectClipTimeline({
     return { clip, start, duration: clipDuration };
   });
 
-  const totalClipDuration = cumulativeTime;
-
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
       <div className="flex justify-between items-center mb-2">
@@ -287,7 +290,7 @@ export default function ProjectClipTimeline({
           <div className="text-xs text-gray-600 dark:text-gray-400">0:00</div>
           <div className="flex-1" />
           <div className="text-xs text-gray-600 dark:text-gray-400">
-            {formatMs(duration)}
+            {formatMs(totalClipDuration)}
           </div>
         </div>
 
@@ -404,11 +407,11 @@ export default function ProjectClipTimeline({
         </div>
 
         {/* Playhead */}
-        {playheadPosition !== undefined && duration > 0 && (
+        {playheadPosition !== undefined && totalClipDuration > 0 && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-10"
             style={{
-              left: `${(playheadPosition / duration) * 100}%`,
+              left: `${(playheadPosition / totalClipDuration) * 100}%`,
             }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-red-500" />
