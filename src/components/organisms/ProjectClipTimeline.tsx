@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
@@ -84,7 +84,14 @@ export default function ProjectClipTimeline({
     initialX: number;
     originalStart: number;
     originalEnd: number;
+    tempStart: number;
+    tempEnd: number;
   } | null>(null);
+
+  // Calculate total duration of all clips
+  const totalClipDuration = useMemo(() => {
+    return clips.reduce((total, clip) => total + (clip.end - clip.start), 0);
+  }, [clips]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
@@ -154,9 +161,9 @@ export default function ProjectClipTimeline({
     const rect = timelineRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const percentage = x / rect.width;
-    const time = percentage * duration;
+    const time = percentage * totalClipDuration;
 
-    onSeek(Math.max(0, Math.min(duration, time)));
+    onSeek(Math.max(0, Math.min(totalClipDuration, time)));
   };
 
   const handleRemoveClip = (event: React.MouseEvent, clipId: string) => {
@@ -177,6 +184,8 @@ export default function ProjectClipTimeline({
       initialX: event.clientX,
       originalStart: clip.start,
       originalEnd: clip.end,
+      tempStart: clip.start,
+      tempEnd: clip.end,
     });
   };
 
@@ -216,27 +225,76 @@ export default function ProjectClipTimeline({
         );
       }
 
-      // Update clip temporarily for visual feedback
-      const updatedClips = clips.map((c) =>
-        c.id === trimmingClip.clipId
-          ? { ...c, start: newStart, end: newEnd }
-          : c,
-      );
-      onClipsReorder?.(updatedClips);
+      // Update temp values for visual feedback
+      setTrimmingClip({
+        ...trimmingClip,
+        tempStart: newStart,
+        tempEnd: newEnd,
+      });
     },
-    [trimmingClip, clips, onClipsReorder],
+    [trimmingClip, clips],
   );
 
   const handleTrimEnd = useCallback(() => {
     if (!trimmingClip) return;
 
-    const clip = clips.find((c) => c.id === trimmingClip.clipId);
-    if (clip && onClipTrim) {
-      onClipTrim(clip.id, clip.start, clip.end);
+    if (onClipTrim) {
+      onClipTrim(
+        trimmingClip.clipId,
+        trimmingClip.tempStart,
+        trimmingClip.tempEnd,
+      );
     }
 
     setTrimmingClip(null);
-  }, [trimmingClip, clips, onClipTrim]);
+  }, [trimmingClip, onClipTrim]);
+
+  const handleTrimKeyDown = (
+    event: React.KeyboardEvent,
+    clip: VideoClip,
+    edge: "start" | "end",
+  ) => {
+    // Use arrow keys to trim, Enter to confirm
+    if (
+      event.key !== "ArrowLeft" &&
+      event.key !== "ArrowRight" &&
+      event.key !== "Enter"
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Enter") {
+      // No-op for Enter on trim handle (clips are always "confirmed")
+      return;
+    }
+
+    // Arrow keys adjust the clip by 100ms increments
+    const adjustmentMs = 100;
+    const adjustment = event.key === "ArrowLeft" ? -adjustmentMs : adjustmentMs;
+
+    let newStart = clip.start;
+    let newEnd = clip.end;
+
+    if (edge === "start") {
+      newStart = Math.max(
+        0,
+        Math.min(clip.end - MIN_CLIP_DURATION_MS, clip.start + adjustment),
+      );
+    } else {
+      newEnd = Math.max(
+        clip.start + MIN_CLIP_DURATION_MS,
+        clip.end + adjustment,
+      );
+    }
+
+    // Notify trim callback
+    if (onClipTrim) {
+      onClipTrim(clip.id, newStart, newEnd);
+    }
+  };
 
   // Handle trim mouse events
   useEffect(() => {
@@ -257,13 +315,17 @@ export default function ProjectClipTimeline({
   // Calculate cumulative positions for clips
   let cumulativeTime = 0;
   const clipPositions = clips.map((clip) => {
-    const start = cumulativeTime;
-    const clipDuration = clip.end - clip.start;
-    cumulativeTime += clipDuration;
-    return { clip, start, duration: clipDuration };
-  });
+    // Use temp trim values if this clip is being trimmed
+    const displayClip =
+      trimmingClip && trimmingClip.clipId === clip.id
+        ? { ...clip, start: trimmingClip.tempStart, end: trimmingClip.tempEnd }
+        : clip;
 
-  const totalClipDuration = cumulativeTime;
+    const start = cumulativeTime;
+    const clipDuration = displayClip.end - displayClip.start;
+    cumulativeTime += clipDuration;
+    return { clip: displayClip, start, duration: clipDuration };
+  });
 
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -287,7 +349,7 @@ export default function ProjectClipTimeline({
           <div className="text-xs text-gray-600 dark:text-gray-400">0:00</div>
           <div className="flex-1" />
           <div className="text-xs text-gray-600 dark:text-gray-400">
-            {formatMs(duration)}
+            {formatMs(totalClipDuration)}
           </div>
         </div>
 
@@ -342,8 +404,9 @@ export default function ProjectClipTimeline({
                       type="button"
                       className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "start")}
+                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "start")}
                       aria-label="Trim start of clip"
-                      title="Trim start"
+                      title="Trim start (use arrow keys to adjust)"
                     >
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
                     </button>
@@ -367,8 +430,9 @@ export default function ProjectClipTimeline({
                       type="button"
                       className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "end")}
+                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "end")}
                       aria-label="Trim end of clip"
-                      title="Trim end"
+                      title="Trim end (use arrow keys to adjust)"
                     >
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
                     </button>
@@ -404,11 +468,11 @@ export default function ProjectClipTimeline({
         </div>
 
         {/* Playhead */}
-        {playheadPosition !== undefined && duration > 0 && (
+        {playheadPosition !== undefined && totalClipDuration > 0 && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-10"
             style={{
-              left: `${(playheadPosition / duration) * 100}%`,
+              left: `${(playheadPosition / totalClipDuration) * 100}%`,
             }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-red-500" />
