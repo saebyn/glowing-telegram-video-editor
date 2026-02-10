@@ -1,7 +1,7 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
-import { useCallback, useEffect, useRef, useState } from "react";
 
 const MIN_CLIP_DURATION_MS = 1000;
 

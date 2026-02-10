@@ -1,6 +1,6 @@
-import usePreloadImages from "@/hooks/usePreloadImages";
 import { useEffect, useState } from "react";
 import { Temporal } from "temporal-polyfill";
+import usePreloadImages from "@/hooks/usePreloadImages";
 
 const KEYFRAME_INTERVAL_MS = 200;
 
@@ -101,17 +101,11 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
             </svg>
           </button>
         </div>
-        <div
-          className="text-xs absolute right-1 bottom-1"
-          aria-label="Duration"
-        >
+        <div className="text-xs absolute right-1 bottom-1">
           {duration.toLocaleString()}
         </div>
       </div>
-      <div
-        className="absolute top-2 left-1 cursor-move"
-        aria-label="Drag to reorder"
-      >
+      <div className="absolute top-2 left-1 cursor-move">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-5 w-5 text-white opacity-75"

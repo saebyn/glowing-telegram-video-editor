@@ -1,6 +1,6 @@
+import { useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
-import { useState } from "react";
 
 export interface ProjectClipPoolProps {
   /**
