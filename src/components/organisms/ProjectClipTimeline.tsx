@@ -84,6 +84,8 @@ export default function ProjectClipTimeline({
     initialX: number;
     originalStart: number;
     originalEnd: number;
+    tempStart: number;
+    tempEnd: number;
   } | null>(null);
 
   // Calculate total duration of all clips
@@ -182,6 +184,8 @@ export default function ProjectClipTimeline({
       initialX: event.clientX,
       originalStart: clip.start,
       originalEnd: clip.end,
+      tempStart: clip.start,
+      tempEnd: clip.end,
     });
   };
 
@@ -221,27 +225,29 @@ export default function ProjectClipTimeline({
         );
       }
 
-      // Update clip temporarily for visual feedback
-      const updatedClips = clips.map((c) =>
-        c.id === trimmingClip.clipId
-          ? { ...c, start: newStart, end: newEnd }
-          : c,
-      );
-      onClipsReorder?.(updatedClips);
+      // Update temp values for visual feedback
+      setTrimmingClip({
+        ...trimmingClip,
+        tempStart: newStart,
+        tempEnd: newEnd,
+      });
     },
-    [trimmingClip, clips, onClipsReorder],
+    [trimmingClip, clips],
   );
 
   const handleTrimEnd = useCallback(() => {
     if (!trimmingClip) return;
 
-    const clip = clips.find((c) => c.id === trimmingClip.clipId);
-    if (clip && onClipTrim) {
-      onClipTrim(clip.id, clip.start, clip.end);
+    if (onClipTrim) {
+      onClipTrim(
+        trimmingClip.clipId,
+        trimmingClip.tempStart,
+        trimmingClip.tempEnd,
+      );
     }
 
     setTrimmingClip(null);
-  }, [trimmingClip, clips, onClipTrim]);
+  }, [trimmingClip, onClipTrim]);
 
   const handleTrimKeyDown = (
     event: React.KeyboardEvent,
@@ -285,13 +291,7 @@ export default function ProjectClipTimeline({
       );
     }
 
-    // Update the clip
-    const updatedClips = clips.map((c) =>
-      c.id === clip.id ? { ...c, start: newStart, end: newEnd } : c,
-    );
-    onClipsReorder?.(updatedClips);
-
-    // Also notify trim callback
+    // Notify trim callback
     if (onClipTrim) {
       onClipTrim(clip.id, newStart, newEnd);
     }
@@ -316,10 +316,16 @@ export default function ProjectClipTimeline({
   // Calculate cumulative positions for clips
   let cumulativeTime = 0;
   const clipPositions = clips.map((clip) => {
+    // Use temp trim values if this clip is being trimmed
+    const displayClip =
+      trimmingClip && trimmingClip.clipId === clip.id
+        ? { ...clip, start: trimmingClip.tempStart, end: trimmingClip.tempEnd }
+        : clip;
+
     const start = cumulativeTime;
-    const clipDuration = clip.end - clip.start;
+    const clipDuration = displayClip.end - displayClip.start;
     cumulativeTime += clipDuration;
-    return { clip, start, duration: clipDuration };
+    return { clip: displayClip, start, duration: clipDuration };
   });
 
   return (
