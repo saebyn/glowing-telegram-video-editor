@@ -243,6 +243,60 @@ export default function ProjectClipTimeline({
     setTrimmingClip(null);
   }, [trimmingClip, clips, onClipTrim]);
 
+  const handleTrimKeyDown = (
+    event: React.KeyboardEvent,
+    clip: VideoClip,
+    edge: "start" | "end",
+  ) => {
+    // Use arrow keys to trim, Enter to confirm
+    if (
+      event.key !== "ArrowLeft" &&
+      event.key !== "ArrowRight" &&
+      event.key !== "Enter"
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Enter") {
+      // No-op for Enter on trim handle (clips are always "confirmed")
+      return;
+    }
+
+    // Arrow keys adjust the clip by 100ms increments
+    const adjustmentMs = 100;
+    const adjustment = event.key === "ArrowLeft" ? -adjustmentMs : adjustmentMs;
+
+    let newStart = clip.start;
+    let newEnd = clip.end;
+
+    if (edge === "start") {
+      newStart = Math.min(
+        clip.end - MIN_CLIP_DURATION_MS,
+        clip.start + adjustment,
+      );
+      newStart = Math.max(0, newStart);
+    } else {
+      newEnd = Math.max(
+        clip.start + MIN_CLIP_DURATION_MS,
+        clip.end + adjustment,
+      );
+    }
+
+    // Update the clip
+    const updatedClips = clips.map((c) =>
+      c.id === clip.id ? { ...c, start: newStart, end: newEnd } : c,
+    );
+    onClipsReorder?.(updatedClips);
+
+    // Also notify trim callback
+    if (onClipTrim) {
+      onClipTrim(clip.id, newStart, newEnd);
+    }
+  };
+
   // Handle trim mouse events
   useEffect(() => {
     if (!trimmingClip) return;
@@ -345,8 +399,9 @@ export default function ProjectClipTimeline({
                       type="button"
                       className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "start")}
+                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "start")}
                       aria-label="Trim start of clip"
-                      title="Trim start"
+                      title="Trim start (use arrow keys to adjust)"
                     >
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
                     </button>
@@ -370,8 +425,9 @@ export default function ProjectClipTimeline({
                       type="button"
                       className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
                       onMouseDown={(e) => handleTrimStart(e, clip, "end")}
+                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "end")}
                       aria-label="Trim end of clip"
-                      title="Trim end"
+                      title="Trim end (use arrow keys to adjust)"
                     >
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
                     </button>
