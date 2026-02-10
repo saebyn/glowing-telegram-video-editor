@@ -279,11 +279,10 @@ export default function ProjectClipTimeline({
     let newEnd = clip.end;
 
     if (edge === "start") {
-      newStart = Math.min(
-        clip.end - MIN_CLIP_DURATION_MS,
-        clip.start + adjustment,
+      newStart = Math.max(
+        0,
+        Math.min(clip.end - MIN_CLIP_DURATION_MS, clip.start + adjustment),
       );
-      newStart = Math.max(0, newStart);
     } else {
       newEnd = Math.max(
         clip.start + MIN_CLIP_DURATION_MS,
