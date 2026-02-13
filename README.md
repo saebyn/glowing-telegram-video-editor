@@ -355,9 +355,9 @@ import type {
 - `title`: Video title
 - `video_url`: HLS stream URL
 - `length`: Video duration in milliseconds
-- `highlights`, `attentions`, `transcription_errors`, `silences`: Arrays of `Section[]`
-- `chat_history`: Array of `ChatMessage[]`
-- `transcript`: Array of `TranscriptSegment[]`
+- `highlights`, `attentions`, `transcription_errors`, `silences`: Arrays of `Section`
+- `chat_history`: Array of `ChatMessage`
+- `transcript`: Array of `TranscriptSegment`
 
 **VideoClip**: A selection within a video
 - `id`: Unique identifier
