@@ -16,6 +16,17 @@ export function msToIso(ms: number): string {
   return duration.toString();
 }
 
+export function secondsToDuration(seconds: number): Temporal.Duration {
+  // seconds can be a float, so we need to handle the fractional part separately
+  const wholeSeconds = Math.floor(seconds);
+  const fractionalSeconds = seconds - wholeSeconds;
+
+  return Temporal.Duration.from({
+    seconds: wholeSeconds,
+    milliseconds: Math.round(fractionalSeconds * 1000),
+  });
+}
+
 /**
  * Formats an ISO 8601 Duration into a string representation of minutes and seconds.
  * @param iso8601 - The ISO 8601 Duration to format.

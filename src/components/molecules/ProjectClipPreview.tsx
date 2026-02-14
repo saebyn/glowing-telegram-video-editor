@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Temporal } from "temporal-polyfill";
 import usePreloadImages from "@/hooks/usePreloadImages";
+import { secondsToDuration } from "@/utils/duration";
 
 const KEYFRAME_INTERVAL_MS = 200;
 
@@ -24,7 +24,7 @@ type ProjectClipPreviewProps = {
 );
 
 function ProjectClipPreview(props: ProjectClipPreviewProps) {
-  const duration = Temporal.Duration.from({ seconds: props.durationSeconds });
+  const duration = secondsToDuration(props.durationSeconds);
   const [hover, setHover] = useState(false);
   const [keyframe, setKeyframe] = useState(0);
 
