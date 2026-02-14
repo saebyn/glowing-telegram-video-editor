@@ -17,13 +17,18 @@ export function msToIso(ms: number): string {
 }
 
 export function secondsToDuration(seconds: number): Temporal.Duration {
-  // seconds can be a float, so we need to handle the fractional part separately
-  const wholeSeconds = Math.floor(seconds);
-  const fractionalSeconds = seconds - wholeSeconds;
+  // Convert to milliseconds first to handle rounding and carry correctly,
+  // then derive whole seconds and remaining milliseconds.
+  const totalMilliseconds = Math.round(seconds * 1000);
+  const sign = Math.sign(totalMilliseconds);
+  const absTotalMilliseconds = Math.abs(totalMilliseconds);
+
+  const wholeSeconds = Math.floor(absTotalMilliseconds / 1000);
+  const remainingMilliseconds = absTotalMilliseconds % 1000;
 
   return Temporal.Duration.from({
-    seconds: wholeSeconds,
-    milliseconds: Math.round(fractionalSeconds * 1000),
+    seconds: sign * wholeSeconds,
+    milliseconds: sign * remainingMilliseconds,
   });
 }
 
