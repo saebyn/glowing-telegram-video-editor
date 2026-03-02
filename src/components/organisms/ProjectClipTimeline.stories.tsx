@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import type { VideoClip } from "@/types";
 import ProjectClipTimeline from "./ProjectClipTimeline";
