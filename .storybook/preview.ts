@@ -1,4 +1,4 @@
-import type { Preview } from "@storybook/react";
+import type { Preview } from "@storybook/react-vite";
 
 // import the tailwindcss styles
 import "tailwindcss/index.css";
@@ -12,10 +12,6 @@ const preview: Preview = {
         color: /(background|color)$/i,
         date: /Date$/i,
       },
-    },
-    darkMode: {
-      // Set the initial theme
-      current: 'light',
     },
   },
 

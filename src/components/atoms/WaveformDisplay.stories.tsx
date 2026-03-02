@@ -1,4 +1,4 @@
-import { action } from "@storybook/addon-actions";
+import { action } from "storybook/actions";
 import type { WaveformData } from "@/types";
 import WaveformDisplay from "./WaveformDisplay";
 
