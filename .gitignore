@@ -32,3 +32,4 @@ yarn-error.log*
 
 # test media
 *.mp4
+debug-storybook.log
