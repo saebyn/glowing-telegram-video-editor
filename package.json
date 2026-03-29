@@ -66,7 +66,7 @@
     "@storybook/react-vite": "^9.1.19",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
-    "@types/node": "^22.10.7",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react-swc": "^3.8.0",
