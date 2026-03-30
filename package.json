@@ -69,7 +69,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react-swc": "^3.8.0",
+    "@vitejs/plugin-react-swc": "^4.3.0",
     "@vitest/ui": "^4.0.18",
     "globals": "^17.3.0",
     "happy-dom": "^20.0.11",
