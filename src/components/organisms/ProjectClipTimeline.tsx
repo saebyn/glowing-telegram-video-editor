@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import type { VideoClip } from "@/types";
 import { formatMs } from "@/utils/duration";
@@ -58,6 +58,13 @@ export interface ProjectClipTimelineProps {
    * Callback when a clip is trimmed
    */
   onClipTrim?: (clipId: string, newStart: number, newEnd: number) => void;
+  /**
+   * Optional render prop called at each clip boundary.
+   * Receives the id of the left clip and the id of the right clip.
+   * When provided, a transition bar row is rendered above the clip scrubber;
+   * each call result is centered exactly on the seam between two clips.
+   */
+  renderTransition?: (leftClipId: string, rightClipId: string) => React.ReactNode;
 }
 
 export default function ProjectClipTimeline({
@@ -74,10 +81,12 @@ export default function ProjectClipTimeline({
   onSeek,
   onClipsAdd,
   onClipTrim,
+  renderTransition,
 }: ProjectClipTimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [hoveredClipId, setHoveredClipId] = useState<string | null>(null);
   const [trimmingClip, setTrimmingClip] = useState<{
     clipId: string;
     edge: "start" | "end";
@@ -338,6 +347,30 @@ export default function ProjectClipTimeline({
         </span>
       </div>
 
+      {/* Transition bar row — same flex layout as the clip row so widths align */}
+      {renderTransition && clips.length > 1 && (
+        <div className="flex p-2 gap-2 mb-1">
+          {clipPositions.map(({ clip, duration: clipDuration }, index) => {
+            const widthPercent = (clipDuration / totalClipDuration) * 100;
+            const isLast = index === clipPositions.length - 1;
+            return (
+              <div
+                key={clip.id}
+                className="relative flex-shrink-0"
+                style={{ width: `${widthPercent}%`, minWidth: "100px" }}
+              >
+                {!isLast && (
+                  /* Anchor at the right edge, centered on the seam */
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10">
+                    {renderTransition(clip.id, clipPositions[index + 1]!.clip.id)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div
         ref={timelineRef}
         className="relative bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-600 rounded-md overflow-hidden"
@@ -388,6 +421,8 @@ export default function ProjectClipTimeline({
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragLeave={handleDragLeave}
+                  onMouseEnter={() => setHoveredClipId(clip.id)}
+                  onMouseLeave={() => setHoveredClipId(null)}
                   className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
                     dragOverIndex === index
                       ? "border-l-4 border-blue-500 pl-1"
@@ -423,6 +458,7 @@ export default function ProjectClipTimeline({
                       height="100%"
                       onTitleUpdate={onTitleUpdate}
                       showCheckbox={false}
+                      forceShowOverlay={hoveredClipId === clip.id || trimmingClip?.clipId === clip.id}
                     />
 
                     {/* End trim handle */}

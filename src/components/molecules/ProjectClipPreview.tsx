@@ -13,6 +13,8 @@ type ProjectClipPreviewProps = {
   height: string;
   id: string;
   onTitleUpdate?: (id: string, newTitle: string) => void;
+  /** Force the hover overlay to remain visible (e.g. while a trim drag is active) */
+  forceShowOverlay?: boolean;
 } & (
   | {
       showCheckbox: true;
@@ -54,6 +56,8 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
     }
   };
 
+  const overlayVisible = hover || props.forceShowOverlay;
+
   return (
     <div
       className="relative border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden w-[150px]"
@@ -72,8 +76,8 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
         }}
       />
       <div
-        className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white"
-        style={{ visibility: hover ? "visible" : "hidden" }}
+        className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white transition-opacity"
+        style={{ opacity: overlayVisible ? 1 : 0 }}
       >
         <div className="text-sm font-medium left-7 right-0 absolute">
           {props.title || `Clip ${props.id}`}

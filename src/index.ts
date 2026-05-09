@@ -2,6 +2,7 @@ import "material-symbols/outlined.css";
 import "./index.css";
 
 import AudioChannelNameEditor from "@/components/atoms/AudioChannelNameEditor";
+import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import ProjectClipPool from "@/components/organisms/ProjectClipPool";
 import ProjectClipTimeline from "@/components/organisms/ProjectClipTimeline";
@@ -12,6 +13,7 @@ export {
   VideoSelectionPage,
   VideoPreview,
   AudioChannelNameEditor,
+  WaveformDisplay,
   ProjectClipPool,
   ProjectClipTimeline,
   ProjectClipPreview,
