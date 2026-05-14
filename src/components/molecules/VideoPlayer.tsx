@@ -3,7 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import VideoPlayerControls from "@/components/atoms/VideoPlayerControls";
 import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
 
-interface VideoPlayerProps {
+export interface VideoPlayerProps {
   videoUrl: string;
   onTimeUpdate?: (time: number) => void;
   onEnd?: () => void;

@@ -1,0 +1,2 @@
+/* Custom styles only — no Tailwind base/utilities. Import this in host apps that provide their own Tailwind. */
+@import "material-symbols/outlined.css";
