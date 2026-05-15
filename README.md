@@ -28,11 +28,19 @@ npm install react react-dom
 
 ### Importing Styles
 
-Don't forget to import the CSS file in your application:
+Import the full CSS bundle (includes Tailwind utilities and custom styles):
 
 ```javascript
 import '@saebyn/glowing-telegram-video-editor/styles.css';
 ```
+
+If you manage Tailwind yourself and only need the custom (non-utility) styles:
+
+```javascript
+import '@saebyn/glowing-telegram-video-editor/custom-only.css';
+```
+
+> **Note:** The library bundles `material-symbols/outlined.css` (Material Symbols icon font) as a side effect of importing styles. This affects network requests for the icon font files.
 
 ## Available Components
 
@@ -44,6 +52,7 @@ The library exports the following components:
 - **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
+- **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
 All TypeScript types are also exported for use in your application.
 
@@ -100,8 +109,20 @@ function App() {
 - Timeline with color-coded markers for highlights, attentions, and transcription errors
 - Live transcript and chat history display
 - Click-to-add clip selection from timeline
+- "Clip Silences" button — automatically selects clips from gaps in silence data
 - Export selected clips for rendering
-- Keyboard shortcuts for playback control
+- Keyboard shortcuts for playback control (see table below)
+
+**Keyboard Shortcuts:**
+
+| Key | Action |
+|-----|--------|
+| `1` | Seek to beginning (0:00) |
+| `Space` | Toggle play/pause |
+| `ArrowLeft` | Seek back 250ms |
+| `ArrowRight` | Seek forward 250ms |
+| `Shift+ArrowLeft` | Seek back 1000ms |
+| `Shift+ArrowRight` | Seek forward 1000ms |
 
 ### VideoPreview
 
@@ -225,8 +246,11 @@ interface ProjectClipTimelineProps {
   onSeek?: (milliseconds: number) => void;
   onClipsAdd?: (clipIds: string[], position: number) => void;
   onClipTrim?: (clipId: string, newStart: number, newEnd: number) => void;
+  renderTransition?: (leftClipId: string, rightClipId: string) => React.ReactNode;
 }
 ```
+
+> `renderTransition` is called between each adjacent pair of clips and lets you render a custom transition indicator on the timeline.
 
 **Example:**
 
@@ -260,10 +284,12 @@ function Timeline() {
 
 Visual preview component for individual video clips with thumbnail and duration display.
 
+The `onSelect` prop and `showCheckbox` use a discriminated union — `onSelect` is required when `showCheckbox: true` and unavailable otherwise.
+
 **Props:**
 
 ```typescript
-interface ProjectClipPreviewProps {
+type ProjectClipPreviewProps = {
   id: string;
   thumbnailUrl: string;
   keyframeUrls: string[];              // URLs for hover animation
@@ -272,10 +298,14 @@ interface ProjectClipPreviewProps {
   width: string;
   height: string;
   onTitleUpdate?: (id: string, newTitle: string) => void;
-  showCheckbox?: boolean;
-  onSelect?: (id: string, selected: boolean) => void;
-}
+  forceShowOverlay?: boolean;          // Force the overlay to be visible
+} & (
+  | { showCheckbox: true; onSelect: (id: string, selected: boolean) => void }
+  | { showCheckbox?: false }
+)
 ```
+
+> **Note:** Title editing is triggered via `window.prompt()` (a native browser dialog), not inline editing.
 
 **Example:**
 
@@ -332,6 +362,26 @@ function AudioChannelRow() {
 }
 ```
 
+### WaveformDisplay
+
+Canvas-based waveform visualization with an optional interactive playhead and keyboard navigation.
+
+**Props:**
+
+```typescript
+interface WaveformDisplayProps {
+  waveformData: WaveformData;
+  width?: number;                      // Default: 400
+  height?: number;                     // Default: 80
+  playheadPosition?: number;           // Current playhead in ms
+  color?: string;                      // Waveform color, default: "#3b82f6"
+  playheadColor?: string;              // Playhead color, default: "#ef4444"
+  onSeek?: (milliseconds: number) => void;
+}
+```
+
+When `onSeek` is provided, the component is focusable and supports keyboard navigation: `ArrowLeft`/`ArrowRight` seek by 5% of the total duration.
+
 ## TypeScript Types
 
 The library exports all TypeScript types for use in your application:
@@ -339,36 +389,52 @@ The library exports all TypeScript types for use in your application:
 ```typescript
 import type {
   VideoMetadata,
+  RawVideoMetadata,
   VideoClip,
   Section,
+  RawSection,
   AudioChannel,
   PreviewSettings,
   WaveformData,
   TranscriptSegment,
-  ChatMessage
+  RawTranscriptSegment,
+  ChatMessage,
+  RawChatMessage,
+  LogEvent
 } from '@saebyn/glowing-telegram-video-editor';
 ```
 
 ### Key Types
 
-**VideoMetadata**: Parsed video metadata for the frontend
+**`VideoMetadata`**: Parsed video metadata for frontend components.
 - `title`: Video title
 - `video_url`: HLS stream URL
-- `length`: Video duration in milliseconds
+- `length`: Video duration in **milliseconds** (`number`)
 - `highlights`, `attentions`, `transcription_errors`, `silences`: Arrays of `Section`
 - `chat_history`: Array of `ChatMessage`
 - `transcript`: Array of `TranscriptSegment`
 
-**VideoClip**: A selection within a video
+**`RawVideoMetadata`**: Raw video metadata as received from the API. Fields differ from `VideoMetadata`:
+- `length` is an ISO 8601 duration **string** (not milliseconds)
+- Sections are `RawSection[]`, chat is `RawChatMessage[]`, transcript is `RawTranscriptSegment[]`
+
+Convert `RawVideoMetadata` to `VideoMetadata` before passing data to components.
+
+**`Section`**: A time range within a video.
+- `timestamp`: Start time in **milliseconds** (not `start`)
+- `timestamp_end?`: End time in **milliseconds** (not `end`), optional
+- `category?`, `description?`, `reasoning?`: Optional metadata
+
+**`VideoClip`**: A selected clip within a video.
 - `id`: Unique identifier
 - `start`: Start time in milliseconds
 - `end`: End time in milliseconds
-- `keyframeSrc`: Optional thumbnail URL
+- `keyframeSrc?`: Optional thumbnail URL
 
-**AudioChannel**: Audio channel configuration
+**`AudioChannel`**: Audio channel configuration.
 - `id`: Channel identifier
 - `name`: Display name
-- `level`: Audio level (0.0 to 1.0)
+- `level`: Audio level (`0.0` to `1.0`)
 - `muted`: Whether channel is muted
 
 ## Overview
@@ -408,10 +474,11 @@ This project uses modern web development tools:
 - [TypeScript](https://www.typescriptlang.org) - Type safety
 - [Vitest](https://vitest.dev) - Unit testing
 - [Testing Library](https://testing-library.com) - Component testing
-- [Tailwind CSS](https://tailwindcss.com) - Styling (v4)
+- [Tailwind CSS](https://tailwindcss.com) - Styling (v4) with `tailwindcss-animate`
 - [Biome](https://biomejs.dev) - Linting and formatting
 - [Storybook](https://storybook.js.org) - Component development
 - [HLS.js](https://github.com/video-dev/hls.js) - Video streaming
+- [temporal-polyfill](https://github.com/fullcalendar/temporal-polyfill) - ISO 8601 duration parsing
 
 ### Getting Started
 
@@ -425,7 +492,7 @@ npm install
 
 ### Development Commands
 
-**Start development mode** (rebuild on changes):
+**Watch build** (rebuilds `dist/` on file changes — does not start a dev server):
 ```bash
 npm run dev
 ```
@@ -437,6 +504,11 @@ npm run storybook
 
 Visit http://localhost:6006 to view components in isolation.
 
+**Build Storybook** (static output):
+```bash
+npm run build-storybook
+```
+
 **Type checking**:
 ```bash
 npm run typecheck
@@ -445,6 +517,11 @@ npm run typecheck
 **Linting**:
 ```bash
 npm run lint
+```
+
+**Auto-fix lint issues**:
+```bash
+npm run lint:fix
 ```
 
 **Format code**:
@@ -476,12 +553,18 @@ Interactive test UI:
 npm run test:ui
 ```
 
-Visit http://localhost:51204/__vitest__/ to interact with tests.
+The Vitest UI server will print its URL (port is assigned dynamically).
 
 ### Project Structure
 
 ```
 src/
+├── app.tsx            # Dev harness entry point (renders VideoSelectionPage against local data)
+├── data.json          # Sample data used by the dev harness
+├── index.ts           # Main library entry point
+├── index.css          # Base stylesheet
+├── custom-only.css    # Custom-only stylesheet (no Tailwind utilities)
+├── assets/            # Static assets
 ├── components/
 │   ├── atoms/         # Basic UI elements (buttons, inputs, etc.)
 │   ├── molecules/     # Composite components (video player, dialogs, etc.)
@@ -490,8 +573,7 @@ src/
 ├── context/           # React context providers
 ├── hooks/             # Custom React hooks
 ├── types.ts           # TypeScript type definitions
-├── utils/             # Utility functions
-└── index.ts           # Main library entry point
+└── utils/             # Utility functions
 ```
 
 ## License
