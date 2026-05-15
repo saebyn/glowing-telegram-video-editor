@@ -418,7 +418,7 @@ import type {
 - `length` is an ISO 8601 duration **string** (not milliseconds)
 - Sections are `RawSection[]`, chat is `RawChatMessage[]`, transcript is `RawTranscriptSegment[]`
 
-Use the exported `parseData` utility to convert `RawVideoMetadata` → `VideoMetadata`.
+Convert `RawVideoMetadata` to `VideoMetadata` before passing data to components.
 
 **`Section`**: A time range within a video.
 - `timestamp`: Start time in **milliseconds** (not `start`)
