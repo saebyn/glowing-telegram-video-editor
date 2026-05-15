@@ -380,7 +380,7 @@ interface WaveformDisplayProps {
 }
 ```
 
-When `onSeek` is provided the component is focusable and supports keyboard navigation: `ArrowLeft`/`ArrowRight` seek by 5% of the total duration.
+When `onSeek` is provided, the component is focusable and supports keyboard navigation: `ArrowLeft`/`ArrowRight` seek by 5% of the total duration.
 
 ## TypeScript Types
 
