@@ -37,9 +37,7 @@ function InteractiveWrapper({
     action("onChange")(updatedChannel);
   };
 
-  return (
-    <AudioChannelControl channel={channel} onChange={handleChange} {...props} />
-  );
+  return <AudioChannelControl channel={channel} onChange={handleChange} {...props} />;
 }
 
 export const Default = {
@@ -51,9 +49,7 @@ export const Muted = {
 };
 
 export const Disabled = {
-  render: () => (
-    <InteractiveWrapper initialChannel={mockChannel} disabled={true} />
-  ),
+  render: () => <InteractiveWrapper initialChannel={mockChannel} disabled={true} />,
 };
 
 export const LowLevel = {
@@ -79,27 +75,16 @@ export const HighLevel = {
 };
 
 export const WithNameEdit = {
-  render: () => (
-    <InteractiveWrapper initialChannel={mockChannel} allowNameEdit={true} />
-  ),
+  render: () => <InteractiveWrapper initialChannel={mockChannel} allowNameEdit={true} />,
 };
 
 export const WithNameEditMuted = {
-  render: () => (
-    <InteractiveWrapper
-      initialChannel={mockMutedChannel}
-      allowNameEdit={true}
-    />
-  ),
+  render: () => <InteractiveWrapper initialChannel={mockMutedChannel} allowNameEdit={true} />,
 };
 
 export const WithNameEditDisabled = {
   render: () => (
-    <InteractiveWrapper
-      initialChannel={mockChannel}
-      allowNameEdit={true}
-      disabled={true}
-    />
+    <InteractiveWrapper initialChannel={mockChannel} allowNameEdit={true} disabled={true} />
   ),
 };
 

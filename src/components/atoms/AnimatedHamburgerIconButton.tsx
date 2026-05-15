@@ -8,35 +8,21 @@ export default function AnimatedHamburgerIconButton({
   onClick,
 }: AnimatedHamburgerIconButtonProps) {
   return (
-    <button
-      type="button"
-      className=" p-6 "
-      onClick={onClick}
-      aria-label="Toggle navigation menu"
-    >
+    <button type="button" className=" p-6 " onClick={onClick} aria-label="Toggle navigation menu">
       <div
-        className={clsx(
-          "my-1 h-1 w-8 bg-gray-800 transition-transform dark:bg-gray-200",
-          {
-            "rotate-45 translate-y-2": isExpanded,
-          },
-        )}
+        className={clsx("my-1 h-1 w-8 bg-gray-800 transition-transform dark:bg-gray-200", {
+          "rotate-45 translate-y-2": isExpanded,
+        })}
       />
       <div
-        className={clsx(
-          "my-1 h-1 w-8  bg-gray-800 transition-transform dark:bg-gray-200",
-          {
-            "opacity-0": isExpanded,
-          },
-        )}
+        className={clsx("my-1 h-1 w-8  bg-gray-800 transition-transform dark:bg-gray-200", {
+          "opacity-0": isExpanded,
+        })}
       />
       <div
-        className={clsx(
-          "my-1 h-1 w-8  bg-gray-800 transition-transform dark:bg-gray-200",
-          {
-            "-rotate-45 -translate-y-2": isExpanded,
-          },
-        )}
+        className={clsx("my-1 h-1 w-8  bg-gray-800 transition-transform dark:bg-gray-200", {
+          "-rotate-45 -translate-y-2": isExpanded,
+        })}
       />
     </button>
   );

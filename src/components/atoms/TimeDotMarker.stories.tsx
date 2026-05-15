@@ -7,9 +7,7 @@ export default {
   tags: ["atoms"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <TimelineProvider contentLength={1000 * 60 * 60}>
-        {story()}
-      </TimelineProvider>
+      <TimelineProvider contentLength={1000 * 60 * 60}>{story()}</TimelineProvider>
     ),
   ],
 };

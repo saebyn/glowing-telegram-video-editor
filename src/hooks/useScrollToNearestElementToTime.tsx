@@ -20,9 +20,7 @@ export default function useScrollToNearestElementToTime<T extends LogEvent>(
       return;
     }
 
-    const nearestElement = ref.current?.querySelector(
-      `[data-index="${nearestElementIndex}"]`,
-    );
+    const nearestElement = ref.current?.querySelector(`[data-index="${nearestElementIndex}"]`);
 
     if (nearestElement) {
       nearestElement.scrollIntoView({
@@ -38,10 +36,7 @@ export default function useScrollToNearestElementToTime<T extends LogEvent>(
  * Find the nearest element to the given time in the log and
  * return the element index or null if the log is empty.
  */
-function findNearestElementToTime<T extends LogEvent>(
-  time: number,
-  log: T[],
-): number | null {
+function findNearestElementToTime<T extends LogEvent>(time: number, log: T[]): number | null {
   let nearestElementIndex: number | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
 

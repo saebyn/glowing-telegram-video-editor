@@ -51,12 +51,7 @@ export default function ClipSelectionDialog({
           Clear
         </Button>
 
-        <IconButton
-          variant="primary"
-          onClick={onExport}
-          icon="file_export"
-          text="Export"
-        />
+        <IconButton variant="primary" onClick={onExport} icon="file_export" text="Export" />
       </div>
       <ul className="flex-grow overflow-y-auto space-y-1">
         {clips.map((clip, index) => (

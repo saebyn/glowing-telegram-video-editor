@@ -8,12 +8,7 @@ import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPreview from "@/components/organisms/VideoPreview";
 
-import type {
-  AudioChannel,
-  PreviewSettings,
-  VideoClip,
-  WaveformData,
-} from "@/types";
+import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
 
 describe("Video Preview Components", () => {
   const sampleAudioChannel: AudioChannel = {
@@ -46,9 +41,7 @@ describe("Video Preview Components", () => {
 
   it("renders AudioLevelSlider", () => {
     const onChange = vi.fn();
-    const { container } = render(
-      <AudioLevelSlider level={0.5} onChange={onChange} label="Test" />,
-    );
+    const { container } = render(<AudioLevelSlider level={0.5} onChange={onChange} label="Test" />);
     expect(container.querySelector("input[type='range']")).toBeTruthy();
   });
 
@@ -61,9 +54,7 @@ describe("Video Preview Components", () => {
   });
 
   it("renders WaveformDisplay", () => {
-    const { container } = render(
-      <WaveformDisplay waveformData={sampleWaveformData} />,
-    );
+    const { container } = render(<WaveformDisplay waveformData={sampleWaveformData} />);
     expect(container.querySelector("canvas")).toBeTruthy();
   });
 
@@ -89,11 +80,7 @@ describe("Video Preview Components", () => {
 
   it("renders VideoPreview", () => {
     const { getByText } = render(
-      <VideoPreview
-        settings={sampleSettings}
-        previewVideoUrl="test-url"
-        duration={5000}
-      />,
+      <VideoPreview settings={sampleSettings} previewVideoUrl="test-url" duration={5000} />,
     );
     expect(getByText("Video Preview")).toBeTruthy();
   });

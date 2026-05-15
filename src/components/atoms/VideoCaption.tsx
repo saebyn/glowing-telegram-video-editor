@@ -24,9 +24,7 @@ function VideoCaption({ playheadTime, transcript }: VideoCaptionProps) {
           className="absolute top-0 mx-2 h-full whitespace-nowrap transition-transform
     delay-150 duration-100 animate-in animate-out slide-in-from-right slide-out-to-left"
           style={{
-            transform: `translateX(${
-              (index - nearestTranscriptSegmentIndex) * 10000
-            }px)`,
+            transform: `translateX(${(index - nearestTranscriptSegmentIndex) * 10000}px)`,
           }}
           key={segment.timestamp}
         >

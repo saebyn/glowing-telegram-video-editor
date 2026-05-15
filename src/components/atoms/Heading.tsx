@@ -1,8 +1,6 @@
 import type { HTMLAttributes, JSX } from "react";
 
-type HeadingProps = React.PropsWithChildren<
-  HTMLAttributes<HTMLHeadingElement>
-> & {
+type HeadingProps = React.PropsWithChildren<HTMLAttributes<HTMLHeadingElement>> & {
   level?: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
@@ -20,9 +18,7 @@ export default function Heading({ level, children, ...props }: HeadingProps) {
 
   return (
     <HElement
-      className={`mb-4 font-bold text-gray-800 dark:text-white ${
-        levelStyles[level || 1]
-      }`}
+      className={`mb-4 font-bold text-gray-800 dark:text-white ${levelStyles[level || 1]}`}
       {...props}
     >
       {children}

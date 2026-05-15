@@ -12,25 +12,11 @@ export const Default = () => {
   return (
     <TabContainer
       tabs={[
-        <Tab
-          key={0}
-          title="Tab 1"
-          active={activeTab === 0}
-          onClick={() => setActiveTab(0)}
-        />,
-        <Tab
-          key={1}
-          title="Tab 2"
-          active={activeTab === 1}
-          onClick={() => setActiveTab(1)}
-        />,
+        <Tab key={0} title="Tab 1" active={activeTab === 0} onClick={() => setActiveTab(0)} />,
+        <Tab key={1} title="Tab 2" active={activeTab === 1} onClick={() => setActiveTab(1)} />,
       ]}
     >
-      {activeTab === 0 ? (
-        <div>Content for Tab 1</div>
-      ) : (
-        <div>Content for Tab 2</div>
-      )}
+      {activeTab === 0 ? <div>Content for Tab 1</div> : <div>Content for Tab 2</div>}
     </TabContainer>
   );
 };

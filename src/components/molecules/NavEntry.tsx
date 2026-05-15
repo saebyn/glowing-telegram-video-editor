@@ -13,15 +13,12 @@ export default function NavEntry({
   onSeekToTime: (milliseconds: number) => void;
   playheadTime?: number;
 }) {
-  const shouldHighlight =
-    playheadTime && Math.abs(playheadTime - timestamp) < timeHighlightMargin;
+  const shouldHighlight = playheadTime && Math.abs(playheadTime - timestamp) < timeHighlightMargin;
 
   return (
     <li
       key={`error-${timestamp}`}
-      className={`ml-4 ${
-        shouldHighlight ? "bg-gray-300 dark:bg-gray-600" : ""
-      }`}
+      className={`ml-4 ${shouldHighlight ? "bg-gray-300 dark:bg-gray-600" : ""}`}
     >
       <TimeLink
         className="p-4 text-gray-700 dark:text-gray-200"

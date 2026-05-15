@@ -10,9 +10,7 @@ import type {
 } from "@/types";
 import { isoToMs } from "./duration";
 
-export default function parseContent(
-  rawContent: RawVideoMetadata,
-): VideoMetadata {
+export default function parseContent(rawContent: RawVideoMetadata): VideoMetadata {
   return {
     title: rawContent.title,
     video_url: rawContent.video_url,
@@ -20,9 +18,7 @@ export default function parseContent(
     transcript: rawContent.transcript.map((item) => parseSection(item)),
     highlights: rawContent.highlights.map((item) => parseSection(item)),
     attentions: rawContent.attentions.map((item) => parseSection(item)),
-    transcription_errors: rawContent.transcription_errors.map((item) =>
-      parseSection(item),
-    ),
+    transcription_errors: rawContent.transcription_errors.map((item) => parseSection(item)),
     silences: rawContent.silences.map((item) => parseSection(item)),
     length: isoToMs(rawContent.length),
   };
@@ -46,8 +42,6 @@ function parseSection(
     ...item,
     timestamp: isoToMs(item.timestamp_start),
     timestamp_end:
-      "timestamp_end" in item && item.timestamp_end
-        ? isoToMs(item.timestamp_end)
-        : undefined,
+      "timestamp_end" in item && item.timestamp_end ? isoToMs(item.timestamp_end) : undefined,
   };
 }

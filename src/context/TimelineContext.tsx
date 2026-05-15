@@ -20,9 +20,7 @@ interface TimelineContextProps {
   setLens: React.Dispatch<React.SetStateAction<TimelineLens>>;
 }
 
-const TimelineContext = createContext<TimelineContextProps | undefined>(
-  undefined,
-);
+const TimelineContext = createContext<TimelineContextProps | undefined>(undefined);
 
 interface TimelineProviderProps {
   children: ReactNode;
@@ -32,17 +30,10 @@ interface TimelineProviderProps {
   contentLength: number;
 }
 
-export const TimelineProvider = ({
-  children,
-  contentLength,
-}: TimelineProviderProps) => {
+export const TimelineProvider = ({ children, contentLength }: TimelineProviderProps) => {
   const [lens, setLens] = useState<TimelineLens>(createLens(contentLength));
 
-  return (
-    <TimelineContext.Provider value={{ lens, setLens }}>
-      {children}
-    </TimelineContext.Provider>
-  );
+  return <TimelineContext.Provider value={{ lens, setLens }}>{children}</TimelineContext.Provider>;
 };
 
 const zoomFactor = 1.1;

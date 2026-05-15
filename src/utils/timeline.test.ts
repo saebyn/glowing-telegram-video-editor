@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createLens,
-  getLensLength,
-  zoomIn,
-  zoomInTowards,
-  zoomOut,
-} from "./timeline";
+import { createLens, getLensLength, zoomIn, zoomInTowards, zoomOut } from "./timeline";
 
 describe("timeline", () => {
   describe("zoom", () => {

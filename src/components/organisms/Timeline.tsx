@@ -11,13 +11,7 @@ import { formatMs } from "@/utils/duration";
 import { createTimeline, generateKey } from "@/utils/timeline";
 
 export default function Timeline({
-  content: {
-    chat_history,
-    silences,
-    highlights,
-    attentions,
-    transcription_errors,
-  },
+  content: { chat_history, silences, highlights, attentions, transcription_errors },
   playheadTime,
   onSeekToTime,
   onItemSelect,

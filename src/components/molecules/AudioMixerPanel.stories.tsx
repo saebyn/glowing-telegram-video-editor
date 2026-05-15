@@ -9,9 +9,7 @@ export default {
   tags: ["molecules"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <div className="h-[70vh] flex justify-center items-start p-4">
-        {story()}
-      </div>
+      <div className="h-[70vh] flex justify-center items-start p-4">{story()}</div>
     ),
   ],
 };
@@ -98,15 +96,11 @@ export const ManyChannels = {
 };
 
 export const Disabled = {
-  render: () => (
-    <InteractiveWrapper initialChannels={mockChannels} disabled={true} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={mockChannels} disabled={true} />,
 };
 
 export const Saving = {
-  render: () => (
-    <InteractiveWrapper initialChannels={mockChannels} saving={true} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={mockChannels} saving={true} />,
 };
 
 export const AllMuted = {
@@ -121,15 +115,11 @@ export const AllMuted = {
 };
 
 export const NoSaveCallback = {
-  render: () => (
-    <InteractiveWrapper initialChannels={mockChannels} onSave={undefined} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={mockChannels} onSave={undefined} />,
 };
 
 export const WithNameEdit = {
-  render: () => (
-    <InteractiveWrapper initialChannels={mockChannels} allowNameEdit={true} />
-  ),
+  render: () => <InteractiveWrapper initialChannels={mockChannels} allowNameEdit={true} />,
 };
 
 export const WithNameEditAndEmptyNames = {
@@ -148,10 +138,6 @@ export const WithNameEditAndEmptyNames = {
 
 export const WithNameEditDisabled = {
   render: () => (
-    <InteractiveWrapper
-      initialChannels={mockChannels}
-      allowNameEdit={true}
-      disabled={true}
-    />
+    <InteractiveWrapper initialChannels={mockChannels} allowNameEdit={true} disabled={true} />
   ),
 };

@@ -6,10 +6,7 @@ interface VideoPlayerControlsProps {
   children: ReactNode;
 }
 
-export default function VideoPlayerControls({
-  video,
-  children,
-}: VideoPlayerControlsProps) {
+export default function VideoPlayerControls({ video, children }: VideoPlayerControlsProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);

@@ -1,7 +1,7 @@
 {
   "recommendations": [
     "bradlc.vscode-tailwindcss",
-    "dbaeumer.vscode-eslint",
+    "oxc.oxc-vscode",
     "editorconfig.editorconfig",
     "stivo.tailwind-fold",
     "vitest.explorer"
