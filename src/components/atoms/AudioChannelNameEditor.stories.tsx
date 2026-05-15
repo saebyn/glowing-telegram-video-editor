@@ -12,9 +12,7 @@ export default {
 function InteractiveWrapper({
   initialName,
   ...props
-}: { initialName: string } & Partial<
-  React.ComponentProps<typeof AudioChannelNameEditor>
->) {
+}: { initialName: string } & Partial<React.ComponentProps<typeof AudioChannelNameEditor>>) {
   const [name, setName] = useState(initialName);
 
   const handleNameChange = (newName: string) => {
@@ -24,11 +22,7 @@ function InteractiveWrapper({
 
   return (
     <div className="w-64">
-      <AudioChannelNameEditor
-        name={name}
-        onNameChange={handleNameChange}
-        {...props}
-      />
+      <AudioChannelNameEditor name={name} onNameChange={handleNameChange} {...props} />
     </div>
   );
 }
@@ -48,27 +42,16 @@ export const LongName = {
 };
 
 export const CustomPlaceholder = {
-  render: () => (
-    <InteractiveWrapper
-      initialName=""
-      placeholder="Enter audio channel name..."
-    />
-  ),
+  render: () => <InteractiveWrapper initialName="" placeholder="Enter audio channel name..." />,
 };
 
 export const Disabled = {
-  render: () => (
-    <InteractiveWrapper initialName="Read-only Channel" disabled={true} />
-  ),
+  render: () => <InteractiveWrapper initialName="Read-only Channel" disabled={true} />,
 };
 
 export const DisabledEmpty = {
   render: () => (
-    <InteractiveWrapper
-      initialName=""
-      disabled={true}
-      placeholder="No name available"
-    />
+    <InteractiveWrapper initialName="" disabled={true} placeholder="No name available" />
   ),
 };
 
@@ -87,9 +70,7 @@ export const MultipleChannels = {
 
     const handleChannelNameChange = (id: string, newName: string) => {
       setChannels((prev) =>
-        prev.map((channel) =>
-          channel.id === id ? { ...channel, name: newName } : channel,
-        ),
+        prev.map((channel) => (channel.id === id ? { ...channel, name: newName } : channel)),
       );
       action("onNameChange")(`Channel ${id}: ${newName}`);
     };
@@ -101,9 +82,7 @@ export const MultipleChannels = {
             <span className="text-xs text-gray-500 w-8">#{channel.id}</span>
             <AudioChannelNameEditor
               name={channel.name}
-              onNameChange={(newName) =>
-                handleChannelNameChange(channel.id, newName)
-              }
+              onNameChange={(newName) => handleChannelNameChange(channel.id, newName)}
               placeholder={`Channel ${channel.id}`}
             />
           </div>

@@ -47,10 +47,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
   const handleClick = () => {
     if (!props.onTitleUpdate) return;
 
-    const newTitle = prompt(
-      "Enter new title:",
-      props.title || `Clip ${props.id}`,
-    );
+    const newTitle = prompt("Enter new title:", props.title || `Clip ${props.id}`);
     if (newTitle !== null && newTitle.trim() !== "") {
       props.onTitleUpdate(props.id, newTitle.trim());
     }
@@ -105,9 +102,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
             </svg>
           </button>
         </div>
-        <div className="text-xs absolute right-1 bottom-1">
-          {duration.toLocaleString()}
-        </div>
+        <div className="text-xs absolute right-1 bottom-1">{duration.toLocaleString()}</div>
       </div>
       <div className="absolute top-2 left-1 cursor-move">
         <svg
@@ -118,12 +113,7 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
           stroke="currentColor"
         >
           <title>Drag Handle</title>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 8h16M4 16h16"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
         </svg>
       </div>
       {props.showCheckbox && (

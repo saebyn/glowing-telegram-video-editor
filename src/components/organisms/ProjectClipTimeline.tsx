@@ -102,28 +102,19 @@ export default function ProjectClipTimeline({
     return clips.reduce((total, clip) => total + (clip.end - clip.start), 0);
   }, [clips]);
 
-  const handleDragStart = (
-    event: React.DragEvent<HTMLDivElement>,
-    index: number,
-  ) => {
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     event.dataTransfer.setData("text/plain", index.toString());
     event.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (
-    event: React.DragEvent<HTMLDivElement>,
-    index: number,
-  ) => {
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     setDragOverIndex(index);
     setIsDraggingOver(true);
   };
 
-  const handleDrop = (
-    event: React.DragEvent<HTMLDivElement>,
-    dropIndex: number,
-  ) => {
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
     event.preventDefault();
     setDragOverIndex(null);
     setIsDraggingOver(false);
@@ -180,11 +171,7 @@ export default function ProjectClipTimeline({
     onClipRemove?.(clipId);
   };
 
-  const handleTrimStart = (
-    event: React.MouseEvent,
-    clip: VideoClip,
-    edge: "start" | "end",
-  ) => {
+  const handleTrimStart = (event: React.MouseEvent, clip: VideoClip, edge: "start" | "end") => {
     event.stopPropagation();
     event.preventDefault();
     setTrimmingClip({
@@ -203,10 +190,7 @@ export default function ProjectClipTimeline({
       if (!trimmingClip || !timelineRef.current) return;
 
       // Calculate total duration of all clips
-      const currentTotalDuration = clips.reduce(
-        (sum, c) => sum + (c.end - c.start),
-        0,
-      );
+      const currentTotalDuration = clips.reduce((sum, c) => sum + (c.end - c.start), 0);
 
       const rect = timelineRef.current.getBoundingClientRect();
       const deltaX = event.clientX - trimmingClip.initialX;
@@ -248,11 +232,7 @@ export default function ProjectClipTimeline({
     if (!trimmingClip) return;
 
     if (onClipTrim) {
-      onClipTrim(
-        trimmingClip.clipId,
-        trimmingClip.tempStart,
-        trimmingClip.tempEnd,
-      );
+      onClipTrim(trimmingClip.clipId, trimmingClip.tempStart, trimmingClip.tempEnd);
     }
 
     setTrimmingClip(null);
@@ -264,11 +244,7 @@ export default function ProjectClipTimeline({
     edge: "start" | "end",
   ) => {
     // Use arrow keys to trim, Enter to confirm
-    if (
-      event.key !== "ArrowLeft" &&
-      event.key !== "ArrowRight" &&
-      event.key !== "Enter"
-    ) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Enter") {
       return;
     }
 
@@ -288,15 +264,9 @@ export default function ProjectClipTimeline({
     let newEnd = clip.end;
 
     if (edge === "start") {
-      newStart = Math.max(
-        0,
-        Math.min(clip.end - MIN_CLIP_DURATION_MS, clip.start + adjustment),
-      );
+      newStart = Math.max(0, Math.min(clip.end - MIN_CLIP_DURATION_MS, clip.start + adjustment));
     } else {
-      newEnd = Math.max(
-        clip.start + MIN_CLIP_DURATION_MS,
-        clip.end + adjustment,
-      );
+      newEnd = Math.max(clip.start + MIN_CLIP_DURATION_MS, clip.end + adjustment);
     }
 
     // Notify trim callback
@@ -339,9 +309,7 @@ export default function ProjectClipTimeline({
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Timeline
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Timeline</h2>
         <span className="text-sm text-gray-600 dark:text-gray-400">
           Total: {formatMs(totalClipDuration)}
         </span>
@@ -408,99 +376,93 @@ export default function ProjectClipTimeline({
             </div>
           )}
 
-          {clipPositions.map(
-            ({ clip, start, duration: clipDuration }, index) => {
-              const widthPercent = (clipDuration / totalClipDuration) * 100;
-              const durationSeconds = clipDuration / 1000;
+          {clipPositions.map(({ clip, start, duration: clipDuration }, index) => {
+            const widthPercent = (clipDuration / totalClipDuration) * 100;
+            const durationSeconds = clipDuration / 1000;
 
-              return (
-                <div
-                  key={clip.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragLeave={handleDragLeave}
-                  onMouseEnter={() => setHoveredClipId(clip.id)}
-                  onMouseLeave={() => setHoveredClipId(null)}
-                  className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
-                    dragOverIndex === index
-                      ? "border-l-4 border-blue-500 pl-1"
-                      : ""
-                  }`}
-                  style={{
-                    width: `${widthPercent}%`,
-                    minWidth: "100px",
-                  }}
-                >
-                  <div className="relative h-full">
-                    {/* Start trim handle */}
-                    <button
-                      type="button"
-                      className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
-                      onMouseDown={(e) => handleTrimStart(e, clip, "start")}
-                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "start")}
-                      aria-label="Trim start of clip"
-                      title="Trim start (use arrow keys to adjust)"
+            return (
+              <div
+                key={clip.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragLeave={handleDragLeave}
+                onMouseEnter={() => setHoveredClipId(clip.id)}
+                onMouseLeave={() => setHoveredClipId(null)}
+                className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
+                  dragOverIndex === index ? "border-l-4 border-blue-500 pl-1" : ""
+                }`}
+                style={{
+                  width: `${widthPercent}%`,
+                  minWidth: "100px",
+                }}
+              >
+                <div className="relative h-full">
+                  {/* Start trim handle */}
+                  <button
+                    type="button"
+                    className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
+                    onMouseDown={(e) => handleTrimStart(e, clip, "start")}
+                    onKeyDown={(e) => handleTrimKeyDown(e, clip, "start")}
+                    aria-label="Trim start of clip"
+                    title="Trim start (use arrow keys to adjust)"
+                  >
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
+                  </button>
+
+                  <ProjectClipPreview
+                    id={clip.id}
+                    thumbnailUrl={thumbnails[clip.id] || clip.keyframeSrc || ""}
+                    keyframeUrls={keyframes[clip.id] || []}
+                    title={titles[clip.id]}
+                    durationSeconds={durationSeconds}
+                    width="100%"
+                    height="100%"
+                    onTitleUpdate={onTitleUpdate}
+                    showCheckbox={false}
+                    forceShowOverlay={hoveredClipId === clip.id || trimmingClip?.clipId === clip.id}
+                  />
+
+                  {/* End trim handle */}
+                  <button
+                    type="button"
+                    className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
+                    onMouseDown={(e) => handleTrimStart(e, clip, "end")}
+                    onKeyDown={(e) => handleTrimKeyDown(e, clip, "end")}
+                    aria-label="Trim end of clip"
+                    title="Trim end (use arrow keys to adjust)"
+                  >
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
+                  </button>
+
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveClip(e, clip.id)}
+                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
+                    aria-label="Remove clip"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
-                    </button>
-
-                    <ProjectClipPreview
-                      id={clip.id}
-                      thumbnailUrl={
-                        thumbnails[clip.id] || clip.keyframeSrc || ""
-                      }
-                      keyframeUrls={keyframes[clip.id] || []}
-                      title={titles[clip.id]}
-                      durationSeconds={durationSeconds}
-                      width="100%"
-                      height="100%"
-                      onTitleUpdate={onTitleUpdate}
-                      showCheckbox={false}
-                      forceShowOverlay={hoveredClipId === clip.id || trimmingClip?.clipId === clip.id}
-                    />
-
-                    {/* End trim handle */}
-                    <button
-                      type="button"
-                      className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
-                      onMouseDown={(e) => handleTrimStart(e, clip, "end")}
-                      onKeyDown={(e) => handleTrimKeyDown(e, clip, "end")}
-                      aria-label="Trim end of clip"
-                      title="Trim end (use arrow keys to adjust)"
-                    >
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
-                    </button>
-
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleRemoveClip(e, clip.id)}
-                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
-                      aria-label="Remove clip"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <title>Remove</title>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                      <title>Remove</title>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
-              );
-            },
-          )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Playhead */}

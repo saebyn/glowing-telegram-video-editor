@@ -74,15 +74,10 @@ export default function ProjectClipPool({
     onTitleUpdate?.(clipId, newTitle);
   };
 
-  const handleDragStart = (
-    event: React.DragEvent<HTMLDivElement>,
-    clipId: string,
-  ) => {
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, clipId: string) => {
     // If the dragged clip is not selected, only drag that clip
     // If the dragged clip is selected, drag all selected clips
-    const clipsToDrag = selectedClips.has(clipId)
-      ? Array.from(selectedClips)
-      : [clipId];
+    const clipsToDrag = selectedClips.has(clipId) ? Array.from(selectedClips) : [clipId];
 
     event.dataTransfer.setData("application/json", JSON.stringify(clipsToDrag));
     event.dataTransfer.effectAllowed = "copy";
@@ -91,9 +86,7 @@ export default function ProjectClipPool({
 
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-      <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Clip Pool
-      </h2>
+      <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Clip Pool</h2>
       <div className="flex flex-wrap gap-4">
         {clips.map((clip) => {
           const durationSeconds = (clip.end - clip.start) / 1000;
@@ -125,9 +118,7 @@ export default function ProjectClipPool({
           );
         })}
         {clips.length === 0 && (
-          <div className="text-gray-500 dark:text-gray-400 italic">
-            No clips available
-          </div>
+          <div className="text-gray-500 dark:text-gray-400 italic">No clips available</div>
         )}
       </div>
     </div>

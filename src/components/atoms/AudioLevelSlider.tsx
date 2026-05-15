@@ -36,10 +36,7 @@ export default function AudioLevelSlider({
   return (
     <div className="flex flex-col space-y-1">
       {label && (
-        <label
-          htmlFor={sliderId}
-          className="text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
+        <label htmlFor={sliderId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
         </label>
       )}

@@ -6,21 +6,13 @@ import EditableTimestampedEventLog from "@/components/molecules/EditableTimestam
 import TimelineControls from "@/components/molecules/TimelineControls";
 import TimestampedEventLog from "@/components/molecules/TimestampedEventLog";
 import TimeTable from "@/components/molecules/TimeTable";
-import VideoPlayer, {
-  type VideoPlayerRef,
-} from "@/components/molecules/VideoPlayer";
+import VideoPlayer, { type VideoPlayerRef } from "@/components/molecules/VideoPlayer";
 import Viewport from "@/components/molecules/Viewport";
 import Sidebar from "@/components/organisms/Sidebar";
 import Timeline from "@/components/organisms/Timeline";
 import { TimelineProvider } from "@/context/TimelineContext";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
-import type {
-  ChatMessage,
-  Section,
-  TranscriptSegment,
-  VideoClip,
-  VideoMetadata,
-} from "@/types";
+import type { ChatMessage, Section, TranscriptSegment, VideoClip, VideoMetadata } from "@/types";
 import findGaps from "@/utils/findGaps";
 
 interface VideoSelectionPageProps {
@@ -51,9 +43,7 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
     };
 
     setSelectedClips((prevClips) => {
-      const prevClipsWithoutNew = prevClips.filter(
-        (prevClip) => prevClip.id !== clip.id,
-      );
+      const prevClipsWithoutNew = prevClips.filter((prevClip) => prevClip.id !== clip.id);
 
       return [...prevClipsWithoutNew, clip];
     });
@@ -116,19 +106,13 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
           }}
           onClear={() => setSelectedClips([])}
           onReorder={(newClips) => setSelectedClips(newClips)}
-          onRemove={(id) =>
-            setSelectedClips(selectedClips.filter((clip) => clip.id !== id))
-          }
+          onRemove={(id) => setSelectedClips(selectedClips.filter((clip) => clip.id !== id))}
           onCopyStartTime={handleCopyTime("start")}
           onCopyEndTime={handleCopyTime("end")}
           onSeekToTime={handleSeekToTime}
         />
 
-        <Sidebar
-          content={content}
-          onSeekToTime={handleSeekToTime}
-          playheadTime={playheadTime}
-        />
+        <Sidebar content={content} onSeekToTime={handleSeekToTime} playheadTime={playheadTime} />
 
         <div className="flex flex-1 flex-col">
           <main className="flex-1 overflow-auto p-4">
@@ -152,8 +136,7 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                   renderEvent={(chat) => {
                     return (
                       <>
-                        <span className="font-bold">{chat.username}</span>:{" "}
-                        {chat.message}
+                        <span className="font-bold">{chat.username}</span>: {chat.message}
                       </>
                     );
                   }}

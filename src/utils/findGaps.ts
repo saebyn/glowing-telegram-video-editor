@@ -39,11 +39,7 @@ export default async function findGaps(
       (section): section is Section & { timestamp_end: number } =>
         section.timestamp_end !== undefined,
     )
-    .filter(
-      (section) =>
-        section.timestamp_end - section.timestamp >=
-        settings.minSectionDuration,
-    );
+    .filter((section) => section.timestamp_end - section.timestamp >= settings.minSectionDuration);
 
   const inclusiveSections = [
     {

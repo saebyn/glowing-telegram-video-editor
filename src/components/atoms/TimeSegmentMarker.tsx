@@ -18,13 +18,10 @@ export default function TimeSegmentMarker({
   const { timeToRelative } = useLens();
 
   const relativeWidth =
-    endMilliseconds &&
-    timeToRelative(endMilliseconds) - timeToRelative(startMilliseconds);
+    endMilliseconds && timeToRelative(endMilliseconds) - timeToRelative(startMilliseconds);
 
   const width =
-    relativeWidth !== undefined
-      ? `max(${relativeWidth * 100.0}%, 0.125rem)`
-      : "0.125rem";
+    relativeWidth !== undefined ? `max(${relativeWidth * 100.0}%, 0.125rem)` : "0.125rem";
 
   const handleHover = (event: React.MouseEvent<HTMLDivElement>) => {
     // Only make the marker clickable if there is an onClick handler

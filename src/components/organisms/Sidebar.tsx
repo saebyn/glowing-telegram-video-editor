@@ -74,20 +74,16 @@ function Sidebar({
             />
           ))}
           <li>
-            <HeadingLink href="#transcription-errors">
-              Transcription Errors
-            </HeadingLink>
+            <HeadingLink href="#transcription-errors">Transcription Errors</HeadingLink>
           </li>
-          {content.transcription_errors
-            .filter(matchesFilter(filter))
-            .map((error) => (
-              <NavEntry
-                key={`error-${error.timestamp}`}
-                {...error}
-                playheadTime={playheadTime}
-                onSeekToTime={onSeekToTime}
-              />
-            ))}
+          {content.transcription_errors.filter(matchesFilter(filter)).map((error) => (
+            <NavEntry
+              key={`error-${error.timestamp}`}
+              {...error}
+              playheadTime={playheadTime}
+              onSeekToTime={onSeekToTime}
+            />
+          ))}
 
           <li>
             <HeadingLink href="#top">Back to Top</HeadingLink>
@@ -100,11 +96,7 @@ function Sidebar({
 
 function matchesFilter(filter: string): (highlight: Section) => boolean {
   return (highlight) => {
-    return [
-      highlight.category,
-      highlight.description,
-      highlight.reasoning,
-    ].some((field) => {
+    return [highlight.category, highlight.description, highlight.reasoning].some((field) => {
       return field?.toLowerCase().includes(filter.toLowerCase());
     });
   };

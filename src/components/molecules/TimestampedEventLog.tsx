@@ -32,13 +32,10 @@ export default function TimestampedEventLog<T extends LogEvent>({
         {log.map((entry, i) => (
           <li
             key={`entry-${entry.timestamp}`}
-            className={`mb-2 ${
-              i === nearestElementIndex ? "bg-gray-200 dark:bg-gray-700" : ""
-            }`}
+            className={`mb-2 ${i === nearestElementIndex ? "bg-gray-200 dark:bg-gray-700" : ""}`}
             data-index={i}
           >
-            <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} />{" "}
-            {renderEvent(entry)}
+            <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} /> {renderEvent(entry)}
           </li>
         ))}
       </ul>

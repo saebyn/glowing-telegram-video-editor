@@ -142,46 +142,28 @@ export const ManyClips: Story = {
     thumbnails: {
       ...sampleThumbnails,
       ...Object.fromEntries(
-        Object.entries(sampleThumbnails).map(([key, value]) => [
-          `${key}-copy-0`,
-          value,
-        ]),
+        Object.entries(sampleThumbnails).map(([key, value]) => [`${key}-copy-0`, value]),
       ),
       ...Object.fromEntries(
-        Object.entries(sampleThumbnails).map(([key, value]) => [
-          `${key}-copy2-0`,
-          value,
-        ]),
+        Object.entries(sampleThumbnails).map(([key, value]) => [`${key}-copy2-0`, value]),
       ),
     },
     keyframes: {
       ...sampleKeyframes,
       ...Object.fromEntries(
-        Object.entries(sampleKeyframes).map(([key, value]) => [
-          `${key}-copy-0`,
-          value,
-        ]),
+        Object.entries(sampleKeyframes).map(([key, value]) => [`${key}-copy-0`, value]),
       ),
       ...Object.fromEntries(
-        Object.entries(sampleKeyframes).map(([key, value]) => [
-          `${key}-copy2-0`,
-          value,
-        ]),
+        Object.entries(sampleKeyframes).map(([key, value]) => [`${key}-copy2-0`, value]),
       ),
     },
     titles: {
       ...sampleTitles,
       ...Object.fromEntries(
-        Object.entries(sampleTitles).map(([key, value]) => [
-          `${key}-copy-0`,
-          value,
-        ]),
+        Object.entries(sampleTitles).map(([key, value]) => [`${key}-copy-0`, value]),
       ),
       ...Object.fromEntries(
-        Object.entries(sampleTitles).map(([key, value]) => [
-          `${key}-copy2-0`,
-          value,
-        ]),
+        Object.entries(sampleTitles).map(([key, value]) => [`${key}-copy2-0`, value]),
       ),
     },
   },

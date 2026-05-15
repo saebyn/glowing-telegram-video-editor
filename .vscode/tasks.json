@@ -3,12 +3,10 @@
   "tasks": [
     {
       "type": "npm",
-      "script": "lint:vscode",
+      "script": "lint:ci",
       "problemMatcher": {
-        "owner": "biome",
-        "fileLocation": [
-          "absolute"
-        ],
+        "owner": "oxlint",
+        "fileLocation": ["absolute"],
         "pattern": {
           "regexp": "^::(error|warning) title=(.+),file=(.+),line=(\\d+),endLine=(\\d+),col=(\\d+),endColumn=(\\d+)::(.+)$",
           "severity": 1,
@@ -22,14 +20,14 @@
         }
       },
       "label": "npm: lint",
-      "detail": "biome lint"
+      "detail": "oxlint"
     },
     {
       "type": "npm",
       "script": "format",
       "problemMatcher": [],
       "label": "npm: format",
-      "detail": "biome format"
+      "detail": "oxfmt"
     }
   ]
 }

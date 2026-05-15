@@ -23,33 +23,23 @@ export default function TimelineLegend() {
     "
     >
       <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.silence}`}
-        />
+        <div className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.silence}`} />
         <span>Silence segment</span>
       </div>
       <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.chat}`}
-        />
+        <div className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.chat}`} />
         <span>Chat message</span>
       </div>
       <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.highlight}`}
-        />
+        <div className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.highlight}`} />
         <span>Highlighted segment</span>
       </div>
       <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.attention}`}
-        />
+        <div className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.attention}`} />
         <span>Attention segment</span>
       </div>
       <div className="flex items-center">
-        <div
-          className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.error}`}
-        />
+        <div className={`mr-2 size-4 rounded-full ${timelineElementTypeColors.error}`} />
         <span>Transcript error</span>
       </div>
     </div>

@@ -176,15 +176,11 @@ export const Interactive: Story = {
         clips={clips}
         playheadPosition={playhead}
         onClipsReorder={setClips}
-        onClipRemove={(id) =>
-          setClips((prevClips) => prevClips.filter((c) => c.id !== id))
-        }
+        onClipRemove={(id) => setClips((prevClips) => prevClips.filter((c) => c.id !== id))}
         onSeek={setPlayhead}
         onClipTrim={(id, newStart, newEnd) =>
           setClips((prevClips) =>
-            prevClips.map((c) =>
-              c.id === id ? { ...c, start: newStart, end: newEnd } : c,
-            ),
+            prevClips.map((c) => (c.id === id ? { ...c, start: newStart, end: newEnd } : c)),
           )
         }
       />

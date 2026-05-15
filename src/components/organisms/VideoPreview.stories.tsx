@@ -1,10 +1,5 @@
 import { action } from "storybook/actions";
-import type {
-  AudioChannel,
-  PreviewSettings,
-  VideoClip,
-  WaveformData,
-} from "@/types";
+import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
 import VideoPreview from "./VideoPreview";
 
 export default {
@@ -12,9 +7,7 @@ export default {
   component: VideoPreview,
   tags: ["organisms"],
   decorators: [
-    (story: () => React.ReactNode) => (
-      <div className="h-screen w-screen">{story()}</div>
-    ),
+    (story: () => React.ReactNode) => <div className="h-screen w-screen">{story()}</div>,
   ],
   parameters: {
     layout: "fullscreen",
@@ -22,17 +15,13 @@ export default {
 };
 
 // Generate sample waveform data
-const generateWaveformData = (
-  channelId: string,
-  samples = 400,
-): WaveformData => {
+const generateWaveformData = (channelId: string, samples = 400): WaveformData => {
   const amplitudes: number[] = [];
   for (let i = 0; i < samples; i++) {
     let amplitude = 0;
     if (channelId === "channel-1") {
       amplitude =
-        Math.sin((i / samples) * Math.PI * 6) * 0.6 +
-        Math.sin((i / samples) * Math.PI * 12) * 0.3;
+        Math.sin((i / samples) * Math.PI * 6) * 0.6 + Math.sin((i / samples) * Math.PI * 12) * 0.3;
     } else if (channelId === "channel-2") {
       // Use deterministic pseudo-noise based on position instead of Math.random()
       amplitude =

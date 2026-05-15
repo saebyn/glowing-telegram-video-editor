@@ -69,9 +69,7 @@ export default function AudioMixerPanel({
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Audio Mixer
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Audio Mixer</h3>
         <div className="flex space-x-2">
           <Button
             onClick={handleMasterMute}
@@ -88,11 +86,7 @@ export default function AudioMixerPanel({
             Reset
           </Button>
           {onSave && (
-            <Button
-              onClick={onSave}
-              variant="primary"
-              disabled={disabled || saving}
-            >
+            <Button onClick={onSave} variant="primary" disabled={disabled || saving}>
               {saving ? "Saving..." : "Save Changes"}
             </Button>
           )}
@@ -120,8 +114,7 @@ export default function AudioMixerPanel({
       {channels.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            {channels.filter((c) => !c.muted).length} of {channels.length}{" "}
-            channels active
+            {channels.filter((c) => !c.muted).length} of {channels.length} channels active
           </div>
         </div>
       )}

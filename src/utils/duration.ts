@@ -57,9 +57,7 @@ export function formatMs(ms: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
-  let [stringSeconds, stringFractionDigits] = remainingSeconds
-    .toPrecision(2)
-    .split(".");
+  let [stringSeconds, stringFractionDigits] = remainingSeconds.toPrecision(2).split(".");
 
   if (stringFractionDigits === "0") {
     stringFractionDigits = "";

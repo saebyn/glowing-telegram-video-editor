@@ -18,13 +18,7 @@ type ViewportProps = {
  * and the sidebar takes up 1/3 of the width. Then, the `Timeline` is
  * displayed below the video player and sidebar.
  */
-function Viewport({
-  chatHistory,
-  timeline,
-  transcript,
-  videoPlayer,
-  settings,
-}: ViewportProps) {
+function Viewport({ chatHistory, timeline, transcript, videoPlayer, settings }: ViewportProps) {
   const [chatTab, setChatTab] = useState<"chat" | "transcript">("chat");
 
   return (

@@ -53,9 +53,7 @@ export function createTimeline<ElementType>(
   elements: TimelineItem<ElementType>[],
 ): Timeline<ElementType> {
   // Calculate the total length of the timeline and sort the elements
-  const sortedElements = elements
-    .slice()
-    .sort((a, b) => a.startMilliseconds - b.startMilliseconds);
+  const sortedElements = elements.slice().sort((a, b) => a.startMilliseconds - b.startMilliseconds);
 
   // Handle the case where there are no elements
   if (sortedElements.length === 0) {
@@ -66,8 +64,7 @@ export function createTimeline<ElementType>(
   }
 
   const start = sortedElements[0].startMilliseconds;
-  const end =
-    sortedElements[sortedElements.length - 1].endMilliseconds || start;
+  const end = sortedElements[sortedElements.length - 1].endMilliseconds || start;
 
   return {
     sortedElements,
@@ -79,10 +76,7 @@ export function createTimeline<ElementType>(
  * Convert a relative (0 to 1 value) to a time value
  */
 export function relativeToTime(lens: TimelineLens, relative: number): number {
-  return (
-    lens.startMilliseconds +
-    relative * (lens.endMilliseconds - lens.startMilliseconds)
-  );
+  return lens.startMilliseconds + relative * (lens.endMilliseconds - lens.startMilliseconds);
 }
 
 /**
@@ -92,10 +86,7 @@ export function relativeToTime(lens: TimelineLens, relative: number): number {
  * position of the time value within the lens.
  */
 export function timeToRelative(lens: TimelineLens, time: number): number {
-  return (
-    (time - lens.startMilliseconds) /
-    (lens.endMilliseconds - lens.startMilliseconds)
-  );
+  return (time - lens.startMilliseconds) / (lens.endMilliseconds - lens.startMilliseconds);
 }
 
 /**
@@ -149,11 +140,7 @@ export function zoomIn(lens: TimelineLens, factor: number): TimelineLens {
 /**
  * Zoom in towards a specific point
  */
-export function zoomInTowards(
-  lens: TimelineLens,
-  factor: number,
-  relativeX: number,
-): TimelineLens {
+export function zoomInTowards(lens: TimelineLens, factor: number, relativeX: number): TimelineLens {
   console.assert(factor > 1, "factor must be greater than 1");
   console.assert(relativeX >= 0 && relativeX <= 1, "x must be between 0 and 1");
 
@@ -227,10 +214,7 @@ export function zoomOutTowards(
  * timeline, the lens should be adjusted to start at the beginning of the
  * timeline.
  */
-export function panLeft(
-  lens: TimelineLens,
-  milliseconds: number,
-): TimelineLens {
+export function panLeft(lens: TimelineLens, milliseconds: number): TimelineLens {
   console.assert(milliseconds >= 0, "milliseconds must be positive");
 
   if (lens.startMilliseconds - milliseconds < 0) {
@@ -256,10 +240,7 @@ export function panLeft(
  * If the milliseconds value would cause the lens to go past the end of the
  * timeline, the lens should be adjusted to end at the end of the timeline.
  */
-export function panRight(
-  lens: TimelineLens,
-  milliseconds: number,
-): TimelineLens {
+export function panRight(lens: TimelineLens, milliseconds: number): TimelineLens {
   console.assert(milliseconds >= 0, "milliseconds must be positive");
 
   if (lens.endMilliseconds + milliseconds > lens.timelineDurationMilliseconds) {
@@ -267,8 +248,7 @@ export function panRight(
       ...lens,
 
       startMilliseconds:
-        lens.timelineDurationMilliseconds -
-        (lens.endMilliseconds - lens.startMilliseconds),
+        lens.timelineDurationMilliseconds - (lens.endMilliseconds - lens.startMilliseconds),
       endMilliseconds: lens.timelineDurationMilliseconds,
     };
   }
@@ -286,10 +266,7 @@ export function panRight(
  * `milliseconds` value. If the value is negative, the lens should be panned to
  * the left. If the value is positive, the lens should be panned to the right.
  */
-export function panLens(
-  lens: TimelineLens,
-  milliseconds: number,
-): TimelineLens {
+export function panLens(lens: TimelineLens, milliseconds: number): TimelineLens {
   if (milliseconds < 0) {
     return panLeft(lens, -milliseconds);
   }
@@ -319,8 +296,6 @@ export function getLensLength(lens: TimelineLens): number {
 /**
  * Generate a key for a timeline element
  */
-export function generateKey<ElementType>(
-  element: TimelineItem<ElementType>,
-): string {
+export function generateKey<ElementType>(element: TimelineItem<ElementType>): string {
   return `${element.type}-${element.startMilliseconds}`;
 }

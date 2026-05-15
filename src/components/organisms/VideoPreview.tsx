@@ -2,9 +2,7 @@ import { useRef, useState } from "react";
 import Button from "@/components/atoms/Button";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
-import VideoPlayer, {
-  type VideoPlayerRef,
-} from "@/components/molecules/VideoPlayer";
+import VideoPlayer, { type VideoPlayerRef } from "@/components/molecules/VideoPlayer";
 import type { AudioChannel, PreviewSettings, VideoClip } from "@/types";
 import { hasAudioChanges } from "@/utils/audioChannels";
 
@@ -101,9 +99,7 @@ export default function VideoPreview({
       {/* Header */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Video Preview
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Video Preview</h1>
           <div className="flex space-x-3">
             <Button
               onClick={handleRegenerate}
