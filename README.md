@@ -1,8 +1,35 @@
 # Glowing Telegram Video Editor
 
+## Overview
+
 A React TypeScript component library for reviewing and editing video highlights, moments requiring attention, and transcription errors. Provides synchronized video/audio playback while reviewing AI-generated information.
 
-This is part of the larger glowing-telegram tool: https://github.com/saebyn/glowing-telegram
+This is part of the larger glowing-telegram tool: https://github.com/saebyn/glowing-telegram. This aims to provide an intuitive interface for vetting and correcting data to feed into an automated pipeline that posts edited stream VODs to YouTube.
+
+### Goals
+
+- Enable users to review, edit, and manage video highlights, attentions, and transcription errors efficiently
+- Provide synchronized video/audio playback while reviewing AI-generated information
+- Integrate seamlessly into the larger glowing-telegram tool ecosystem
+- Ensure usability on various screen sizes, with a primary focus on desktop use
+
+### Key Features
+
+- **Video Review and Clip Selection**: Browse AI-generated highlights, attentions, and transcription errors with synchronized video playback
+- **Interactive Timeline**: Color-coded markers for different event types with zoom/pan functionality
+- **Clip Management**: Select, reorder, and trim video clips with drag-and-drop interface
+- **Audio Mixing**: Multi-channel audio control with per-channel muting and level adjustment
+- **Live Transcript**: Real-time transcript and chat history display synchronized with video playback
+- **Keyboard Shortcuts**: Efficient navigation with keyboard controls for playback and seeking
+- **HLS Video Support**: Built-in support for HLS streaming with HLS.js
+
+### Design Decisions
+
+- **Component-Based Architecture**: Modular design following atomic design principles (atoms, molecules, organisms, pages)
+- **TypeScript First**: Full TypeScript support with exported types for all components
+- **Integrated Workflow**: Designed to integrate directly into larger applications
+- **Responsive Layout**: Primarily desktop-focused but adaptable to various screen sizes
+
 
 ## Installation
 
@@ -437,48 +464,7 @@ Convert `RawVideoMetadata` to `VideoMetadata` before passing data to components.
 - `level`: Audio level (`0.0` to `1.0`)
 - `muted`: Whether channel is muted
 
-## Overview
-
-The Glowing Telegram Video Editor is a web-based Single Page Application (SPA) designed to review and edit video highlights, moments that require additional attention, and possible transcription errors, and select clips for rendering. This application aims to provide an intuitive interface for vetting and correcting data to feed into an automated pipeline that posts edited stream VODs to YouTube.
-
-### Goals
-
-- Enable users to review, edit, and manage video highlights, attentions, and transcription errors efficiently
-- Provide synchronized video/audio playback while reviewing AI-generated information
-- Integrate seamlessly into the larger glowing-telegram tool ecosystem
-- Ensure usability on various screen sizes, with a primary focus on desktop use
-
-### Key Features
-
-- **Video Review and Clip Selection**: Browse AI-generated highlights, attentions, and transcription errors with synchronized video playback
-- **Interactive Timeline**: Color-coded markers for different event types with zoom/pan functionality
-- **Clip Management**: Select, reorder, and trim video clips with drag-and-drop interface
-- **Audio Mixing**: Multi-channel audio control with per-channel muting and level adjustment
-- **Live Transcript**: Real-time transcript and chat history display synchronized with video playback
-- **Keyboard Shortcuts**: Efficient navigation with keyboard controls for playback and seeking
-- **HLS Video Support**: Built-in support for HLS streaming with HLS.js
-
-### Design Decisions
-
-- **Component-Based Architecture**: Modular design following atomic design principles (atoms, molecules, organisms, pages)
-- **TypeScript First**: Full TypeScript support with exported types for all components
-- **Integrated Workflow**: Designed to integrate directly into larger applications
-- **Responsive Layout**: Primarily desktop-focused but adaptable to various screen sizes
-
 ## Development
-
-This project uses modern web development tools:
-
-- [Vite](https://vitejs.dev) - Build tool and dev server
-- [React](https://reactjs.org) - UI framework (v19)
-- [TypeScript](https://www.typescriptlang.org) - Type safety
-- [Vitest](https://vitest.dev) - Unit testing
-- [Testing Library](https://testing-library.com) - Component testing
-- [Tailwind CSS](https://tailwindcss.com) - Styling (v4) with `tailwindcss-animate`
-- [Biome](https://biomejs.dev) - Linting and formatting
-- [Storybook](https://storybook.js.org) - Component development
-- [HLS.js](https://github.com/video-dev/hls.js) - Video streaming
-- [temporal-polyfill](https://github.com/fullcalendar/temporal-polyfill) - ISO 8601 duration parsing
 
 ### Getting Started
 
@@ -492,7 +478,7 @@ npm install
 
 ### Development Commands
 
-**Watch build** (rebuilds `dist/` on file changes — does not start a dev server):
+**Watch build**:
 ```bash
 npm run dev
 ```
