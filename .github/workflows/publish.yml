@@ -23,5 +23,5 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: sed -i '/always-auth/d' ~/.npmrc
+      - run: test -f "$NPM_CONFIG_USERCONFIG" && sed -i '/always-auth/d' "$NPM_CONFIG_USERCONFIG" || true
       - run: npm publish
