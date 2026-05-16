@@ -23,4 +23,5 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+      - run: sed -i '/always-auth/d' ~/.npmrc
       - run: npm publish
