@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config https://vitest.dev/config
 export default defineConfig({
-  plugins: [react(), tsconfigPaths(), dts({ outDir: 'dist', rollupTypes: true })],
+  plugins: [react(), tsconfigPaths(), dts({ outDir: 'dist' })],
   build: {
     lib: {
       entry: resolve(__dirname, "src/index.ts"),

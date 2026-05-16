@@ -27,7 +27,8 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "rootDir": "./src"
   },
   "include": [
     "src"
