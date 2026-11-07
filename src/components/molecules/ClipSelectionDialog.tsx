@@ -3,6 +3,7 @@ import IconButton from "@/components/atoms/IconButton";
 
 import TimeLink from "@/components/atoms/TimeLink";
 import type { VideoClip } from "@/types";
+import { formatMs } from "@/utils/duration";
 import DEFAULT_KEYFRAME_SRC from "../../assets/logo.svg";
 
 interface Props {
@@ -32,6 +33,17 @@ export default function ClipSelectionDialog({
     return null;
   }
 
+  const totalDuration = clips.reduce((total, clip) => {
+    const duration = clip.end - clip.start;
+    return Number.isFinite(clip.start) &&
+      Number.isFinite(clip.end) &&
+      clip.start >= 0 &&
+      Number.isFinite(duration) &&
+      duration > 0
+      ? total + duration
+      : total;
+  }, 0);
+
   const handleRemove = (id: string) => {
     onRemove(id);
   };
@@ -46,7 +58,12 @@ export default function ClipSelectionDialog({
   return (
     <div className="fixed  shadow-lg p-4 flex flex-col space-y-4 right-8 bottom-2 z-50 bg-white text-gray-800 dark:bg-gray-800 dark:text-white">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Selected Clips</h2>
+        <div className="mr-4">
+          <h2 className="text-xl font-bold">Selected Clips</h2>
+          <p role="status" className="font-semibold tabular-nums">
+            Total duration: {formatMs(totalDuration)}
+          </p>
+        </div>
         <Button variant="danger" onClick={onClear}>
           Clear
         </Button>
