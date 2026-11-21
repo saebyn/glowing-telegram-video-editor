@@ -1,11 +1,22 @@
+import { Timeline, type TimelineState } from "@keplar-404/react-timeline-editor";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
-import { convertFrameOffset, formatFrames, layoutSequence, snapFrame } from "@/utils/frames";
+import {
+  convertFrameOffset,
+  formatFrames,
+  framesToSeconds,
+  layoutSequence,
+  secondsToFrame,
+  snapFrame,
+} from "@/utils/frames";
 
 const MIN_INLINE_TRIM_WIDTH = 16; // two 8px handles
 const MIN_INLINE_REMOVE_WIDTH = 36; // clip body and room to click the remove button
+const SCALE_COUNT = 4;
+const RULER_HEIGHT = 32;
+const EFFECTS = { clip: { id: "clip", name: "Clip placement" } };
 
 export interface ProjectClipTimelineProps {
   /**
@@ -72,31 +83,22 @@ function TrimHandle({
   clipId,
   edge,
   compact,
-  pendingFocus,
+  bindTrimButton,
   onMouseDown,
   onKeyDown,
 }: {
   clipId: string;
   edge: TrimEdge;
   compact: boolean;
-  pendingFocus: React.RefObject<TrimFocus | null>;
+  bindTrimButton: (clipId: string, edge: TrimEdge, button: HTMLButtonElement) => () => void;
   onMouseDown: React.MouseEventHandler<HTMLButtonElement>;
   onKeyDown: React.KeyboardEventHandler<HTMLButtonElement>;
 }) {
   const bindButton = useCallback(
     (button: HTMLButtonElement | null) => {
-      if (!button) return;
-      const document = button.ownerDocument;
-      // React detaches the old handle before attaching its replacement.
-      if (pendingFocus.current?.clipId === clipId && pendingFocus.current.edge === edge) {
-        pendingFocus.current = null;
-        if (document.activeElement === document.body) button.focus();
-      }
-      return () => {
-        if (document.activeElement === button) pendingFocus.current = { clipId, edge };
-      };
+      if (button) return bindTrimButton(clipId, edge, button);
     },
-    [clipId, edge, pendingFocus],
+    [bindTrimButton, clipId, edge],
   );
   const label = `Trim ${edge} point`;
   const side = edge === "in" ? "left-0" : "right-0";
@@ -160,8 +162,10 @@ export default function ProjectClipTimeline({
 }: ProjectClipTimelineProps) {
   const frameRate = useProjectFrameRate();
   const timelineRef = useRef<HTMLElement>(null);
-  const pendingTrimFocus = useRef<TrimFocus | null>(null);
-  const [trackWidth, setTrackWidth] = useState(0);
+  const widgetRef = useRef<TimelineState>(null);
+  const suppressTrimClickRef = useRef(false);
+  const pendingTrimFocusRef = useRef<TrimFocus | null>(null);
+  const [trackSize, setTrackSize] = useState({ width: 0, height: 0 });
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [hoveredClipId, setHoveredClipId] = useState<string | null>(null);
@@ -174,35 +178,78 @@ export default function ProjectClipTimeline({
   } | null>(null);
 
   const layout = useMemo(() => layoutSequence(clips, frameRate), [clips, frameRate]);
-  const displayLayout = trimmingClip
-    ? layoutSequence(
-        clips.map((clip) => (clip.id === trimmingClip.original.id ? trimmingClip.draft : clip)),
-        frameRate,
-      )
-    : layout;
+  const displayLayout = useMemo(
+    () =>
+      trimmingClip
+        ? layoutSequence(
+            clips.map((clip) => (clip.id === trimmingClip.original.id ? trimmingClip.draft : clip)),
+            frameRate,
+          )
+        : layout,
+    [clips, frameRate, layout, trimmingClip],
+  );
+  const { placements, durationFrames: totalFrames } = displayLayout;
+  const { rows, placementIndices } = useMemo(() => {
+    const placementIndices = new Map<string, number>();
+    const actions = placements.map(({ clip, sequenceStartFrame, durationFrames }, index) => {
+      placementIndices.set(clip.id, index);
+      return {
+        id: clip.id,
+        effectId: "clip",
+        start: framesToSeconds(sequenceStartFrame, frameRate),
+        end: framesToSeconds(sequenceStartFrame + durationFrames, frameRate),
+        movable: false,
+        flexible: false,
+      };
+    });
+    return { rows: [{ id: "sequence", actions }], placementIndices };
+  }, [placements, frameRate]);
   const narrowClips = layout.placements.filter(
     ({ durationFrames }) =>
-      trackWidth > 0 &&
+      trackSize.width > 0 &&
       layout.durationFrames > 0 &&
-      (durationFrames / layout.durationFrames) * trackWidth <
+      (durationFrames / layout.durationFrames) * trackSize.width <
         (onClipRemove ? MIN_INLINE_REMOVE_WIDTH : MIN_INLINE_TRIM_WIDTH),
   );
   const narrowClipIds = new Set(narrowClips.map(({ clip }) => clip.id));
 
   // A removed clip has no replacement handle. Don't carry its focus into a later commit.
   useLayoutEffect(() => {
-    pendingTrimFocus.current = null;
+    pendingTrimFocusRef.current = null;
   });
 
-  useEffect(() => {
+  const bindTrimButton = useCallback(
+    (clipId: string, edge: TrimEdge, button: HTMLButtonElement) => {
+      const document = button.ownerDocument;
+      // React detaches the old handle before attaching its replacement.
+      const pendingFocus = pendingTrimFocusRef.current;
+      if (pendingFocus?.clipId === clipId && pendingFocus.edge === edge) {
+        pendingTrimFocusRef.current = null;
+        if (document.activeElement === document.body) button.focus();
+      }
+      return () => {
+        if (document.activeElement === button) pendingTrimFocusRef.current = { clipId, edge };
+      };
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
     const track = timelineRef.current;
     if (!track) return;
-    const measure = () => setTrackWidth(track.getBoundingClientRect().width);
+    const measure = () => {
+      const { width, height } = track.getBoundingClientRect();
+      setTrackSize({ width, height });
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(track);
     return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    widgetRef.current?.setTime(framesToSeconds(snapFrame(playheadFrame, totalFrames), frameRate));
+  }, [playheadFrame, totalFrames, frameRate]);
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     event.dataTransfer.setData("text/plain", index.toString());
@@ -211,12 +258,14 @@ export default function ProjectClipTimeline({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/json")
+      ? "copy"
+      : "move";
     setDragOverIndex(index);
     setIsDraggingOver(true);
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+  const handleDrop = (event: React.DragEvent<HTMLElement>, dropIndex: number) => {
     event.preventDefault();
     event.stopPropagation();
     setDragOverIndex(null);
@@ -261,13 +310,10 @@ export default function ProjectClipTimeline({
     setIsDraggingOver(false);
   };
 
-  const handleTimelineClick = (event: React.MouseEvent<HTMLElement>) => {
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!onSeek || !rect || rect.width <= 0) return;
-    const x = event.clientX - rect.left;
-    onSeek(
-      snapFrame((x / rect.width) * displayLayout.durationFrames, displayLayout.durationFrames),
-    );
+  const seek = (seconds: number, event: React.MouseEvent<HTMLElement>) => {
+    // Releasing a trim can click the row if the handle moved out from under the pointer.
+    if (event.detail > 0 && suppressTrimClickRef.current) return;
+    onSeek?.(snapFrame(secondsToFrame(seconds, frameRate), totalFrames));
   };
 
   const handleRemoveClip = (event: React.MouseEvent, clipId: string) => {
@@ -280,6 +326,7 @@ export default function ProjectClipTimeline({
     event.preventDefault();
     const width = timelineRef.current?.getBoundingClientRect().width ?? 0;
     if (width <= 0) return;
+    suppressTrimClickRef.current = true;
     setTrimmingClip({
       original: clip,
       draft: clip,
@@ -332,7 +379,7 @@ export default function ProjectClipTimeline({
       clipId={clip.id}
       edge={edge}
       compact={compact}
-      pendingFocus={pendingTrimFocus}
+      bindTrimButton={bindTrimButton}
       onMouseDown={(e) => handleTrimStart(e, clip, edge)}
       onKeyDown={(e) => handleTrimKeyDown(e, clip, edge)}
     />
@@ -354,7 +401,6 @@ export default function ProjectClipTimeline({
     };
   }, [trimmingClip, handleTrimMove, handleTrimEnd]);
 
-  const { placements, durationFrames: totalFrames } = displayLayout;
   const toPercent = (frames: number) => (totalFrames > 0 ? (frames / totalFrames) * 100 : 0);
 
   return (
@@ -392,118 +438,126 @@ export default function ProjectClipTimeline({
       <section
         ref={timelineRef}
         aria-label="Sequence timeline"
-        className="relative bg-white dark:bg-gray-900 ring-2 ring-inset ring-gray-300 dark:ring-gray-600 rounded-md overflow-hidden"
-        style={{ height }}
-        onClick={handleTimelineClick}
-      >
-        {/* Time markers */}
-        <div className="absolute top-0 left-0 right-0 h-6 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 flex items-center px-2">
-          <div className="text-xs text-gray-600 dark:text-gray-400">0:00</div>
-          <div className="flex-1" />
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            {formatFrames(totalFrames, frameRate)}
-          </div>
-        </div>
-
-        {/* Clips container */}
-        <div className="absolute top-6 left-0 right-0 bottom-0 flex items-center">
-          {clips.length === 0 && (
-            <div
-              className={`flex-1 h-full border-2 border-dashed rounded flex items-center justify-center ${
-                isDraggingOver
-                  ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                  : "border-gray-300 dark:border-gray-600"
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
+        className="gtve-sequence-timeline relative rounded-md overflow-hidden"
+        style={{ height, "--gtve-ruler-height": `${RULER_HEIGHT}px` } as React.CSSProperties}
+        onPointerDownCapture={() => {
+          suppressTrimClickRef.current = false;
+        }}
+        onDragOver={
+          clips.length === 0
+            ? (event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
                 setIsDraggingOver(true);
-              }}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, 0)}
-            >
-              <span className="text-gray-400 dark:text-gray-500 text-sm">
-                Drop clips here to add to timeline
-              </span>
-            </div>
-          )}
-
-          {placements.map(({ clip, durationFrames }, index) => (
-            <div
-              key={clip.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragLeave={handleDragLeave}
-              onMouseEnter={() => setHoveredClipId(clip.id)}
-              onMouseLeave={() => setHoveredClipId(null)}
-              className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
-                dragOverIndex === index ? "ring-2 ring-inset ring-blue-500" : ""
-              }`}
-              style={{
-                width: `${toPercent(durationFrames)}%`,
-              }}
-            >
+              }
+            : undefined
+        }
+        onDragLeave={clips.length === 0 ? handleDragLeave : undefined}
+        onDrop={clips.length === 0 ? (event) => handleDrop(event, 0) : undefined}
+      >
+        <Timeline
+          ref={widgetRef}
+          editorData={rows}
+          effects={EFFECTS}
+          style={{ width: "100%", height: "100%" }}
+          startLeft={0}
+          scale={framesToSeconds(Math.max(1, totalFrames), frameRate) / SCALE_COUNT}
+          scaleWidth={trackSize.width / SCALE_COUNT || 1}
+          scaleSplitCount={1}
+          minScaleCount={SCALE_COUNT}
+          maxScaleCount={SCALE_COUNT}
+          rowHeight={Math.max(1, Math.floor(trackSize.height - RULER_HEIGHT))}
+          getScaleRender={(seconds) =>
+            totalFrames > 0 ? formatFrames(secondsToFrame(seconds, frameRate), frameRate) : null
+          }
+          disableDrag
+          autoReRender={false}
+          hideCursor={totalFrames === 0}
+          onClickTimeArea={(seconds, event) => {
+            seek(seconds, event);
+            return false;
+          }}
+          onClickRow={(event, { time }) => {
+            if (!(event.target instanceof Element && event.target.closest("button"))) {
+              seek(time, event);
+            }
+          }}
+          getActionRender={(action) => {
+            const index = placementIndices.get(action.id);
+            if (index === undefined) return null;
+            const { clip, durationFrames } = placements[index];
+            return (
               <div
-                className={`relative h-full ${narrowClipIds.has(clip.id) ? "overflow-hidden" : ""}`}
+                key={clip.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragLeave={handleDragLeave}
+                onMouseEnter={() => setHoveredClipId(clip.id)}
+                onMouseLeave={() => setHoveredClipId(null)}
+                className={`group relative flex-shrink-0 h-full cursor-grab active:cursor-grabbing transition-all ${
+                  dragOverIndex === index ? "ring-2 ring-inset ring-blue-500" : ""
+                }`}
               >
-                {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "in")}
+                <div
+                  className={`relative h-full ${narrowClipIds.has(clip.id) ? "overflow-hidden" : ""}`}
+                >
+                  {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "in")}
 
-                <ProjectClipPreview
-                  id={clip.id}
-                  thumbnailUrl={thumbnails[clip.id] || clip.keyframeSrc || ""}
-                  keyframeUrls={keyframes[clip.id] || []}
-                  title={titles[clip.id]}
-                  durationFrames={durationFrames}
-                  width="100%"
-                  height="100%"
-                  onTitleUpdate={onTitleUpdate}
-                  showCheckbox={false}
-                  forceShowOverlay={
-                    hoveredClipId === clip.id || trimmingClip?.original.id === clip.id
-                  }
-                />
+                  <ProjectClipPreview
+                    id={clip.id}
+                    thumbnailUrl={thumbnails[clip.id] || clip.keyframeSrc || ""}
+                    keyframeUrls={keyframes[clip.id] || []}
+                    title={titles[clip.id]}
+                    durationFrames={durationFrames}
+                    width="100%"
+                    height="100%"
+                    onTitleUpdate={onTitleUpdate}
+                    showCheckbox={false}
+                    forceShowOverlay={
+                      hoveredClipId === clip.id || trimmingClip?.original.id === clip.id
+                    }
+                  />
 
-                {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "out")}
+                  {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "out")}
 
-                {!narrowClipIds.has(clip.id) && onClipRemove && (
-                  <button
-                    type="button"
-                    onClick={(e) => handleRemoveClip(e, clip.id)}
-                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
-                    aria-label="Remove clip"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  {!narrowClipIds.has(clip.id) && onClipRemove && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveClip(e, clip.id)}
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
+                      aria-label="Remove clip"
                     >
-                      <title>Remove</title>
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                )}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <title>Remove</title>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Playhead */}
-        {totalFrames > 0 && (
+            );
+          }}
+        />
+        {clips.length === 0 && (
           <div
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-10"
-            style={{
-              left: `${toPercent(snapFrame(playheadFrame, totalFrames))}%`,
-            }}
+            className={`gtve-sequence-empty pointer-events-none absolute inset-x-0 bottom-0 grid place-items-center rounded border-2 border-dashed text-sm text-gray-400 ${
+              isDraggingOver ? "border-blue-400 bg-blue-500/15" : "border-gray-600"
+            }`}
           >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-red-500" />
+            Drop clips here to add to timeline
           </div>
         )}
       </section>

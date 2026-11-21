@@ -1,0 +1,27 @@
+.gtve-sequence-timeline .timeline-editor {
+  background: #182130;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.gtve-sequence-timeline .timeline-editor-time-area {
+  height: var(--gtve-ruler-height);
+}
+
+.gtve-sequence-timeline .timeline-editor-edit-area {
+  margin-top: 0;
+}
+
+.gtve-sequence-timeline .timeline-editor-action {
+  background: transparent;
+}
+
+/* The playhead is controlled by the host and must not intercept editing gestures. */
+.gtve-sequence-timeline .timeline-editor-cursor,
+.gtve-sequence-timeline .timeline-editor-cursor-area {
+  pointer-events: none;
+}
+
+.gtve-sequence-empty {
+  top: var(--gtve-ruler-height);
+}

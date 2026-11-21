@@ -9,7 +9,7 @@ import type { LogEvent } from "@/types";
 
 export default function useScrollToNearestFrame<T extends LogEvent>(
   frame: number,
-  ref: React.RefObject<HTMLDivElement | null>,
+  logRef: React.RefObject<HTMLDivElement | null>,
   log: T[],
   followPlayback: boolean,
 ): number | null {
@@ -20,7 +20,7 @@ export default function useScrollToNearestFrame<T extends LogEvent>(
       return;
     }
 
-    const nearestElement = ref.current?.querySelector(`[data-index="${nearestElementIndex}"]`);
+    const nearestElement = logRef.current?.querySelector(`[data-index="${nearestElementIndex}"]`);
 
     if (nearestElement) {
       nearestElement.scrollIntoView({
@@ -28,7 +28,7 @@ export default function useScrollToNearestFrame<T extends LogEvent>(
         block: "center",
       });
     }
-  }, [ref, nearestElementIndex, followPlayback]);
+  }, [logRef, nearestElementIndex, followPlayback]);
 
   return nearestElementIndex;
 }

@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import VideoPlayerControls from "@/components/atoms/VideoPlayerControls";
+import VideoPlayerControls, { type PlaybackOptions } from "@/components/atoms/VideoPlayerControls";
 import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { FrameRate } from "@/types";
@@ -30,13 +30,24 @@ export interface VideoPlayerRef {
 
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer(
   { videoUrl, sourceFrameRate, durationFrames, onFrameUpdate, onEnd },
-  ref,
+  playerRef,
 ) {
   const frameRate = useProjectFrameRate(sourceFrameRate);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [hls, setHls] = useState<Hls | null>(null);
   const [mediaSeconds, setMediaSeconds] = useState(0);
-  const lastReportedFrame = useRef<number | null>(null);
+  const lastReportedFrameRef = useRef<number | null>(null);
+  const [playbackOptions, setPlaybackOptions] = useState<PlaybackOptions>({
+    muted: false,
+    loop: false,
+    speed: 1,
+  });
+
+  useEffect(() => {
+    if (video) {
+      video.playbackRate = playbackOptions.speed;
+    }
+  }, [video, playbackOptions.speed]);
 
   // manage the hls instance
   useEffect(() => {
@@ -76,7 +87,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
   const currentFrame = snapFrame(secondsToFrame(mediaSeconds, frameRate), durationFrames);
   const reportFrame = useCallback(
     (frame: number) => {
-      lastReportedFrame.current = frame;
+      lastReportedFrameRef.current = frame;
       onFrameUpdate?.(frame);
     },
     [onFrameUpdate],
@@ -84,7 +95,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
 
   // A new grid can change the frame even when the media clock is paused.
   useLayoutEffect(() => {
-    if (lastReportedFrame.current !== null && lastReportedFrame.current !== currentFrame) {
+    if (lastReportedFrameRef.current !== null && lastReportedFrameRef.current !== currentFrame) {
       reportFrame(currentFrame);
     }
   }, [currentFrame, reportFrame]);
@@ -113,7 +124,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
   );
 
   useImperativeHandle(
-    ref,
+    playerRef,
     () => ({
       seekTo: seekToFrame,
 
@@ -147,6 +158,8 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
       <video
         ref={setVideo}
         className="w-full"
+        muted={playbackOptions.muted}
+        loop={playbackOptions.loop}
         onTimeUpdate={(event) => updatePlayhead(event.currentTarget.currentTime)}
         onEnded={onEnd}
         onError={console.error}
@@ -154,7 +167,11 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
         Your browser does not support the video tag.
       </video>
 
-      <VideoPlayerControls video={video}>
+      <VideoPlayerControls
+        video={video}
+        playbackOptions={playbackOptions}
+        onPlaybackOptionsChange={setPlaybackOptions}
+      >
         <VideoPlayerProgressBar
           playheadFrame={currentFrame}
           onSeek={seekToFrame}
