@@ -31,7 +31,10 @@ interface TimelineProviderProps {
 }
 
 export const TimelineProvider = ({ children, durationFrames }: TimelineProviderProps) => {
-  const [lens, setLens] = useState<TimelineLens>(createLens(durationFrames));
+  const [lens, setLens] = useState<TimelineLens>(() => createLens(durationFrames));
+  if (lens.durationFrames !== durationFrames) {
+    setLens(createLens(durationFrames));
+  }
 
   return <TimelineContext.Provider value={{ lens, setLens }}>{children}</TimelineContext.Provider>;
 };

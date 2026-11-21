@@ -68,12 +68,15 @@ export function zoomOutTowards(
 }
 
 function zoomTowards(lens: TimelineLens, factor: number, relativeX: number): TimelineLens {
-  const center = lens.startFrame + relativeX * getLensLength(lens);
-  const halfWidth = (getLensLength(lens) * factor) / 2;
+  const currentWidth = getLensLength(lens);
+  const center = lens.startFrame + relativeX * currentWidth;
+  const halfWidth = (currentWidth * factor) / 2;
   const start = Math.max(0, center - halfWidth);
+  // Rounding both bounds can otherwise leave a narrow lens stuck when zooming out.
+  const minimumWidth = factor > 1 ? currentWidth + 1 : 1;
   const width = Math.min(
     lens.durationFrames,
-    Math.max(1, Math.round(start + 2 * halfWidth) - Math.round(start)),
+    Math.max(minimumWidth, Math.round(start + 2 * halfWidth) - Math.round(start)),
   );
   return positionLens(lens, Math.round(start), width);
 }

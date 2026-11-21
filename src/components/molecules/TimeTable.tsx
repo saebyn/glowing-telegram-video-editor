@@ -40,9 +40,9 @@ function TimeTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <tr
-              key={`row-${row.category}-${row.sourceFrame}`}
+              key={`row-${row.sourceFrame}-${index}`}
               className={`${
                 playheadFrame !== undefined &&
                 row.sourceFrame <= playheadFrame &&

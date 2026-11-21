@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createLens, getLensLength, zoomIn, zoomInTowards, zoomOut } from "./timeline";
+import {
+  createLens,
+  getLensLength,
+  zoomIn,
+  zoomInTowards,
+  zoomOut,
+  zoomOutTowards,
+} from "./timeline";
 
 describe("timeline", () => {
   describe("zoom", () => {
@@ -49,5 +56,12 @@ describe("timeline", () => {
       expect(zoomedLens.startFrame).toBe(0);
       expect(zoomedLens.endFrame).toBe(909);
     });
+  });
+
+  it("zooms back out from a six-frame view using either zoom control", () => {
+    const lens = { startFrame: 608, endFrame: 614, durationFrames: 3600 };
+
+    expect(getLensLength(zoomOut(lens, 1.1))).toBe(7);
+    expect(getLensLength(zoomOutTowards(lens, 1.1, 0.47))).toBe(7);
   });
 });

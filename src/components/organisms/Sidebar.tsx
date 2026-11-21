@@ -29,6 +29,20 @@ function Sidebar({
     );
   }
 
+  const matches = matchesFilter(filter);
+  const renderEntries = (sections: Section[], group: string) =>
+    sections.map((section, index) =>
+      matches(section) ? (
+        <NavEntry
+          key={`${group}-${section.sourceFrame}-${index}`}
+          {...section}
+          playheadFrame={playheadFrame}
+          frameRate={content.frameRate}
+          onSeekToFrame={onSeekToFrame}
+        />
+      ) : null,
+    );
+
   return (
     <aside
       className="w-96 overflow-y-scroll bg-white shadow-md dark:bg-gray-900 dark:text-gray-200
@@ -46,15 +60,7 @@ function Sidebar({
           <li>
             <HeadingLink href="#highlights">Highlights</HeadingLink>
           </li>
-          {content.highlights.filter(matchesFilter(filter)).map((highlight) => (
-            <NavEntry
-              key={`highlight-${highlight.sourceFrame}`}
-              {...highlight}
-              playheadFrame={playheadFrame}
-              frameRate={content.frameRate}
-              onSeekToFrame={onSeekToFrame}
-            />
-          ))}
+          {renderEntries(content.highlights, "highlight")}
           <li>
             <button
               type="button"
@@ -66,27 +72,11 @@ function Sidebar({
           <li>
             <HeadingLink href="#attentions">Attentions</HeadingLink>
           </li>
-          {content.attentions.filter(matchesFilter(filter)).map((attention) => (
-            <NavEntry
-              key={`attention-${attention.sourceFrame}`}
-              {...attention}
-              playheadFrame={playheadFrame}
-              frameRate={content.frameRate}
-              onSeekToFrame={onSeekToFrame}
-            />
-          ))}
+          {renderEntries(content.attentions, "attention")}
           <li>
             <HeadingLink href="#transcription-errors">Transcription Errors</HeadingLink>
           </li>
-          {content.transcription_errors.filter(matchesFilter(filter)).map((error) => (
-            <NavEntry
-              key={`error-${error.sourceFrame}`}
-              {...error}
-              playheadFrame={playheadFrame}
-              frameRate={content.frameRate}
-              onSeekToFrame={onSeekToFrame}
-            />
-          ))}
+          {renderEntries(content.transcription_errors, "error")}
 
           <li>
             <HeadingLink href="#top">Back to Top</HeadingLink>

@@ -50,7 +50,7 @@ function SourceReview({ content, onExport }: VideoSelectionPageProps) {
     );
     if (sourceOutFrame <= sourceInFrame) return;
     const clip: VideoClip = {
-      id: `${sourceId}:${sourceInFrame}`,
+      id: `${sourceId}:section:${sourceInFrame}-${sourceOutFrame}`,
       sourceId,
       sourceFrameRate: frameRate,
       sourceDurationFrames: durationFrames,
@@ -93,7 +93,7 @@ function SourceReview({ content, onExport }: VideoSelectionPageProps) {
   });
 
   return (
-    <TimelineProvider key={durationFrames} durationFrames={durationFrames}>
+    <TimelineProvider durationFrames={durationFrames}>
       <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
         <ClipSelectionDialog
           show={selectedClips.length > 0}
