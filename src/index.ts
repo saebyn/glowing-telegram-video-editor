@@ -1,4 +1,4 @@
-import "material-symbols/outlined.css";
+import "./custom-only.css";
 import "./index.css";
 
 import AudioChannelNameEditor from "@/components/atoms/AudioChannelNameEditor";

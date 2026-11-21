@@ -1,4 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import type { TimelineEditor, TimelineState } from "@keplar-404/react-timeline-editor";
+import type { Ref } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ProjectProvider } from "@/context/ProjectContext";
 import type { RawVideoMetadata } from "@/types";
@@ -6,6 +8,50 @@ import parseContent from "@/utils/parseData";
 import VideoSelectionPage from "./VideoSelectionPage";
 
 afterEach(cleanup);
+
+// Happy DOM has no layout. Exercise the widget's public callbacks without faking its geometry.
+vi.mock("@keplar-404/react-timeline-editor", async () => {
+  const { useImperativeHandle, useState } = await import("react");
+  return {
+    Timeline: ({
+      ref,
+      onClickTimeArea,
+      onClickRow,
+      editorData,
+      getActionRender,
+    }: TimelineEditor & { ref?: Ref<Pick<TimelineState, "setTime">> }) => {
+      const [time, setTime] = useState(0);
+      useImperativeHandle(ref, () => ({ setTime }));
+      return (
+        <>
+          {[0.078, 9.75].map((seconds) => (
+            <div
+              key={seconds}
+              role="presentation"
+              onClick={(event) => {
+                if (onClickTimeArea?.(seconds, event) !== false) setTime(seconds);
+              }}
+            >
+              <button type="button">Seek at {seconds} seconds</button>
+            </div>
+          ))}
+          {editorData.map((row) => (
+            <div
+              key={row.id}
+              role="presentation"
+              onClick={(event) => onClickRow?.(event, { row, time: 0.078 })}
+            >
+              {row.actions.map((action) => (
+                <div key={action.id}>{getActionRender?.(action, row)}</div>
+              ))}
+            </div>
+          ))}
+          <output aria-label="Widget cursor time">{time}</output>
+        </>
+      );
+    },
+  };
+});
 
 // Simulate only the HLS transport. Observe seeks on the actual media element.
 vi.mock("hls.js", () => ({
@@ -40,6 +86,76 @@ const nearbyHighlights = [
   { description: "Other highlight", timestamp_start: "PT4S", timestamp_end: "PT5S" },
 ];
 
+it("seeks from the source timeline on the native grid and mirrors playback without seeking back", () => {
+  const { container } = render(
+    <ProjectProvider frameRate={{ numerator: 30, denominator: 1 }}>
+      <VideoSelectionPage content={parseContent(rawSource)} />
+    </ProjectProvider>,
+  );
+  const video = container.querySelector("video")!;
+  const timeline = within(screen.getByRole("region", { name: "Source timeline" }));
+
+  const ruler = timeline.getByRole("button", { name: "Seek at 0.078 seconds" });
+  fireEvent.click(ruler, { shiftKey: true, detail: 1 });
+  expect(video.currentTime).toBe(0);
+  expect(timeline.getByLabelText("Widget cursor time")).toHaveTextContent(/^0$/);
+  fireEvent.click(ruler, { detail: 1 });
+  expect(video.currentTime).toBeCloseTo(5 / 60, 10);
+
+  video.currentTime = 0.121;
+  fireEvent.timeUpdate(video);
+  expect(Number(timeline.getByLabelText("Widget cursor time").textContent)).toBeCloseTo(7 / 60, 10);
+  expect(video.currentTime).toBe(0.121);
+});
+
+it("adds the original source range on Shift-click without moving playback or toggling it off", () => {
+  const frameRate = { numerator: 60, denominator: 1 };
+  const content = parseContent({ ...rawSource, highlights: nearbyHighlights });
+  const onExport = vi.fn();
+  const { container } = render(
+    <ProjectProvider frameRate={{ numerator: 30, denominator: 1 }}>
+      <VideoSelectionPage content={content} onExport={onExport} />
+    </ProjectProvider>,
+  );
+  const video = container.querySelector("video")!;
+  video.currentTime = 2;
+  fireEvent.timeUpdate(video);
+
+  const timeline = within(screen.getByRole("region", { name: "Source timeline" }));
+  const range = timeline.getByRole("button", { name: "Second highlight" });
+  fireEvent.click(range, { shiftKey: true, detail: 1 });
+  fireEvent.click(range, { shiftKey: true, detail: 1 });
+  expect(video.currentTime).toBe(2);
+  fireEvent.click(within(screen.getByRole("main")).getByRole("button", { name: "Export" }));
+  expect(onExport).toHaveBeenCalledWith([
+    expect.objectContaining({
+      sourceId: "source-a",
+      sourceFrameRate: frameRate,
+      sourceInFrame: 6,
+      sourceOutFrame: 120,
+    }),
+  ]);
+});
+
+it("seeks without adding a clip on a plain range click and adds on keyboard activation", () => {
+  const { container } = render(
+    <VideoSelectionPage content={parseContent({ ...rawSource, highlights: nearbyHighlights })} />,
+  );
+  const video = container.querySelector("video")!;
+  const timeline = within(screen.getByRole("region", { name: "Source timeline" }));
+  const range = timeline.getByRole("button", { name: "Other highlight" });
+
+  fireEvent.click(range, { detail: 1 });
+  expect(video.currentTime).toBeCloseTo(5 / 60, 10);
+  expect(screen.queryByRole("heading", { name: "Selected Clips" })).not.toBeInTheDocument();
+
+  video.currentTime = 2;
+  fireEvent.timeUpdate(video);
+  fireEvent.click(range, { detail: 0 }); // Native click dispatched by keyboard activation.
+  expect(video.currentTime).toBe(2);
+  expect(screen.getByRole("heading", { name: "Selected Clips" })).toBeVisible();
+});
+
 it("seeks, copies the playhead and exports cuts on the native source grid", () => {
   const frameRate = { numerator: 60, denominator: 1 };
   const content = parseContent({
@@ -63,11 +179,6 @@ it("seeks, copies the playhead and exports cuts on the native source grid", () =
   );
   const video = container.querySelector("video")!;
   const row = within(screen.getByRole("row", { name: /Moment/ }));
-  const timeline = screen.getByRole("region", { name: "Source timeline" });
-  vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue(new DOMRect(20, 0, 270, 64));
-
-  fireEvent.click(timeline, { clientX: 29 });
-  expect(video.currentTime).toBeCloseTo(5 / 60, 10);
   fireEvent.click(row.getByRole("link", { name: "00:00.05" }));
   expect(video.currentTime).toBeCloseTo(0.05, 10);
   fireEvent.click(row.getByRole("button", { name: "Clip" }));
@@ -147,18 +258,16 @@ it("removes every table row for annotations removed from a shared frame", () => 
 it("keeps playback in place and uses the corrected source duration for timeline seeks", () => {
   const content = parseContent(rawSource);
   const { container, rerender } = render(<VideoSelectionPage content={content} />);
-  const seekToMiddle = () => {
-    const timeline = screen.getByRole("region", { name: "Source timeline" });
-    vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 500, 64));
-    fireEvent.click(timeline, { clientX: 250 });
+  const seekNearEnd = () => {
+    const timeline = within(screen.getByRole("region", { name: "Source timeline" }));
+    fireEvent.click(timeline.getByRole("button", { name: "Seek at 9.75 seconds" }));
   };
-
-  seekToMiddle();
-  expect(container.querySelector("video")!.currentTime).toBe(5);
+  seekNearEnd();
+  expect(container.querySelector("video")!.currentTime).toBe(9.75);
 
   rerender(<VideoSelectionPage content={{ ...content, durationFrames: 540 }} />);
 
-  expect(container.querySelector("video")!.currentTime).toBe(5);
-  seekToMiddle();
-  expect(container.querySelector("video")!.currentTime).toBe(4.5);
+  expect(container.querySelector("video")!.currentTime).toBe(9.75);
+  seekNearEnd();
+  expect(container.querySelector("video")!.currentTime).toBe(9);
 });
