@@ -5,6 +5,7 @@ import type { VideoClip } from "@/types";
 import { convertFrameOffset, formatFrames, layoutSequence, snapFrame } from "@/utils/frames";
 
 const MIN_INLINE_TRIM_WIDTH = 16; // two 8px handles
+const MIN_INLINE_REMOVE_WIDTH = 36; // clip body and room to click the remove button
 
 export interface ProjectClipTimelineProps {
   /**
@@ -125,7 +126,8 @@ export default function ProjectClipTimeline({
     ({ durationFrames }) =>
       trackWidth > 0 &&
       layout.durationFrames > 0 &&
-      (durationFrames / layout.durationFrames) * trackWidth < MIN_INLINE_TRIM_WIDTH,
+      (durationFrames / layout.durationFrames) * trackWidth <
+        (onClipRemove ? MIN_INLINE_REMOVE_WIDTH : MIN_INLINE_TRIM_WIDTH),
   );
   const narrowClipIds = new Set(narrowClips.map(({ clip }) => clip.id));
 
@@ -419,29 +421,30 @@ export default function ProjectClipTimeline({
 
                 {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "out")}
 
-                {/* Remove button */}
-                <button
-                  type="button"
-                  onClick={(e) => handleRemoveClip(e, clip.id)}
-                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
-                  aria-label="Remove clip"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                {!narrowClipIds.has(clip.id) && onClipRemove && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveClip(e, clip.id)}
+                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 group-hover:opacity-100"
+                    aria-label="Remove clip"
                   >
-                    <title>Remove</title>
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <title>Remove</title>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -472,6 +475,15 @@ export default function ProjectClipTimeline({
                 <span>{title}</span>
                 {renderTrimHandle(clip, "in", true)}
                 {renderTrimHandle(clip, "out", true)}
+                {onClipRemove && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveClip(e, clip.id)}
+                    className="rounded-sm bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+                  >
+                    Remove clip
+                  </button>
+                )}
               </fieldset>
             );
           })}

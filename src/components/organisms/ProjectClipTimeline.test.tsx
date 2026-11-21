@@ -92,7 +92,8 @@ it("offers separate mouse trim handles for a clip too narrow to hit on the timel
   const frameRate = { numerator: 60, denominator: 1 };
   const source = { sourceId: "source", sourceFrameRate: frameRate };
   const onClipTrim = vi.fn();
-  let trackWidth = 1200;
+  const onClipRemove = vi.fn();
+  let trackWidth = 2400;
   let notifyResize: () => void;
   // Happy DOM does not deliver layout-driven ResizeObserver callbacks.
   vi.stubGlobal(
@@ -122,6 +123,7 @@ it("offers separate mouse trim handles for a clip too narrow to hit on the timel
         keyframes={{}}
         titles={{ long: "Long clip", medium: "Medium clip", short: "Short clip" }}
         onClipTrim={onClipTrim}
+        onClipRemove={onClipRemove}
       />
     </ProjectProvider>,
   );
@@ -148,4 +150,10 @@ it("offers separate mouse trim handles for a clip too narrow to hit on the timel
   fireEvent.mouseMove(document, { clientX: 110 });
   fireEvent.mouseUp(document);
   expect(onClipTrim).toHaveBeenLastCalledWith("short", 3600, 3646);
+
+  expect(track.getAllByRole("button", { name: "Remove clip" })).toHaveLength(1);
+  fireEvent.click(controls.getByRole("button", { name: "Remove clip" }));
+  expect(onClipRemove).toHaveBeenCalledExactlyOnceWith("short");
+  fireEvent.click(track.getByRole("button", { name: "Remove clip" }));
+  expect(onClipRemove).toHaveBeenLastCalledWith("long");
 });
