@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
@@ -66,6 +66,63 @@ export interface ProjectClipTimelineProps {
 }
 
 type TrimEdge = "in" | "out";
+type TrimFocus = { clipId: string; edge: TrimEdge };
+
+function TrimHandle({
+  clipId,
+  edge,
+  compact,
+  pendingFocus,
+  onMouseDown,
+  onKeyDown,
+}: {
+  clipId: string;
+  edge: TrimEdge;
+  compact: boolean;
+  pendingFocus: React.RefObject<TrimFocus | null>;
+  onMouseDown: React.MouseEventHandler<HTMLButtonElement>;
+  onKeyDown: React.KeyboardEventHandler<HTMLButtonElement>;
+}) {
+  const bindButton = useCallback(
+    (button: HTMLButtonElement | null) => {
+      if (!button) return;
+      const document = button.ownerDocument;
+      // React detaches the old handle before attaching its replacement.
+      if (pendingFocus.current?.clipId === clipId && pendingFocus.current.edge === edge) {
+        pendingFocus.current = null;
+        if (document.activeElement === document.body) button.focus();
+      }
+      return () => {
+        if (document.activeElement === button) pendingFocus.current = { clipId, edge };
+      };
+    },
+    [clipId, edge, pendingFocus],
+  );
+  const label = `Trim ${edge} point`;
+  const side = edge === "in" ? "left-0" : "right-0";
+  return (
+    <button
+      ref={bindButton}
+      type="button"
+      className={
+        compact
+          ? "cursor-ew-resize rounded-sm bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
+          : `absolute ${side} top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0`
+      }
+      onMouseDown={onMouseDown}
+      onKeyDown={onKeyDown}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={label}
+      title={`${label} (drag or use arrow keys)`}
+    >
+      {compact ? (
+        label
+      ) : (
+        <div className={`absolute ${side} top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-sm`} />
+      )}
+    </button>
+  );
+}
 
 function trimClip(clip: VideoClip, edge: TrimEdge, offsetFrames: number): VideoClip {
   if (edge === "in") {
@@ -103,6 +160,7 @@ export default function ProjectClipTimeline({
 }: ProjectClipTimelineProps) {
   const frameRate = useProjectFrameRate();
   const timelineRef = useRef<HTMLElement>(null);
+  const pendingTrimFocus = useRef<TrimFocus | null>(null);
   const [trackWidth, setTrackWidth] = useState(0);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -130,6 +188,11 @@ export default function ProjectClipTimeline({
         (onClipRemove ? MIN_INLINE_REMOVE_WIDTH : MIN_INLINE_TRIM_WIDTH),
   );
   const narrowClipIds = new Set(narrowClips.map(({ clip }) => clip.id));
+
+  // A removed clip has no replacement handle. Don't carry its focus into a later commit.
+  useLayoutEffect(() => {
+    pendingTrimFocus.current = null;
+  });
 
   useEffect(() => {
     const track = timelineRef.current;
@@ -264,34 +327,16 @@ export default function ProjectClipTimeline({
     onClipTrim?.(trimmed.id, trimmed.sourceInFrame, trimmed.sourceOutFrame);
   };
 
-  const renderTrimHandle = (clip: VideoClip, edge: TrimEdge, compact = false) => {
-    const label = `Trim ${edge} point`;
-    const side = edge === "in" ? "left-0" : "right-0";
-    return (
-      <button
-        key={edge}
-        type="button"
-        className={
-          compact
-            ? "cursor-ew-resize rounded-sm bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
-            : `absolute ${side} top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0`
-        }
-        onMouseDown={(e) => handleTrimStart(e, clip, edge)}
-        onKeyDown={(e) => handleTrimKeyDown(e, clip, edge)}
-        onClick={(e) => e.stopPropagation()}
-        aria-label={label}
-        title={`${label} (drag or use arrow keys)`}
-      >
-        {compact ? (
-          label
-        ) : (
-          <div
-            className={`absolute ${side} top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-sm`}
-          />
-        )}
-      </button>
-    );
-  };
+  const renderTrimHandle = (clip: VideoClip, edge: TrimEdge, compact = false) => (
+    <TrimHandle
+      clipId={clip.id}
+      edge={edge}
+      compact={compact}
+      pendingFocus={pendingTrimFocus}
+      onMouseDown={(e) => handleTrimStart(e, clip, edge)}
+      onKeyDown={(e) => handleTrimKeyDown(e, clip, edge)}
+    />
+  );
 
   // Handle trim mouse events
   useEffect(() => {

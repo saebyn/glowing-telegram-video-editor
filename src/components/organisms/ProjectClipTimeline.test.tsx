@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ProjectProvider } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
@@ -156,4 +157,61 @@ it("offers separate mouse trim handles for a clip too narrow to hit on the timel
   expect(onClipRemove).toHaveBeenCalledExactlyOnceWith("short");
   fireEvent.click(track.getByRole("button", { name: "Remove clip" }));
   expect(onClipRemove).toHaveBeenLastCalledWith("long");
+});
+
+it("keeps keyboard focus on the same clip and edge as trim controls move", () => {
+  const frameRate = { numerator: 60, denominator: 1 };
+  const source = { sourceId: "source", sourceFrameRate: frameRate };
+  const onClipTrim = vi.fn();
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(0, 0, 800, 200),
+  );
+
+  function Sequence() {
+    const [clips, setClips] = useState([
+      { ...source, id: "long", sourceInFrame: 0, sourceOutFrame: 2940 },
+      { ...source, id: "short", sourceInFrame: 0, sourceOutFrame: 60 },
+    ]);
+    return (
+      <ProjectClipTimeline
+        clips={clips}
+        thumbnails={{}}
+        keyframes={{}}
+        titles={{ short: "Short clip" }}
+        onClipTrim={(id, sourceInFrame, sourceOutFrame) => {
+          onClipTrim(id, sourceInFrame, sourceOutFrame);
+          setClips((current) =>
+            current.map((clip) =>
+              clip.id === id ? { ...clip, sourceInFrame, sourceOutFrame } : clip,
+            ),
+          );
+        }}
+      />
+    );
+  }
+
+  render(
+    <ProjectProvider frameRate={frameRate}>
+      <Sequence />
+    </ProjectProvider>,
+  );
+  const track = within(screen.getByRole("region", { name: "Sequence timeline" }));
+  const inlineHandle = () => track.getAllByRole("button", { name: "Trim out point" })[1];
+  const pressArrow = (key: "ArrowLeft" | "ArrowRight") =>
+    fireEvent.keyDown(document.activeElement!, { key });
+
+  inlineHandle().focus();
+  pressArrow("ArrowLeft");
+  expect(onClipTrim).toHaveBeenLastCalledWith("short", 0, 59);
+  const fallback = within(screen.getByRole("group", { name: "Trim Short clip" }));
+  expect(fallback.getByRole("button", { name: "Trim out point" })).toHaveFocus();
+
+  pressArrow("ArrowLeft");
+  expect(onClipTrim).toHaveBeenLastCalledWith("short", 0, 58);
+  pressArrow("ArrowRight");
+  pressArrow("ArrowRight");
+  expect(onClipTrim).toHaveBeenLastCalledWith("short", 0, 60);
+  expect(inlineHandle()).toHaveFocus();
+  pressArrow("ArrowRight");
+  expect(onClipTrim).toHaveBeenLastCalledWith("short", 0, 61);
 });
