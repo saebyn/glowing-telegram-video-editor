@@ -31,7 +31,7 @@ An edit assembled from clip placements across one or more tracks.
 _Avoid_: “Timeline” for the edit itself.
 
 **Track**:
-A group of clip placements in a sequence, also called a lane.
+A part of a sequence on which clips can be placed. A track may be empty or contain placements that cover only part of the sequence.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 
 **Clip placement**:
@@ -48,7 +48,7 @@ A time-based view of a source or sequence.
 A view of the positions and ranges within one source for review and clip selection.
 
 **Sequence timeline**:
-A view built from a sequence’s tracks and clip placements, showing where each track’s media is placed in sequence time. Placements can coincide across tracks without implying how their picture or sound is combined in the output.
+A view of a sequence’s tracks showing each clip placement’s position and duration in sequence time.
 
 **Transition**:
 A change from one presentation of picture or sound to another over a span of the sequence. A **transition indicator** marks it in the timeline; it is not the change itself.
