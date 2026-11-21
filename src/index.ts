@@ -20,3 +20,5 @@ export {
 };
 
 export type * from "./types";
+export { ProjectProvider, type ProjectProviderProps } from "./context/ProjectContext";
+export { framesToSeconds, getProjectFrameCount, secondsToFrame } from "./utils/frames";

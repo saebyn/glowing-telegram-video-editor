@@ -1,3 +1,16 @@
+/** Frames per second as a ratio of positive safe integers (e.g. 30_000 / 1001). */
+export interface FrameRate {
+  numerator: number;
+  denominator: number;
+}
+
+/** An inclusive in point and exclusive out point on a source's native frame grid. */
+export interface SourceRange {
+  sourceInFrame: number;
+  sourceOutFrame: number;
+  sourceFrameRate: FrameRate;
+}
+
 export interface RawSection {
   timestamp_start: string;
   timestamp_end?: string;
