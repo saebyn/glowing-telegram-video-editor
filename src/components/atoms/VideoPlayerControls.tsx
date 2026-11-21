@@ -1,34 +1,27 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { format } from "@/utils/duration";
 
+export type PlaybackOptions = {
+  muted: boolean;
+  loop: boolean;
+  speed: number;
+};
+
 interface VideoPlayerControlsProps {
   video: HTMLVideoElement | null;
+  playbackOptions: PlaybackOptions;
+  onPlaybackOptionsChange: (options: PlaybackOptions) => void;
   children: ReactNode;
 }
 
-export default function VideoPlayerControls({ video, children }: VideoPlayerControlsProps) {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
+export default function VideoPlayerControls({
+  video,
+  playbackOptions,
+  onPlaybackOptionsChange,
+  children,
+}: VideoPlayerControlsProps) {
+  const { muted, loop, speed } = playbackOptions;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-
-  useEffect(() => {
-    if (video) {
-      video.muted = isMuted;
-    }
-  }, [isMuted, video]);
-
-  useEffect(() => {
-    if (video) {
-      video.loop = isLooping;
-    }
-  }, [isLooping, video]);
-
-  useEffect(() => {
-    if (video) {
-      video.playbackRate = speed;
-    }
-  }, [speed, video]);
 
   useEffect(() => {
     // handle events from the video element that change the state
@@ -55,11 +48,11 @@ export default function VideoPlayerControls({ video, children }: VideoPlayerCont
   };
 
   const toggleMute = () => {
-    setIsMuted((muted) => !muted);
+    onPlaybackOptionsChange({ ...playbackOptions, muted: !muted });
   };
 
   const toggleLoop = () => {
-    setIsLooping((looping) => !looping);
+    onPlaybackOptionsChange({ ...playbackOptions, loop: !loop });
   };
 
   const timestamp = format(`PT${video?.currentTime.toFixed(0) || 0}S`);
@@ -92,9 +85,7 @@ export default function VideoPlayerControls({ video, children }: VideoPlayerCont
 
       <button
         type="button"
-        className={`ml-4 rounded-sm px-4 py-2 ${
-          isMuted ? "bg-gray-200" : "bg-gray-600 text-white"
-        }`}
+        className={`ml-4 rounded-sm px-4 py-2 ${muted ? "bg-gray-200" : "bg-gray-600 text-white"}`}
         onClick={toggleMute}
       >
         Mute
@@ -104,7 +95,7 @@ export default function VideoPlayerControls({ video, children }: VideoPlayerCont
         type="button"
         className={`
             ml-4 rounded-sm px-4 py-2
-            ${video?.loop ? "bg-gray-200" : "bg-gray-600 text-white"}
+            ${loop ? "bg-gray-200" : "bg-gray-600 text-white"}
             `}
         onClick={toggleLoop}
       >
@@ -121,8 +112,10 @@ export default function VideoPlayerControls({ video, children }: VideoPlayerCont
 
       <select
         className="ml-4 rounded-sm bg-gray-200 px-4 py-2 text-gray-600 dark:bg-gray-800 dark:text-white"
-        defaultValue={speed}
-        onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
+        value={speed}
+        onChange={(e) =>
+          onPlaybackOptionsChange({ ...playbackOptions, speed: Number.parseFloat(e.target.value) })
+        }
       >
         <option value="0.5">0.5x</option>
         <option value="1">1x</option>

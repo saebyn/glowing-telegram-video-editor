@@ -83,31 +83,22 @@ function TrimHandle({
   clipId,
   edge,
   compact,
-  pendingFocus,
+  bindTrimButton,
   onMouseDown,
   onKeyDown,
 }: {
   clipId: string;
   edge: TrimEdge;
   compact: boolean;
-  pendingFocus: React.RefObject<TrimFocus | null>;
+  bindTrimButton: (clipId: string, edge: TrimEdge, button: HTMLButtonElement) => () => void;
   onMouseDown: React.MouseEventHandler<HTMLButtonElement>;
   onKeyDown: React.KeyboardEventHandler<HTMLButtonElement>;
 }) {
   const bindButton = useCallback(
     (button: HTMLButtonElement | null) => {
-      if (!button) return;
-      const document = button.ownerDocument;
-      // React detaches the old handle before attaching its replacement.
-      if (pendingFocus.current?.clipId === clipId && pendingFocus.current.edge === edge) {
-        pendingFocus.current = null;
-        if (document.activeElement === document.body) button.focus();
-      }
-      return () => {
-        if (document.activeElement === button) pendingFocus.current = { clipId, edge };
-      };
+      if (button) return bindTrimButton(clipId, edge, button);
     },
-    [clipId, edge, pendingFocus],
+    [bindTrimButton, clipId, edge],
   );
   const label = `Trim ${edge} point`;
   const side = edge === "in" ? "left-0" : "right-0";
@@ -173,7 +164,7 @@ export default function ProjectClipTimeline({
   const timelineRef = useRef<HTMLElement>(null);
   const widgetRef = useRef<TimelineState>(null);
   const suppressTrimClickRef = useRef(false);
-  const pendingTrimFocus = useRef<TrimFocus | null>(null);
+  const pendingTrimFocusRef = useRef<TrimFocus | null>(null);
   const [trackSize, setTrackSize] = useState({ width: 0, height: 0 });
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -224,8 +215,24 @@ export default function ProjectClipTimeline({
 
   // A removed clip has no replacement handle. Don't carry its focus into a later commit.
   useLayoutEffect(() => {
-    pendingTrimFocus.current = null;
+    pendingTrimFocusRef.current = null;
   });
+
+  const bindTrimButton = useCallback(
+    (clipId: string, edge: TrimEdge, button: HTMLButtonElement) => {
+      const document = button.ownerDocument;
+      // React detaches the old handle before attaching its replacement.
+      const pendingFocus = pendingTrimFocusRef.current;
+      if (pendingFocus?.clipId === clipId && pendingFocus.edge === edge) {
+        pendingTrimFocusRef.current = null;
+        if (document.activeElement === document.body) button.focus();
+      }
+      return () => {
+        if (document.activeElement === button) pendingTrimFocusRef.current = { clipId, edge };
+      };
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     const track = timelineRef.current;
@@ -372,7 +379,7 @@ export default function ProjectClipTimeline({
       clipId={clip.id}
       edge={edge}
       compact={compact}
-      pendingFocus={pendingTrimFocus}
+      bindTrimButton={bindTrimButton}
       onMouseDown={(e) => handleTrimStart(e, clip, edge)}
       onKeyDown={(e) => handleTrimKeyDown(e, clip, edge)}
     />
