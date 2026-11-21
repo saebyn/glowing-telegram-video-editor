@@ -1,18 +1,8 @@
-# Agent Notes
+# Repository guidance
 
-## Publishing
+Glowing Telegram Video Editor is a React and TypeScript component library for video review and editing. [README.md](README.md) covers the public API; [the development guide](docs/development.md) is the reference for commands, Storybook, packaging (including the declaration layout), and releases.
 
-- Releases are published to npm via GitHub Actions CI, triggered by pushing a version tag.
-- After bumping the version and committing, always:
-  1. Push the commit
-  2. Push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
-  3. Create a GitHub release: `gh release create vX.Y.Z --generate-notes`
-
-## Type Declaration Generation (vite-plugin-dts)
-
-- `vite-plugin-dts` is used to emit `.d.ts` files during `vite build`.
-- `package.json` exports `"types": "./dist/index.d.ts"` — so `dist/index.d.ts` must exist at the root of `dist/`.
-- Without configuration, the plugin mirrors the source tree into `dist/src/`, which does **not** match the exports path.
-- **Fix**: set `rootDir: "./src"` in `tsconfig.json`. The plugin reads `compilerOptions.rootDir` to determine `publicRoot`, which controls where declarations are rooted in the output dir.
-- **Do not use `rollupTypes: true`**: API Extractor (used internally) cannot resolve `@/` path aliases and produces `export {}`.
-- Correct plugin config: `dts({ outDir: 'dist' })` — combined with `rootDir` in tsconfig, this produces `dist/index.d.ts` with all exports intact.
+- Keep public exports in [`src/index.ts`](src/index.ts) and shared types in [`src/types.ts`](src/types.ts). Update affected stories and check interactions in Storybook when changing components.
+- Use [the glossary](GLOSSARY.md) for editing terminology. Keep positions as zero-based whole frames: source review and clip in/out points use the native source rate (in inclusive, out exclusive); sequence positions use the project rate supplied by `ProjectProvider`.
+- Use [`src/utils/frames.ts`](src/utils/frames.ts) for conversions. In [`SourceTimeline`](src/components/organisms/SourceTimeline.tsx), keep positions in source frames and convert to or from seconds at the widget boundary.
+- Match checks to the change. For docs-only edits, check links, commands, and `git diff --check`; use the relevant development checks for code changes.
