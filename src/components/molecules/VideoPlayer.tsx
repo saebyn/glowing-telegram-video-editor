@@ -1,5 +1,13 @@
 import Hls from "hls.js";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import VideoPlayerControls from "@/components/atoms/VideoPlayerControls";
 import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
 import { useProjectFrameRate } from "@/context/ProjectContext";
@@ -28,6 +36,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [hls, setHls] = useState<Hls | null>(null);
   const [mediaSeconds, setMediaSeconds] = useState(0);
+  const lastReportedFrame = useRef<number | null>(null);
 
   // manage the hls instance
   useEffect(() => {
@@ -65,12 +74,27 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
   }, [video, hls]);
 
   const currentFrame = snapFrame(secondsToFrame(mediaSeconds, frameRate), durationFrames);
+  const reportFrame = useCallback(
+    (frame: number) => {
+      lastReportedFrame.current = frame;
+      onFrameUpdate?.(frame);
+    },
+    [onFrameUpdate],
+  );
+
+  // A new grid can change the frame even when the media clock is paused.
+  useLayoutEffect(() => {
+    if (lastReportedFrame.current !== null && lastReportedFrame.current !== currentFrame) {
+      reportFrame(currentFrame);
+    }
+  }, [currentFrame, reportFrame]);
+
   const updatePlayhead = useCallback(
     (seconds: number) => {
       setMediaSeconds(seconds);
-      onFrameUpdate?.(snapFrame(secondsToFrame(seconds, frameRate), durationFrames));
+      reportFrame(snapFrame(secondsToFrame(seconds, frameRate), durationFrames));
     },
-    [frameRate, durationFrames, onFrameUpdate],
+    [frameRate, durationFrames, reportFrame],
   );
 
   const seekToFrame = useCallback(

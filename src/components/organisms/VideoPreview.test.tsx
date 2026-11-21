@@ -1,5 +1,5 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import AudioChannelControl from "@/components/atoms/AudioChannelControl";
 import AudioLevelSlider from "@/components/atoms/AudioLevelSlider";
@@ -10,6 +10,20 @@ import VideoPreview from "@/components/organisms/VideoPreview";
 import { ProjectProvider } from "@/context/ProjectContext";
 
 import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
+
+afterEach(cleanup);
+
+vi.mock("hls.js", () => ({
+  default: class {
+    static Events = { ERROR: "error" };
+    static isSupported = () => true;
+    on() {}
+    loadSource() {}
+    attachMedia() {}
+    detachMedia() {}
+    destroy() {}
+  },
+}));
 
 describe("Video Preview Components", () => {
   const frameRate = { numerator: 60, denominator: 1 };
@@ -91,5 +105,36 @@ describe("Video Preview Components", () => {
       </ProjectProvider>,
     );
     expect(getByText("Video Preview")).toBeTruthy();
+  });
+
+  it("keeps the paused preview at the same playback position when the project rate changes", () => {
+    const preview = (fps: number) => (
+      <ProjectProvider frameRate={{ numerator: fps, denominator: 1 }}>
+        <VideoPreview
+          previewVideoUrl="/preview.m3u8"
+          playheadFrame={fps}
+          durationFrames={fps * 5}
+          settings={{
+            ...sampleSettings,
+            waveformData: [{ ...sampleWaveformData, durationFrames: fps * 5 }],
+          }}
+        />
+      </ProjectProvider>
+    );
+    const { container, getByRole, rerender } = render(preview(30));
+    const video = container.querySelector("video")!;
+    const playhead = () => getByRole("slider", { name: "Waveform timeline" });
+    expect(playhead()).toHaveAttribute("aria-valuenow", "30");
+    video.currentTime = 2;
+    fireEvent.timeUpdate(video);
+    expect(playhead()).toHaveAttribute("aria-valuenow", "60");
+
+    rerender(preview(60));
+    expect(video.currentTime).toBe(2);
+    expect(playhead()).toHaveAttribute("aria-valuenow", "120");
+
+    video.currentTime = 3;
+    fireEvent.timeUpdate(video);
+    expect(playhead()).toHaveAttribute("aria-valuenow", "180");
   });
 });
