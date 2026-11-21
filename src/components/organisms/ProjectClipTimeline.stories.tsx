@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { sampleSource, withSampleProject } from "@/fixtures/video";
 import type { VideoClip } from "@/types";
+import ProjectClipPool from "./ProjectClipPool";
 import ProjectClipTimeline from "./ProjectClipTimeline";
 
 const meta = {
@@ -194,5 +195,68 @@ export const Interactive: Story = {
     keyframes: sampleKeyframes,
     titles: sampleTitles,
     playheadFrame: 0,
+  },
+};
+
+export const WithClipPool: Story = {
+  args: {
+    clips: [
+      { ...sampleSource, id: "base", sourceInFrame: 0, sourceOutFrame: 732 },
+      {
+        id: "short",
+        sourceId: "second-source",
+        sourceFrameRate: { numerator: 120, denominator: 1 },
+        sourceInFrame: 4,
+        sourceOutFrame: 76,
+      },
+    ],
+    thumbnails: {},
+    keyframes: {},
+    titles: { base: "Base clip", short: "Short clip", spare: "Spare clip" },
+  },
+  render: (args) => {
+    const [clips, setClips] = useState(args.clips);
+    const [playheadFrame, setPlayhead] = useState(0);
+    const spare = { ...sampleSource, id: "spare", sourceInFrame: 0, sourceOutFrame: 120 };
+
+    return (
+      <div style={{ width: "min(800px, 100%)" }}>
+        <ProjectClipPool
+          clips={clips.some(({ id }) => id === spare.id) ? [] : [spare]}
+          thumbnails={args.thumbnails}
+          keyframes={args.keyframes}
+          titles={args.titles}
+        />
+        <ProjectClipTimeline
+          {...args}
+          clips={clips}
+          playheadFrame={playheadFrame}
+          onSeek={setPlayhead}
+          onClipsAdd={(ids, index) => {
+            if (ids.includes(spare.id))
+              setClips([...clips.slice(0, index), spare, ...clips.slice(index)]);
+          }}
+          onClipsReorder={setClips}
+          onClipRemove={(id) => setClips(clips.filter((clip) => clip.id !== id))}
+          onClipTrim={(id, sourceInFrame, sourceOutFrame) => {
+            setClips(
+              clips.map((clip) =>
+                clip.id === id ? { ...clip, sourceInFrame, sourceOutFrame } : clip,
+              ),
+            );
+          }}
+          renderTransition={(left, right) => (
+            <button
+              type="button"
+              aria-label={`Transition from ${left} to ${right}`}
+              className="rounded bg-gray-600 px-2 text-white"
+            >
+              +
+            </button>
+          )}
+        />
+        <output aria-label="Sequence playhead frame">{playheadFrame}</output>
+      </div>
+    );
   },
 };

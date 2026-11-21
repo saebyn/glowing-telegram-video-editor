@@ -1,9 +1,51 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { useState } from "react";
+import type { TimelineEditor, TimelineState } from "@keplar-404/react-timeline-editor";
+import { type Ref, useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ProjectProvider } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
 import ProjectClipTimeline from "./ProjectClipTimeline";
+
+// Use the vendor's public callbacks in Happy DOM; verify real geometry in the browser.
+vi.mock("@keplar-404/react-timeline-editor", async () => {
+  const { useImperativeHandle, useState } = await import("react");
+  return {
+    Timeline: ({
+      ref,
+      editorData,
+      getActionRender,
+      onClickTimeArea,
+      onClickRow,
+    }: TimelineEditor & { ref?: Ref<Pick<TimelineState, "setTime">> }) => {
+      const [time, setTime] = useState(0);
+      useImperativeHandle(ref, () => ({ setTime }));
+      return (
+        <>
+          <div
+            role="presentation"
+            onClick={(event) => {
+              if (onClickTimeArea?.(0.253, event) !== false) setTime(0.253);
+            }}
+          >
+            <button type="button">Seek at 0.253 seconds</button>
+          </div>
+          <output aria-label="Widget cursor time">{time}</output>
+          {editorData.map((row) => (
+            <div
+              key={row.id}
+              role="presentation"
+              onClick={(event) => onClickRow?.(event, { row, time: 0.253 })}
+            >
+              {row.actions.map((action) => (
+                <div key={action.id}>{getActionRender?.(action, row)}</div>
+              ))}
+            </div>
+          ))}
+        </>
+      );
+    },
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -11,7 +53,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("lays out native cuts in project frames and preserves their counts through reorder and trim", () => {
+it("seeks in sequence frames and keeps the playhead controlled by the host", () => {
+  const at30 = { numerator: 30, denominator: 1 };
+  const onSeek = vi.fn();
+  const clips = [
+    {
+      id: "a",
+      sourceId: "source-a",
+      sourceFrameRate: { numerator: 60, denominator: 1 },
+      sourceInFrame: 3,
+      sourceOutFrame: 123,
+    },
+  ];
+  const timeline = (playheadFrame: number) => (
+    <ProjectProvider frameRate={at30}>
+      <ProjectClipTimeline
+        clips={clips}
+        thumbnails={{}}
+        keyframes={{}}
+        titles={{}}
+        playheadFrame={playheadFrame}
+        onSeek={onSeek}
+      />
+    </ProjectProvider>
+  );
+  const { rerender } = render(timeline(15));
+  const track = within(screen.getByRole("region", { name: "Sequence timeline" }));
+  fireEvent.click(track.getByRole("button", { name: "Seek at 0.253 seconds" }));
+  expect(onSeek).toHaveBeenCalledExactlyOnceWith(8);
+  expect(track.getByLabelText("Widget cursor time")).toHaveTextContent(/^0\.5$/);
+  rerender(timeline(30));
+  expect(track.getByLabelText("Widget cursor time")).toHaveTextContent(/^1$/);
+  expect(onSeek).toHaveBeenCalledTimes(1);
+});
+
+it("preserves native cut points through reorder and trim", () => {
   const at60 = { numerator: 60, denominator: 1 };
   const at30 = { numerator: 30, denominator: 1 };
   const clips: VideoClip[] = [
@@ -25,7 +101,6 @@ it("lays out native cuts in project frames and preserves their counts through re
     },
     { id: "b", sourceId: "source-b", sourceFrameRate: at30, sourceInFrame: 7, sourceOutFrame: 11 },
   ];
-  const onSeek = vi.fn();
   const onClipsReorder = vi.fn();
   const onClipTrim = vi.fn();
   const timeline = (clips: VideoClip[], frameRate = at30) => (
@@ -35,7 +110,6 @@ it("lays out native cuts in project frames and preserves their counts through re
         thumbnails={{}}
         keyframes={{}}
         titles={{}}
-        onSeek={onSeek}
         onClipsReorder={onClipsReorder}
         onClipTrim={onClipTrim}
       />
@@ -46,15 +120,12 @@ it("lays out native cuts in project frames and preserves their counts through re
   vi.spyOn(track, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 120, 200));
   const placements = () => Array.from(track.querySelectorAll<HTMLElement>("[draggable=true]"));
 
-  expect(Number.parseFloat(placements()[0].style.width)).toBeCloseTo(100 * (8 / 12));
-  fireEvent.click(track, { clientX: 76 });
-  expect(onSeek).toHaveBeenLastCalledWith(8);
+  expect(screen.getByText("Total: 00:00.4")).toBeVisible();
 
   const dataTransfer = { getData: (format: string) => (format === "text/plain" ? "1" : "") };
   fireEvent.drop(placements()[0], { dataTransfer });
   expect(onClipsReorder).toHaveBeenCalledWith([clips[1], clips[0]]);
   rerender(timeline([clips[1], clips[0]]));
-  expect(Number.parseFloat(placements()[0].style.width)).toBeCloseTo(100 * (4 / 12));
 
   const handle = screen.getAllByRole("button", { name: "Trim in point" })[1];
   fireEvent.keyDown(handle, { key: "ArrowRight" });
@@ -75,7 +146,7 @@ it("lays out native cuts in project frames and preserves their counts through re
   expect(onClipTrim).toHaveBeenLastCalledWith("a", 3, 19);
 
   rerender(timeline(clips, at60));
-  expect(Number.parseFloat(placements()[0].style.width)).toBeCloseTo(100 * (15 / 23));
+  expect(screen.getByText("Total: 00:00.383")).toBeVisible();
 
   // Dragging two project frames left on a 24 fps clip at 60 fps
   // is -0.8 native frames, which snaps to -1, not zero.
@@ -87,6 +158,74 @@ it("lays out native cuts in project frames and preserves their counts through re
   fireEvent.mouseMove(document, { clientX: 111 });
   fireEvent.mouseUp(document, { clientX: 111 });
   expect(onClipTrim).toHaveBeenLastCalledWith("b", 7, 10);
+});
+
+it("does not seek when releasing a trim, but seeks on the next clip click", () => {
+  const at30 = { numerator: 30, denominator: 1 };
+  const onSeek = vi.fn();
+  const { container } = render(
+    <ProjectProvider frameRate={at30}>
+      <ProjectClipTimeline
+        clips={[
+          {
+            id: "a",
+            sourceId: "source-a",
+            sourceFrameRate: { numerator: 60, denominator: 1 },
+            sourceInFrame: 3,
+            sourceOutFrame: 123,
+          },
+        ]}
+        thumbnails={{}}
+        keyframes={{}}
+        titles={{}}
+        onSeek={onSeek}
+      />
+    </ProjectProvider>,
+  );
+  const track = screen.getByRole("region", { name: "Sequence timeline" });
+  vi.spyOn(track, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 120, 200));
+  const clip = container.querySelector("[draggable=true]")!;
+  const trim = within(track).getByRole("button", { name: "Trim out point" });
+  fireEvent.mouseDown(trim, { clientX: 120 });
+  fireEvent.mouseMove(document, { clientX: 102 });
+  fireEvent.mouseUp(clip, { clientX: 102 });
+  fireEvent.click(clip, { detail: 1 });
+  expect(onSeek).not.toHaveBeenCalled();
+
+  fireEvent.pointerDown(clip);
+  fireEvent.click(clip, { detail: 1 });
+  expect(onSeek).toHaveBeenCalledExactlyOnceWith(8);
+});
+
+it("edits a clip title without seeking the sequence", () => {
+  const onTitleUpdate = vi.fn();
+  const onSeek = vi.fn();
+  vi.stubGlobal("prompt", () => "  Renamed  ");
+  const rate = { numerator: 30, denominator: 1 };
+  render(
+    <ProjectProvider frameRate={rate}>
+      <ProjectClipTimeline
+        clips={[
+          {
+            id: "a",
+            sourceId: "source-a",
+            sourceFrameRate: rate,
+            sourceInFrame: 0,
+            sourceOutFrame: 30,
+          },
+        ]}
+        thumbnails={{}}
+        keyframes={{}}
+        titles={{ a: "Old title" }}
+        onTitleUpdate={onTitleUpdate}
+        onSeek={onSeek}
+      />
+    </ProjectProvider>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Edit clip title" }), { detail: 1 });
+  expect(onTitleUpdate).toHaveBeenCalledExactlyOnceWith("a", "Renamed");
+  expect(onSeek).not.toHaveBeenCalled();
 });
 
 it("offers separate mouse trim handles for a clip too narrow to hit on the timeline", () => {
