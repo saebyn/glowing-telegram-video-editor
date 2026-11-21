@@ -84,18 +84,43 @@ describe("Video Preview Components", () => {
     expect(getByText("Audio Mixer")).toBeTruthy();
   });
 
-  it("renders PreviewTimeline", () => {
-    const { getByText } = render(
-      <ProjectProvider frameRate={frameRate}>
+  it("shows selected ranges at their source times even when their frame rates differ", () => {
+    const { getByTitle } = render(
+      <ProjectProvider frameRate={{ numerator: 30, denominator: 1 }}>
         <PreviewTimeline
-          waveformData={[sampleWaveformData]}
+          waveformData={[]}
           playheadFrame={90}
-          cutlist={sampleClips}
+          cutlist={[
+            {
+              id: "later",
+              sourceId: "source-a",
+              sourceFrameRate: { numerator: 25, denominator: 1 },
+              sourceInFrame: 150,
+              sourceOutFrame: 200,
+            },
+            {
+              id: "earlier",
+              sourceId: "source-b",
+              sourceFrameRate: frameRate,
+              sourceInFrame: 153,
+              sourceOutFrame: 216,
+            },
+          ]}
           durationFrames={300}
         />
       </ProjectProvider>,
     );
-    expect(getByText("Preview Timeline")).toBeTruthy();
+
+    // In a 10-second view, the 6–8 second range starts at 60% and spans 20%.
+    const later = getByTitle("Clip 1: 00:06 - 00:08");
+    expect(later).toHaveTextContent("1");
+    expect(later).toHaveStyle({ left: "60%", width: "20%" });
+
+    // The 2.55–3.6 second range keeps its source bounds, not rounded preview frames.
+    const earlier = getByTitle("Clip 2: 00:02.55 - 00:03.6");
+    expect(earlier).toHaveTextContent("2");
+    expect(earlier).toHaveStyle({ left: "25.5%" });
+    expect(parseFloat(earlier.style.width)).toBeCloseTo(10.5);
   });
 
   it("renders VideoPreview", () => {

@@ -1,7 +1,10 @@
 import { action } from "storybook/actions";
-import { sampleSource, withSampleProject } from "@/fixtures/video";
+import { sampleFrameRate, sampleSource, withSampleProject } from "@/fixtures/video";
 import type { VideoClip, WaveformData } from "@/types";
+import { secondsToFrame } from "@/utils/frames";
 import PreviewTimeline from "./PreviewTimeline";
+
+const durationFrames = secondsToFrame(2 * 60, sampleFrameRate);
 
 export default {
   title: "Molecules/PreviewTimeline",
@@ -16,8 +19,7 @@ export default {
 };
 
 // Generate sample waveform data
-const generateWaveformData = (channelId: string, durationFrames = 4200): WaveformData => {
-  const samples = 400;
+const generateWaveformData = (channelId: string, samples = 400): WaveformData => {
   const amplitudes: number[] = [];
   for (let i = 0; i < samples; i++) {
     // Generate different patterns for different channels
@@ -78,7 +80,7 @@ export const Default = {
     waveformData: mockWaveformData,
     playheadFrame: 1800, // 30 seconds
     cutlist: mockCutlist,
-    durationFrames: 4200,
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     onSeek: action("onSeek"),
@@ -90,7 +92,7 @@ export const SingleChannel = {
     waveformData: [mockWaveformData[0]],
     playheadFrame: 900,
     cutlist: mockCutlist,
-    durationFrames: 4200,
+    durationFrames,
     width: 800,
     waveformHeight: 80,
     onSeek: action("onSeek"),
@@ -99,8 +101,8 @@ export const SingleChannel = {
 
 export const LongTimeline = {
   args: {
-    waveformData: mockWaveformData.map(({ channelId }) => generateWaveformData(channelId, 10_200)),
-    playheadFrame: 6300,
+    waveformData: mockWaveformData,
+    playheadFrame: secondsToFrame(3 * 60, sampleFrameRate),
     cutlist: [
       ...mockCutlist,
       {
@@ -116,7 +118,7 @@ export const LongTimeline = {
         sourceOutFrame: 16_800,
       },
     ],
-    durationFrames: 10_200,
+    durationFrames: secondsToFrame(5 * 60, sampleFrameRate),
     width: 1200,
     waveformHeight: 50,
     onSeek: action("onSeek"),
@@ -128,7 +130,7 @@ export const EmptyCutlist = {
     waveformData: mockWaveformData,
     playheadFrame: 2700,
     cutlist: [],
-    durationFrames: 4200,
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     onSeek: action("onSeek"),
@@ -140,7 +142,7 @@ export const ReadOnly = {
     waveformData: mockWaveformData,
     playheadFrame: 3600,
     cutlist: mockCutlist,
-    durationFrames: 4200,
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     // No callbacks provided - should be read-only
@@ -152,7 +154,7 @@ export const CompactView = {
     waveformData: mockWaveformData,
     playheadFrame: 1800,
     cutlist: mockCutlist,
-    durationFrames: 4200,
+    durationFrames,
     width: 600,
     waveformHeight: 40,
     onSeek: action("onSeek"),

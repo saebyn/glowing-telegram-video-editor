@@ -1,7 +1,7 @@
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { VideoClip, WaveformData } from "@/types";
-import { formatFrames, layoutSequence, snapFrame } from "@/utils/frames";
+import { formatFrames, framesToSeconds, snapFrame } from "@/utils/frames";
 
 interface PreviewTimelineProps {
   /**
@@ -13,7 +13,7 @@ interface PreviewTimelineProps {
    */
   playheadFrame: number;
   /**
-   * Selected cutlist clips
+   * Selected cutlist clips, shown at their original elapsed source times.
    */
   cutlist: VideoClip[];
   /**
@@ -44,8 +44,9 @@ export default function PreviewTimeline({
   onSeek,
 }: PreviewTimelineProps) {
   const frameRate = useProjectFrameRate();
-  const { placements } = layoutSequence(cutlist, frameRate);
-  const toPercent = (frames: number) => (durationFrames > 0 ? (frames / durationFrames) * 100 : 0);
+  const durationSeconds = framesToSeconds(durationFrames, frameRate);
+  const toPercent = (seconds: number) =>
+    durationSeconds > 0 ? (seconds / durationSeconds) * 100 : 0;
   const colors = [
     "#3b82f6", // blue
     "#10b981", // emerald
@@ -73,25 +74,29 @@ export default function PreviewTimeline({
         <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Selected Clips ({cutlist.length})
         </div>
-        <div className="relative h-8 overflow-hidden bg-gray-100 dark:bg-gray-800 rounded">
-          {placements.map(({ clip, sequenceStartFrame, durationFrames: clipFrames }, index) => (
-            <div
-              key={clip.id}
-              className="absolute h-full bg-blue-500 bg-opacity-70 border border-blue-600 rounded flex items-center justify-center"
-              style={{
-                left: `${toPercent(sequenceStartFrame)}%`,
-                width: `${toPercent(clipFrames)}%`,
-              }}
-              title={`Clip ${index + 1}: ${formatFrames(sequenceStartFrame, frameRate)} - ${formatFrames(sequenceStartFrame + clipFrames, frameRate)}`}
-            >
-              <span className="text-xs text-white font-medium">{index + 1}</span>
-            </div>
-          ))}
+        <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded">
+          {cutlist.map(({ id, sourceInFrame, sourceOutFrame, sourceFrameRate }, index) => {
+            const startSeconds = framesToSeconds(sourceInFrame, sourceFrameRate);
+            const clipSeconds = framesToSeconds(sourceOutFrame - sourceInFrame, sourceFrameRate);
+            return (
+              <div
+                key={id}
+                className="absolute h-full bg-blue-500 bg-opacity-70 border border-blue-600 rounded flex items-center justify-center"
+                style={{
+                  left: `${toPercent(startSeconds)}%`,
+                  width: `${toPercent(clipSeconds)}%`,
+                }}
+                title={`Clip ${index + 1}: ${formatFrames(sourceInFrame, sourceFrameRate)} - ${formatFrames(sourceOutFrame, sourceFrameRate)}`}
+              >
+                <span className="text-xs text-white font-medium">{index + 1}</span>
+              </div>
+            );
+          })}
 
           {/* Playhead indicator */}
           <div
             className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
-            style={{ left: `${toPercent(playheadFrame)}%` }}
+            style={{ left: `${toPercent(framesToSeconds(playheadFrame, frameRate))}%` }}
           />
         </div>
       </div>

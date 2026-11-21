@@ -1,5 +1,9 @@
 import { TimelineProvider } from "@/context/TimelineContext";
+import { sampleFrameRate } from "@/fixtures/video";
+import { secondsToFrame } from "@/utils/frames";
 import { TimeDotMarker } from "./TimeDotMarker";
+
+const durationFrames = secondsToFrame(60 * 60, sampleFrameRate);
 
 export default {
   title: "Atoms/TimeDotMarker",
@@ -7,14 +11,14 @@ export default {
   tags: ["atoms"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <TimelineProvider durationFrames={3600}>{story()}</TimelineProvider>
+      <TimelineProvider durationFrames={durationFrames}>{story()}</TimelineProvider>
     ),
   ],
 };
 
 export const Default = {
   args: {
-    sourceFrame: 600,
+    sourceFrame: secondsToFrame(60, sampleFrameRate),
     className: "bg-red-500",
   },
 };

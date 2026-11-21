@@ -156,7 +156,7 @@ function App() {
 
 ### VideoPreview
 
-Component for previewing a host-rendered HLS stream with an audio mixer and a sequence timeline.
+Component for previewing a host-rendered HLS stream with an audio mixer and waveforms. The Selected Clips row shows ranges at their original source times.
 
 **Props:**
 
@@ -178,7 +178,7 @@ interface VideoPreviewProps {
 
 ```jsx
 import { useState } from 'react';
-import { layoutSequence, ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
+import { ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
 
 const frameRate = { numerator: 30, denominator: 1 };
 const source = { sourceId: 'stream', sourceFrameRate: { numerator: 60, denominator: 1 } };
@@ -196,8 +196,8 @@ function PreviewPage() {
     waveformData: []
   });
 
-  // The host's preview URL refers to a render of this sequence at frameRate.
-  const { durationFrames } = layoutSequence(settings.cutlist, frameRate);
+  // The host's preview stream is three minutes long at 30 fps.
+  const durationFrames = 3 * 60 * 30;
   return (
     <ProjectProvider frameRate={frameRate}>
       <VideoPreview

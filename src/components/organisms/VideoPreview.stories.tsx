@@ -1,8 +1,10 @@
 import { action } from "storybook/actions";
 import { sampleFrameRate, sampleSource, withSampleProject } from "@/fixtures/video";
 import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
-import { layoutSequence } from "@/utils/frames";
+import { secondsToFrame } from "@/utils/frames";
 import VideoPreview from "./VideoPreview";
+
+const durationFrames = secondsToFrame(3 * 60, sampleFrameRate);
 
 export default {
   title: "Organisms/VideoPreview",
@@ -85,7 +87,6 @@ const mockCutlist: VideoClip[] = [
   },
 ];
 
-const { durationFrames } = layoutSequence(mockCutlist, sampleFrameRate);
 const mockWaveformData = mockAudioChannels.map(({ id }) => generateWaveformData(id));
 
 const mockPreviewSettings: PreviewSettings = {

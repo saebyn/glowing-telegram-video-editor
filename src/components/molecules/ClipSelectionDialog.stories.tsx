@@ -3,6 +3,9 @@ import { sampleSource } from "@/fixtures/video";
 
 import ClipSelectionDialog from "./ClipSelectionDialog";
 
+// The sample cuts are 10 ms each, exactly one frame at 100 fps.
+const clipSource = { ...sampleSource, sourceFrameRate: { numerator: 100, denominator: 1 } };
+
 export default {
   title: "Molecules/SelectedCutsDialog",
   component: ClipSelectionDialog,
@@ -20,9 +23,9 @@ export const Default = () => {
       clips={[
         {
           id: "1",
-          ...sampleSource,
+          ...clipSource,
           sourceInFrame: 0,
-          sourceOutFrame: 600,
+          sourceOutFrame: 1,
         },
       ]}
       onCopyInPoint={action("onCopyInPoint")}
@@ -44,21 +47,21 @@ export const MultipleCuts = () => {
       clips={[
         {
           id: "1",
-          ...sampleSource,
+          ...clipSource,
           sourceInFrame: 0,
-          sourceOutFrame: 600,
+          sourceOutFrame: 1,
         },
         {
           id: "2",
-          ...sampleSource,
-          sourceInFrame: 600,
-          sourceOutFrame: 1200,
+          ...clipSource,
+          sourceInFrame: 1,
+          sourceOutFrame: 2,
         },
         {
           id: "3",
-          ...sampleSource,
-          sourceInFrame: 1200,
-          sourceOutFrame: 1800,
+          ...clipSource,
+          sourceInFrame: 2,
+          sourceOutFrame: 3,
         },
       ]}
       onCopyInPoint={action("onCopyInPoint")}

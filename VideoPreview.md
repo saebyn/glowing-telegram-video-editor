@@ -1,21 +1,22 @@
 # Video Preview Component
 
-`VideoPreview` plays a host-rendered HLS stream and displays the cutlist and audio waveforms on the project frame grid. `ProjectProvider` supplies that grid; it does not own the settings or render the video.
+`VideoPreview` plays a host-rendered HLS stream and displays audio waveforms on the project frame grid. The Selected Clips row shows each range at its original elapsed time in its source, rather than showing placements in the rendered edit. `ProjectProvider` supplies the project frame rate; it does not own the settings or render the video.
 
 ## Basic Usage
 
 ```tsx
 import { useState } from 'react';
-import { layoutSequence, ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
+import { ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
 import type { PreviewSettings } from '@saebyn/glowing-telegram-video-editor';
 
 const frameRate = { numerator: 30, denominator: 1 };
 const source = { sourceId: 'stream-a', sourceFrameRate: { numerator: 60, denominator: 1 } };
+const durationFrames = 120 * 30; // Two-minute preview supplied by the host.
 
 // Example preview settings
 const settings: PreviewSettings = {
   cutlist: [
-    { ...source, id: '1', sourceInFrame: 3, sourceOutFrame: 18 },
+    { ...source, id: '1', sourceInFrame: 600, sourceOutFrame: 1800 },
     { ...source, id: '2', sourceInFrame: 2700, sourceOutFrame: 4500 },
   ],
   audioChannels: [
@@ -26,7 +27,7 @@ const settings: PreviewSettings = {
     {
       channelId: '1',
       amplitudes: [/* amplitude data */],
-      durationFrames: 908, // 8 + 900 sequence frames
+      durationFrames,
       sampleRate: 44100,
     },
   ],
@@ -34,12 +35,10 @@ const settings: PreviewSettings = {
 
 function MyVideoPreview() {
   const [previewSettings, setPreviewSettings] = useState(settings);
-  const { durationFrames } = layoutSequence(previewSettings.cutlist, frameRate);
 
   const handleRegenerate = (newSettings: PreviewSettings) => {
-    const sequence = layoutSequence(newSettings.cutlist, frameRate);
-    // Send the sequence and audio settings to the host renderer.
-    console.log(sequence, newSettings.audioChannels);
+    // Send the cutlist and audio settings to the host renderer.
+    console.log('Regenerating preview with:', newSettings);
   };
 
   const handleSave = (newSettings: PreviewSettings) => {
@@ -113,7 +112,7 @@ interface PreviewSettings {
 
 ## Backend Integration
 
-Use `layoutSequence(cutlist, frameRate)` with the same rate as `ProjectProvider`. It returns `frameRate`, total `durationFrames`, and an ordered list of `placements`. Each placement has a `sequenceStartFrame`, a `durationFrames` count at the project rate, and the original `clip`, including its `sourceId`, `sourceFrameRate`, and inclusive in/exclusive out points. Render that source range into the assigned frame count; do not derive a new source out point from the rounded duration. The same counts are used by both sequence timelines.
+To render the gapless edit shown in `ProjectClipTimeline`, use `layoutSequence(cutlist, frameRate)` with the same rate as `ProjectProvider`. It returns `frameRate`, total `durationFrames`, and an ordered list of `placements`. Each placement has a `sequenceStartFrame`, a `durationFrames` count at the project rate, and the original `clip`, including its `sourceId`, `sourceFrameRate`, and inclusive in/exclusive out points. Render that source range into the assigned frame count; do not derive a new source out point from the rounded duration.
 
 Each nonempty clip gets the nearest project frame count (ties round up), with a minimum of one frame. For example, a 15-frame range from a 60 fps source occupies 8 frames in a 30 fps project, without changing either native cut.
 
