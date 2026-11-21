@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { framesToSeconds, getProjectFrameCount, secondsToFrame } from "./frames";
+import { framesToSeconds, getProjectFrameCount, layoutSequence, secondsToFrame } from "./frames";
 
 describe("frame conversions", () => {
   it("round trips native positions at an exact fractional rate", () => {
@@ -20,6 +20,32 @@ describe("frame conversions", () => {
     ).toBe(1);
     expect(getProjectFrameCount({ ...clip, sourceOutFrame: 3 }, at30)).toBe(0);
     expect(getProjectFrameCount({ ...clip, sourceOutFrame: 2 }, at30)).toBe(0);
+  });
+
+  it("hands off contiguous placements while passing the unmodified native ranges", () => {
+    const frameRate = { numerator: 30, denominator: 1 };
+    const first = {
+      id: "a",
+      sourceId: "source-a",
+      sourceFrameRate: { numerator: 60, denominator: 1 },
+      sourceInFrame: 3,
+      sourceOutFrame: 18,
+    };
+    const second = {
+      id: "b",
+      sourceId: "source-b",
+      sourceFrameRate: { numerator: 30_000, denominator: 1001 },
+      sourceInFrame: 2,
+      sourceOutFrame: 1002,
+    };
+    expect(layoutSequence([first, second], frameRate)).toEqual({
+      frameRate,
+      durationFrames: 1009,
+      placements: [
+        { clip: first, sequenceStartFrame: 0, durationFrames: 8 },
+        { clip: second, sequenceStartFrame: 8, durationFrames: 1001 },
+      ],
+    });
   });
 
   it("respects both denominators when converting between project rates", () => {
