@@ -82,17 +82,9 @@ The library exports the following components:
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
-## Frame-based editing (breaking change)
-
-- Pass integer frame positions and counts, not milliseconds or seconds. Frame zero is the start; clip in points are inclusive and out points are exclusive.
-- A `FrameRate` is `{ numerator, denominator }`: use `{ numerator: 60, denominator: 1 }` for 60 fps or `{ numerator: 30_000, denominator: 1001 }` for NTSC 29.97 fps.
-- `VideoSelectionPage` always uses the source metadata's rate, even inside a `ProjectProvider`. Its export contains native source ranges.
-- Wrap `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider`. They use its rate for sequence positions and durations. If you change the provider's rate, supply frame values for the new grid.
-- Use `layoutSequence(clips, frameRate)` to hand the same gapless layout to your renderer that the timeline uses. A nonempty clip gets the nearest output frame count (ties round up), with a minimum of one. At equal rates this is exactly `sourceOutFrame - sourceInFrame`. At 30 fps, 15 source frames at 60 fps occupy 8 sequence frames without changing either source cut.
-
-`framesToSeconds` and `secondsToFrame` are available for adapters. HLS playback uses browser seeks and is not guaranteed to display the exact requested frame.
-
 ## Component Usage
+
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
 
 ### VideoSelectionPage
 
@@ -468,6 +460,8 @@ import type {
 
 ### Key Types
 
+**`FrameRate`**: Frames per second as a ratio. Use `{ numerator: 60, denominator: 1 }` for 60 fps or `{ numerator: 30_000, denominator: 1001 }` for NTSC 29.97 fps.
+
 **`VideoMetadata`**: Parsed video metadata for frontend components.
 - `sourceId`: Host-defined identity of the source
 - `frameRate`: Native source frame rate
@@ -502,6 +496,16 @@ Use `parseContent(rawMetadata)` from the package to convert ISO durations to the
 - `name`: Display name
 - `level`: Audio level (`0.0` to `1.0`)
 - `muted`: Whether channel is muted
+
+## Upgrading from 0.5.x
+
+When upgrading to 0.6.0, pass editor positions and durations as whole frames instead of milliseconds or seconds.
+
+- **Source review:** Supply `sourceId` and the native `frameRate` in the metadata. If you build `VideoMetadata` directly, replace `length` with `durationFrames` and parsed event timestamps with `sourceFrame` and, for ranges, `sourceOutFrame`. Raw ISO 8601 durations still work with `parseContent`.
+- **Clips:** Replace `start` and `end` with `sourceInFrame` and `sourceOutFrame`. Include `sourceId` and `sourceFrameRate`, and keep these bounds at the source rate even when the project uses a different rate.
+- **Sequence and preview:** Supply the project rate through `ProjectProvider`. Replace `playheadPosition` with `playheadFrame` and preview or waveform `duration` with `durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`. Remove the `duration` prop from `ProjectClipTimeline`; it derives the length from the clips.
+
+To convert a millisecond value, use `secondsToFrame(milliseconds / 1000, frameRate)` with the rate for that field. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
 
 ## Development
 

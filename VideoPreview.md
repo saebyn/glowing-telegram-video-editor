@@ -115,6 +115,8 @@ interface PreviewSettings {
 
 Use `layoutSequence(cutlist, frameRate)` with the same rate as `ProjectProvider`. It returns `frameRate`, total `durationFrames`, and an ordered list of `placements`. Each placement has a `sequenceStartFrame`, a `durationFrames` count at the project rate, and the original `clip`, including its `sourceId`, `sourceFrameRate`, and inclusive in/exclusive out points. Render that source range into the assigned frame count; do not derive a new source out point from the rounded duration. The same counts are used by both sequence timelines.
 
+Each nonempty clip gets the nearest project frame count (ties round up), with a minimum of one frame. For example, a 15-frame range from a 60 fps source occupies 8 frames in a 30 fps project, without changing either native cut.
+
 When the HLS preview is ready, supply its URL, `durationFrames`, and waveforms for that render. The optional `playheadFrame` and waveform seeks are sequence positions, not native source positions. Browser seeks translate frames to seconds; HLS playback is not a guarantee that the exact requested frame is decoded or displayed.
 
 ## Accessibility
