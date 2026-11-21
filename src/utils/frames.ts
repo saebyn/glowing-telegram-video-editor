@@ -1,13 +1,21 @@
 import type { FrameRate, SequenceLayout, SourceRange, VideoClip } from "@/types";
-import { formatSeconds } from "./duration";
+import { formatSeconds, NANOSECONDS_PER_SECOND } from "./duration";
 
 export function framesToSeconds(frames: number, rate: FrameRate): number {
   return (frames * rate.denominator) / rate.numerator;
 }
 
-/** Snap elapsed seconds to the nearest frame, with ties toward the higher frame. */
+/** Snap floating-point media seconds to the nearest frame. */
 export function secondsToFrame(seconds: number, rate: FrameRate): number {
   return Math.round((seconds * rate.numerator) / rate.denominator);
+}
+
+/** Snap exact elapsed metadata time to a frame, with ties toward the higher frame. */
+export function nanosecondsToFrame(nanoseconds: bigint, rate: FrameRate): number {
+  return roundFrameRatio(
+    nanoseconds * BigInt(rate.numerator),
+    NANOSECONDS_PER_SECOND * BigInt(rate.denominator),
+  );
 }
 
 export function formatFrames(frames: number, rate: FrameRate): string {
@@ -23,8 +31,13 @@ export function snapFrame(position: number, durationFrames: number): number {
 export function convertFrameOffset(offset: number, from: FrameRate, to: FrameRate): number {
   if (from.numerator === to.numerator && from.denominator === to.denominator) return offset;
 
-  const numerator = BigInt(offset) * BigInt(from.denominator) * BigInt(to.numerator);
-  const divisor = BigInt(from.numerator) * BigInt(to.denominator);
+  return roundFrameRatio(
+    BigInt(offset) * BigInt(from.denominator) * BigInt(to.numerator),
+    BigInt(from.numerator) * BigInt(to.denominator),
+  );
+}
+
+function roundFrameRatio(numerator: bigint, divisor: bigint): number {
   // BigInt division truncates toward zero. Use a nonnegative remainder for rounding.
   const rest = numerator % divisor;
   const remainder = rest < 0n ? rest + divisor : rest;

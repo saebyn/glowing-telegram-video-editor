@@ -1,10 +1,10 @@
 import type { RawSection, RawVideoMetadata, Section, VideoMetadata } from "@/types";
-import { isoToSeconds } from "./duration";
-import { secondsToFrame } from "./frames";
+import { isoToNanoseconds } from "./duration";
+import { nanosecondsToFrame } from "./frames";
 
 export default function parseContent(rawContent: RawVideoMetadata): VideoMetadata {
   const { sourceId, frameRate, title, video_url } = rawContent;
-  const toFrame = (iso: string) => secondsToFrame(isoToSeconds(iso), frameRate);
+  const toFrame = (iso: string) => nanosecondsToFrame(isoToNanoseconds(iso), frameRate);
   const parseSection = ({ timestamp_start, timestamp_end, ...details }: RawSection): Section => ({
     ...details,
     sourceFrame: toFrame(timestamp_start),

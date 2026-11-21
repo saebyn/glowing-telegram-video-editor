@@ -1,8 +1,23 @@
 import { Temporal } from "temporal-polyfill";
 
+export const NANOSECONDS_PER_SECOND = 1_000_000_000n;
+
 export function isoToSeconds(iso8601Duration: string): number {
   const duration = Temporal.Duration.from(iso8601Duration);
   return duration.total({ unit: "seconds" });
+}
+
+/** Get the exact elapsed duration of raw metadata without a floating-point total. */
+export function isoToNanoseconds(iso8601Duration: string): bigint {
+  const { seconds, milliseconds, microseconds, nanoseconds } = Temporal.Duration.from(
+    iso8601Duration,
+  ).round({ largestUnit: "seconds", smallestUnit: "nanoseconds" });
+  return (
+    BigInt(seconds) * NANOSECONDS_PER_SECOND +
+    BigInt(milliseconds) * 1_000_000n +
+    BigInt(microseconds) * 1000n +
+    BigInt(nanoseconds)
+  );
 }
 
 export function secondsToDuration(seconds: number): Temporal.Duration {
