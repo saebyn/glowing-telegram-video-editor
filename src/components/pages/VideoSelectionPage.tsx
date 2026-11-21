@@ -14,32 +14,48 @@ import { TimelineProvider } from "@/context/TimelineContext";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import type { ChatMessage, Section, TranscriptSegment, VideoClip, VideoMetadata } from "@/types";
 import findGaps from "@/utils/findGaps";
+import { secondsToFrame, snapFrame } from "@/utils/frames";
 
 interface VideoSelectionPageProps {
   content: VideoMetadata;
   onExport?: (clips: VideoClip[]) => void;
 }
 
-const SILENCE_CLIP_SETTINGS = {
-  minGapDuration: 30_000, // required time between clips to be considered a gap, in milliseconds
-  minSectionDuration: 60_000, // required time for a silence to be considered a valid silence, in milliseconds
+const SILENCE_CLIP_THRESHOLDS = {
+  gapSeconds: 30,
+  sectionSeconds: 60,
 };
 
-function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
-  const [playheadTime, setPlayheadTime] = useState(0);
+export default function VideoSelectionPage(props: VideoSelectionPageProps) {
+  return <SourceReview key={props.content.sourceId} {...props} />;
+}
+
+function SourceReview({ content, onExport }: VideoSelectionPageProps) {
+  const [playheadFrame, setPlayheadFrame] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const [selectedClips, setSelectedClips] = useState<VideoClip[]>([]);
 
-  function handleSeekToTime(milliseconds: number) {
-    videoPlayerRef.current?.seekTo(milliseconds);
+  const { sourceId, frameRate, durationFrames } = content;
+
+  function handleSeekToFrame(sourceFrame: number) {
+    videoPlayerRef.current?.seekTo(sourceFrame);
   }
 
   function appendSectionToClips(section: Section) {
+    const sourceInFrame = snapFrame(section.sourceFrame, durationFrames);
+    const sourceOutFrame = snapFrame(
+      section.sourceOutFrame ?? sourceInFrame + secondsToFrame(10, frameRate),
+      durationFrames,
+    );
+    if (sourceOutFrame <= sourceInFrame) return;
     const clip: VideoClip = {
-      id: section.timestamp.toString(),
-      start: section.timestamp,
-      end: section.timestamp_end || section.timestamp + 10000,
+      id: `${sourceId}:section:${sourceInFrame}-${sourceOutFrame}`,
+      sourceId,
+      sourceFrameRate: frameRate,
+      sourceDurationFrames: durationFrames,
+      sourceInFrame,
+      sourceOutFrame,
     };
 
     setSelectedClips((prevClips) => {
@@ -49,12 +65,17 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
     });
   }
 
-  function handleCopyTime(startOrEnd: "start" | "end") {
+  function handleCopyPoint(point: "sourceInFrame" | "sourceOutFrame") {
     return (id: string) => {
       setSelectedClips((clips) =>
         clips.map((clip) => {
           if (clip.id === id) {
-            return { ...clip, [startOrEnd]: playheadTime };
+            const frame = snapFrame(playheadFrame, durationFrames);
+            if (
+              point === "sourceInFrame" ? frame < clip.sourceOutFrame : frame > clip.sourceInFrame
+            ) {
+              return { ...clip, [point]: frame };
+            }
           }
           return clip;
         }),
@@ -63,40 +84,16 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
   }
 
   useKeyboardShortcuts({
-    "1": () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.seekTo(0);
-      }
-    },
-    " ": () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.togglePlay();
-      }
-    },
-    ArrowLeft: () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.seekTo(playheadTime - 250);
-      }
-    },
-    ArrowRight: () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.seekTo(playheadTime + 250);
-      }
-    },
-    "Shift+ArrowLeft": () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.seekTo(playheadTime - 1000);
-      }
-    },
-    "Shift+ArrowRight": () => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.seekTo(playheadTime + 1000);
-      }
-    },
+    "1": () => handleSeekToFrame(0),
+    " ": () => videoPlayerRef.current?.togglePlay(),
+    ArrowLeft: () => handleSeekToFrame(playheadFrame - 1),
+    ArrowRight: () => handleSeekToFrame(playheadFrame + 1),
+    "Shift+ArrowLeft": () => handleSeekToFrame(playheadFrame - secondsToFrame(1, frameRate)),
+    "Shift+ArrowRight": () => handleSeekToFrame(playheadFrame + secondsToFrame(1, frameRate)),
   });
 
   return (
-    <TimelineProvider contentLength={content.length}>
+    <TimelineProvider durationFrames={durationFrames}>
       <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
         <ClipSelectionDialog
           show={selectedClips.length > 0}
@@ -107,12 +104,16 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
           onClear={() => setSelectedClips([])}
           onReorder={(newClips) => setSelectedClips(newClips)}
           onRemove={(id) => setSelectedClips(selectedClips.filter((clip) => clip.id !== id))}
-          onCopyStartTime={handleCopyTime("start")}
-          onCopyEndTime={handleCopyTime("end")}
-          onSeekToTime={handleSeekToTime}
+          onCopyInPoint={handleCopyPoint("sourceInFrame")}
+          onCopyOutPoint={handleCopyPoint("sourceOutFrame")}
+          onSeekToFrame={handleSeekToFrame}
         />
 
-        <Sidebar content={content} onSeekToTime={handleSeekToTime} playheadTime={playheadTime} />
+        <Sidebar
+          content={content}
+          onSeekToFrame={handleSeekToFrame}
+          playheadFrame={playheadFrame}
+        />
 
         <div className="flex flex-1 flex-col">
           <main className="flex-1 overflow-auto p-4">
@@ -125,14 +126,17 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                 <VideoPlayer
                   ref={videoPlayerRef}
                   videoUrl={content.video_url}
-                  onTimeUpdate={(time) => setPlayheadTime(time)}
+                  sourceFrameRate={frameRate}
+                  durationFrames={durationFrames}
+                  onFrameUpdate={setPlayheadFrame}
                 />
               }
               chatHistory={
                 <TimestampedEventLog<ChatMessage>
                   log={content.chat_history}
-                  playheadTime={playheadTime}
-                  onSeekToTime={handleSeekToTime}
+                  playheadFrame={playheadFrame}
+                  frameRate={frameRate}
+                  onSeekToFrame={handleSeekToFrame}
                   renderEvent={(chat) => {
                     return (
                       <>
@@ -146,8 +150,8 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
               timeline={
                 <Timeline
                   content={content}
-                  playheadTime={playheadTime}
-                  onSeekToTime={handleSeekToTime}
+                  playheadFrame={playheadFrame}
+                  onSeekToFrame={handleSeekToFrame}
                   onItemSelect={appendSectionToClips}
                 />
               }
@@ -166,8 +170,9 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                     // TODO
                     console.log(segment);
                   }}
-                  playheadTime={playheadTime}
-                  onSeekToTime={handleSeekToTime}
+                  playheadFrame={playheadFrame}
+                  frameRate={frameRate}
+                  onSeekToFrame={handleSeekToFrame}
                   contentField="text"
                   followPlayback={followPlayback}
                 />
@@ -190,12 +195,25 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
                 Export
               </Button>
               <Button
-                onClick={async () => {
+                onClick={() => {
                   setSelectedClips(
-                    await findGaps(
-                      { ...SILENCE_CLIP_SETTINGS, length: content.length },
+                    findGaps(
+                      {
+                        durationFrames,
+                        minGapFrames: secondsToFrame(SILENCE_CLIP_THRESHOLDS.gapSeconds, frameRate),
+                        minSectionFrames: secondsToFrame(
+                          SILENCE_CLIP_THRESHOLDS.sectionSeconds,
+                          frameRate,
+                        ),
+                      },
                       content.silences,
-                    ),
+                    ).map((range) => ({
+                      id: `${sourceId}:${range.sourceInFrame}-${range.sourceOutFrame}`,
+                      sourceId,
+                      sourceFrameRate: frameRate,
+                      sourceDurationFrames: durationFrames,
+                      ...range,
+                    })),
                   );
                 }}
               >
@@ -208,8 +226,9 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
             </Heading>
             <TimeTable
               rows={content.highlights}
-              onSeekToTime={handleSeekToTime}
-              playheadTime={playheadTime}
+              onSeekToFrame={handleSeekToFrame}
+              playheadFrame={playheadFrame}
+              frameRate={frameRate}
               includeEnd
               includeReasoning
               canEdit
@@ -222,8 +241,9 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
             </Heading>
             <TimeTable
               rows={content.attentions}
-              onSeekToTime={handleSeekToTime}
-              playheadTime={playheadTime}
+              onSeekToFrame={handleSeekToFrame}
+              playheadFrame={playheadFrame}
+              frameRate={frameRate}
               includeEnd
               includeReasoning
             />
@@ -233,8 +253,9 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
             </Heading>
             <TimeTable
               rows={content.transcription_errors}
-              playheadTime={playheadTime}
-              onSeekToTime={handleSeekToTime}
+              playheadFrame={playheadFrame}
+              onSeekToFrame={handleSeekToFrame}
+              frameRate={frameRate}
               includeCategory
             />
           </main>
@@ -243,5 +264,3 @@ function VideoSelectionPage({ content, onExport }: VideoSelectionPageProps) {
     </TimelineProvider>
   );
 }
-
-export default VideoSelectionPage;

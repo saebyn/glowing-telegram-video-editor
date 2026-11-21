@@ -1,6 +1,10 @@
 import { action } from "storybook/actions";
+import { sampleSource } from "@/fixtures/video";
 
 import ClipSelectionDialog from "./ClipSelectionDialog";
+
+// The sample cuts are 10 ms each, exactly one frame at 100 fps.
+const clipSource = { ...sampleSource, sourceFrameRate: { numerator: 100, denominator: 1 } };
 
 export default {
   title: "Molecules/SelectedCutsDialog",
@@ -19,18 +23,19 @@ export const Default = () => {
       clips={[
         {
           id: "1",
-          start: 0,
-          end: 10,
+          ...clipSource,
+          sourceInFrame: 0,
+          sourceOutFrame: 1,
         },
       ]}
-      onCopyStartTime={action("onCopyStartTime")}
-      onCopyEndTime={action("onCopyEndTime")}
+      onCopyInPoint={action("onCopyInPoint")}
+      onCopyOutPoint={action("onCopyOutPoint")}
       onExport={action("onExport")}
       show={true}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
-      onSeekToTime={action("onSeekToTime")}
+      onSeekToFrame={action("onSeekToFrame")}
     />
   );
 };
@@ -42,27 +47,30 @@ export const MultipleCuts = () => {
       clips={[
         {
           id: "1",
-          start: 0,
-          end: 10,
+          ...clipSource,
+          sourceInFrame: 0,
+          sourceOutFrame: 1,
         },
         {
           id: "2",
-          start: 10,
-          end: 20,
+          ...clipSource,
+          sourceInFrame: 1,
+          sourceOutFrame: 2,
         },
         {
           id: "3",
-          start: 20,
-          end: 30,
+          ...clipSource,
+          sourceInFrame: 2,
+          sourceOutFrame: 3,
         },
       ]}
-      onCopyStartTime={action("onCopyStartTime")}
-      onCopyEndTime={action("onCopyEndTime")}
+      onCopyInPoint={action("onCopyInPoint")}
+      onCopyOutPoint={action("onCopyOutPoint")}
       onExport={action("onExport")}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
-      onSeekToTime={action("onSeekToTime")}
+      onSeekToFrame={action("onSeekToFrame")}
     />
   );
 };

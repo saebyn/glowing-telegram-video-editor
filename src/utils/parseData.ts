@@ -1,47 +1,33 @@
-import type {
-  ChatMessage,
-  RawChatMessage,
-  RawSection,
-  RawTranscriptSegment,
-  RawVideoMetadata,
-  Section,
-  TranscriptSegment,
-  VideoMetadata,
-} from "@/types";
-import { isoToMs } from "./duration";
+import type { RawSection, RawVideoMetadata, Section, VideoMetadata } from "@/types";
+import { isoToNanoseconds } from "./duration";
+import { nanosecondsToFrame } from "./frames";
 
 export default function parseContent(rawContent: RawVideoMetadata): VideoMetadata {
-  return {
-    title: rawContent.title,
-    video_url: rawContent.video_url,
-    chat_history: rawContent.chat_history.map((item) => parseSection(item)),
-    transcript: rawContent.transcript.map((item) => parseSection(item)),
-    highlights: rawContent.highlights.map((item) => parseSection(item)),
-    attentions: rawContent.attentions.map((item) => parseSection(item)),
-    transcription_errors: rawContent.transcription_errors.map((item) => parseSection(item)),
-    silences: rawContent.silences.map((item) => parseSection(item)),
-    length: isoToMs(rawContent.length),
-  };
-}
-
-function parseSection(item: RawChatMessage): ChatMessage;
-function parseSection(item: RawSection): Section;
-function parseSection(item: RawTranscriptSegment): TranscriptSegment;
-function parseSection(
-  item: RawChatMessage | RawSection | RawTranscriptSegment,
-): ChatMessage | Section | TranscriptSegment {
-  if ("timestamp" in item) {
-    return {
-      username: item.username,
-      message: item.message,
-      timestamp: isoToMs(item.timestamp),
-    };
-  }
+  const { sourceId, frameRate, title, video_url } = rawContent;
+  const toFrame = (iso: string) => nanosecondsToFrame(isoToNanoseconds(iso), frameRate);
+  const parseSection = ({ timestamp_start, timestamp_end, ...details }: RawSection): Section => ({
+    ...details,
+    sourceFrame: toFrame(timestamp_start),
+    ...(timestamp_end ? { sourceOutFrame: toFrame(timestamp_end) } : {}),
+  });
 
   return {
-    ...item,
-    timestamp: isoToMs(item.timestamp_start),
-    timestamp_end:
-      "timestamp_end" in item && item.timestamp_end ? isoToMs(item.timestamp_end) : undefined,
+    sourceId,
+    frameRate,
+    title,
+    video_url,
+    chat_history: rawContent.chat_history.map(({ timestamp, ...message }) => ({
+      ...message,
+      sourceFrame: toFrame(timestamp),
+    })),
+    transcript: rawContent.transcript.map(({ timestamp_start, text }) => ({
+      text,
+      sourceFrame: toFrame(timestamp_start),
+    })),
+    highlights: rawContent.highlights.map(parseSection),
+    attentions: rawContent.attentions.map(parseSection),
+    transcription_errors: rawContent.transcription_errors.map(parseSection),
+    silences: rawContent.silences.map(parseSection),
+    durationFrames: toFrame(rawContent.length),
   };
 }

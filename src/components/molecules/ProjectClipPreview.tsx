@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import usePreloadImages from "@/hooks/usePreloadImages";
-import { secondsToDuration } from "@/utils/duration";
+import { useProjectFrameRate } from "@/context/ProjectContext";
+import { formatFrames } from "@/utils/frames";
 
 const KEYFRAME_INTERVAL_MS = 200;
 
@@ -8,7 +9,8 @@ type ProjectClipPreviewProps = {
   thumbnailUrl: string;
   keyframeUrls: string[];
   title?: string;
-  durationSeconds: number;
+  /** Clip length in project frames. */
+  durationFrames: number;
   width: string;
   height: string;
   id: string;
@@ -26,7 +28,7 @@ type ProjectClipPreviewProps = {
 );
 
 function ProjectClipPreview(props: ProjectClipPreviewProps) {
-  const duration = secondsToDuration(props.durationSeconds);
+  const frameRate = useProjectFrameRate();
   const [hover, setHover] = useState(false);
   const [keyframe, setKeyframe] = useState(0);
 
@@ -102,7 +104,9 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
             </svg>
           </button>
         </div>
-        <div className="text-xs absolute right-1 bottom-1">{duration.toLocaleString()}</div>
+        <div className="text-xs absolute right-1 bottom-1">
+          {formatFrames(props.durationFrames, frameRate)}
+        </div>
       </div>
       <div className="absolute top-2 left-1 cursor-move">
         <svg

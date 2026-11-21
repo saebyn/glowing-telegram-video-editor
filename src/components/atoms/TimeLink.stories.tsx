@@ -1,4 +1,5 @@
 import { action } from "storybook/actions";
+import { sampleFrameRate } from "@/fixtures/video";
 import TimeLink from "./TimeLink";
 
 export default {
@@ -9,7 +10,8 @@ export default {
 
 export const Default = {
   args: {
-    milliseconds: 60000,
+    frame: 3600,
+    frameRate: sampleFrameRate,
     onClick: action("onClick"),
     children: "Click me",
   },

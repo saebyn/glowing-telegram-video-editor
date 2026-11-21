@@ -74,6 +74,7 @@ import '@saebyn/glowing-telegram-video-editor/custom-only.css';
 The library exports the following components:
 
 - **`VideoSelectionPage`** - Main page component for video review and clip selection
+- **`ProjectProvider`** - Supplies the project frame rate to sequence components without taking ownership of the edit
 - **`VideoPreview`** - Preview component for rendering videos with audio mixing
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
 - **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
@@ -81,9 +82,9 @@ The library exports the following components:
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
-All TypeScript types are also exported for use in your application.
-
 ## Component Usage
+
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
 
 ### VideoSelectionPage
 
@@ -106,9 +107,11 @@ import '@saebyn/glowing-telegram-video-editor/styles.css';
 
 function App() {
   const videoData = {
+    sourceId: "my-stream",
+    frameRate: { numerator: 60, denominator: 1 },
     title: "My Gaming Stream",
     video_url: "https://example.com/video.m3u8",
-    length: 3600000, // 1 hour in milliseconds
+    durationFrames: 216_000, // 1 hour at 60 fps
     highlights: [],
     attentions: [],
     transcription_errors: [],
@@ -135,7 +138,7 @@ function App() {
 - Synchronized video player with HLS support
 - Timeline with color-coded markers for highlights, attentions, and transcription errors
 - Live transcript and chat history display
-- Click-to-add clip selection from timeline
+- Shift-click a source timeline marker to add its range to the clip selection
 - "Clip Silences" button — automatically selects clips from gaps in silence data
 - Export selected clips for rendering
 - Keyboard shortcuts for playback control (see table below)
@@ -146,14 +149,14 @@ function App() {
 |-----|--------|
 | `1` | Seek to beginning (0:00) |
 | `Space` | Toggle play/pause |
-| `ArrowLeft` | Seek back 250ms |
-| `ArrowRight` | Seek forward 250ms |
-| `Shift+ArrowLeft` | Seek back 1000ms |
-| `Shift+ArrowRight` | Seek forward 1000ms |
+| `ArrowLeft` | Seek back one source frame |
+| `ArrowRight` | Seek forward one source frame |
+| `Shift+ArrowLeft` | Seek back about one second on the source grid |
+| `Shift+ArrowRight` | Seek forward about one second on the source grid |
 
 ### VideoPreview
 
-Component for previewing rendered videos with audio mixing controls and timeline editing.
+Component for previewing a host-rendered HLS stream with an audio mixer and waveforms. The Selected Clips row shows ranges at their original source times.
 
 **Props:**
 
@@ -161,8 +164,8 @@ Component for previewing rendered videos with audio mixing controls and timeline
 interface VideoPreviewProps {
   settings: PreviewSettings;           // Preview configuration
   previewVideoUrl: string;             // HLS stream URL
-  playheadPosition?: number;           // Current playhead in ms
-  duration: number;                    // Total duration in ms
+  playheadFrame?: number;              // Initial sequence playhead
+  durationFrames: number;              // Length of the rendered stream in project frames
   onSettingsChange?: (settings: PreviewSettings) => void;
   onRegenerate?: (settings: PreviewSettings) => void;
   onSave?: (settings: PreviewSettings) => void;
@@ -174,13 +177,17 @@ interface VideoPreviewProps {
 **Example:**
 
 ```jsx
-import { VideoPreview } from '@saebyn/glowing-telegram-video-editor';
+import { useState } from 'react';
+import { ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
+
+const frameRate = { numerator: 30, denominator: 1 };
+const source = { sourceId: 'stream', sourceFrameRate: { numerator: 60, denominator: 1 } };
 
 function PreviewPage() {
   const [settings, setSettings] = useState({
     cutlist: [
-      { id: '1', start: 0, end: 30000 },
-      { id: '2', start: 60000, end: 120000 }
+      { ...source, id: '1', sourceInFrame: 0, sourceOutFrame: 1800 },
+      { ...source, id: '2', sourceInFrame: 3600, sourceOutFrame: 7200 }
     ],
     audioChannels: [
       { id: 'ch1', name: 'Game Audio', level: 0.8, muted: false },
@@ -189,19 +196,24 @@ function PreviewPage() {
     waveformData: []
   });
 
+  // The host's preview stream is three minutes long at 30 fps.
+  const durationFrames = 3 * 60 * 30;
   return (
-    <VideoPreview
-      settings={settings}
-      previewVideoUrl="https://example.com/preview.m3u8"
-      duration={180000}
-      onSettingsChange={setSettings}
-      onRegenerate={(settings) => console.log('Regenerate with:', settings)}
-      onSave={(settings) => console.log('Save:', settings)}
-    />
+    <ProjectProvider frameRate={frameRate}>
+      <VideoPreview
+        settings={settings}
+        previewVideoUrl="https://example.com/preview.m3u8"
+        durationFrames={durationFrames}
+        onSettingsChange={setSettings}
+        onRegenerate={(settings) => console.log('Regenerate with:', settings)}
+        onSave={(settings) => console.log('Save:', settings)}
+      />
+    </ProjectProvider>
   );
 }
 ```
 
+See [VideoPreview.md](VideoPreview.md) for the renderer handoff.
 ### ProjectClipPool
 
 A pool of available video clips that can be dragged to a timeline.
@@ -226,12 +238,14 @@ interface ProjectClipPoolProps {
 **Example:**
 
 ```jsx
-import { ProjectClipPool } from '@saebyn/glowing-telegram-video-editor';
+import { ProjectClipPool, ProjectProvider } from '@saebyn/glowing-telegram-video-editor';
 
 function ClipManager() {
+  const frameRate = { numerator: 60, denominator: 1 };
+  const source = { sourceId: 'stream', sourceFrameRate: frameRate };
   const clips = [
-    { id: 'clip1', start: 0, end: 30000 },
-    { id: 'clip2', start: 60000, end: 90000 }
+    { ...source, id: 'clip1', sourceInFrame: 0, sourceOutFrame: 1800 },
+    { ...source, id: 'clip2', sourceInFrame: 3600, sourceOutFrame: 5400 }
   ];
 
   const thumbnails = {
@@ -240,14 +254,16 @@ function ClipManager() {
   };
 
   return (
-    <ProjectClipPool
-      clips={clips}
-      thumbnails={thumbnails}
-      keyframes={{}}
-      titles={{ 'clip1': 'Introduction', 'clip2': 'Highlights' }}
-      showCheckboxes={true}
-      onClipSelect={(id, selected) => console.log(`Clip ${id} ${selected ? 'selected' : 'deselected'}`)}
-    />
+    <ProjectProvider frameRate={frameRate}>
+      <ProjectClipPool
+        clips={clips}
+        thumbnails={thumbnails}
+        keyframes={{}}
+        titles={{ 'clip1': 'Introduction', 'clip2': 'Highlights' }}
+        showCheckboxes
+        onClipSelect={(id, selected) => console.log(id, selected)}
+      />
+    </ProjectProvider>
   );
 }
 ```
@@ -261,48 +277,54 @@ Interactive timeline for arranging clips in sequence with drag-and-drop reorderi
 ```typescript
 interface ProjectClipTimelineProps {
   clips: VideoClip[];                    // Clips on the timeline
-  duration: number;                      // Total timeline duration in ms
   thumbnails: Record<string, string>;
   keyframes: Record<string, string[]>;
   titles: Record<string, string>;
-  playheadPosition?: number;
+  playheadFrame?: number;
   height?: string;
   onClipsReorder?: (clips: VideoClip[]) => void;
   onClipRemove?: (clipId: string) => void;
   onTitleUpdate?: (clipId: string, newTitle: string) => void;
-  onSeek?: (milliseconds: number) => void;
-  onClipsAdd?: (clipIds: string[], position: number) => void;
-  onClipTrim?: (clipId: string, newStart: number, newEnd: number) => void;
+  onSeek?: (sequenceFrame: number) => void;
+  onClipsAdd?: (clipIds: string[], insertionIndex: number) => void;
+  onClipTrim?: (clipId: string, sourceInFrame: number, sourceOutFrame: number) => void;
   renderTransition?: (leftClipId: string, rightClipId: string) => React.ReactNode;
 }
 ```
 
 > `renderTransition` is called between each adjacent pair of clips and lets you render a custom transition indicator on the timeline.
 
+The duration is derived from the ordered `clips`; there is no separate duration prop. Supply a distinct `id` for each timeline entry. Arrow keys on a trim handle adjust the native cut by one source frame; mouse trims snap a sequence offset before converting it to a native source offset.
+
 **Example:**
 
 ```jsx
-import { ProjectClipTimeline } from '@saebyn/glowing-telegram-video-editor';
+import { useState } from 'react';
+import { ProjectClipTimeline, ProjectProvider } from '@saebyn/glowing-telegram-video-editor';
+
+const frameRate = { numerator: 60, denominator: 1 };
+const source = { sourceId: 'stream', sourceFrameRate: frameRate };
 
 function Timeline() {
   const [clips, setClips] = useState([
-    { id: 'clip1', start: 0, end: 30000 },
-    { id: 'clip2', start: 30000, end: 60000 }
+    { ...source, id: 'clip1', sourceInFrame: 0, sourceOutFrame: 1800 },
+    { ...source, id: 'clip2', sourceInFrame: 1800, sourceOutFrame: 3600 }
   ]);
 
   return (
-    <ProjectClipTimeline
-      clips={clips}
-      duration={180000}
-      thumbnails={{}}
-      keyframes={{}}
-      titles={{}}
-      onClipsReorder={setClips}
-      onClipRemove={(id) => setClips(clips.filter(c => c.id !== id))}
-      onClipTrim={(id, start, end) => {
-        setClips(clips.map(c => c.id === id ? { ...c, start, end } : c));
-      }}
-    />
+    <ProjectProvider frameRate={frameRate}>
+      <ProjectClipTimeline
+        clips={clips}
+        thumbnails={{}}
+        keyframes={{}}
+        titles={{}}
+        onClipsReorder={setClips}
+        onClipRemove={(id) => setClips(current => current.filter(c => c.id !== id))}
+        onClipTrim={(id, sourceInFrame, sourceOutFrame) => {
+          setClips(current => current.map(c => c.id === id ? { ...c, sourceInFrame, sourceOutFrame } : c));
+        }}
+      />
+    </ProjectProvider>
   );
 }
 ```
@@ -321,7 +343,7 @@ type ProjectClipPreviewProps = {
   thumbnailUrl: string;
   keyframeUrls: string[];              // URLs for hover animation
   title?: string;
-  durationSeconds: number;
+  durationFrames: number;              // Clip length in project frames
   width: string;
   height: string;
   onTitleUpdate?: (id: string, newTitle: string) => void;
@@ -337,20 +359,22 @@ type ProjectClipPreviewProps = {
 **Example:**
 
 ```jsx
-import { ProjectClipPreview } from '@saebyn/glowing-telegram-video-editor';
+import { ProjectClipPreview, ProjectProvider } from '@saebyn/glowing-telegram-video-editor';
 
 function ClipCard() {
   return (
-    <ProjectClipPreview
-      id="clip1"
-      thumbnailUrl="https://example.com/thumb.jpg"
-      keyframeUrls={[]}
-      title="Epic Moment"
-      durationSeconds={45}
-      width="200px"
-      height="150px"
-      showCheckbox={false}
-    />
+    <ProjectProvider frameRate={{ numerator: 60, denominator: 1 }}>
+      <ProjectClipPreview
+        id="clip1"
+        thumbnailUrl="https://example.com/thumb.jpg"
+        keyframeUrls={[]}
+        title="Epic Moment"
+        durationFrames={2700}
+        width="200px"
+        height="150px"
+        showCheckbox={false}
+      />
+    </ProjectProvider>
   );
 }
 ```
@@ -400,14 +424,14 @@ interface WaveformDisplayProps {
   waveformData: WaveformData;
   width?: number;                      // Default: 400
   height?: number;                     // Default: 80
-  playheadPosition?: number;           // Current playhead in ms
+  playheadFrame?: number;              // Current sequence frame
   color?: string;                      // Waveform color, default: "#3b82f6"
   playheadColor?: string;              // Playhead color, default: "#ef4444"
-  onSeek?: (milliseconds: number) => void;
+  onSeek?: (sequenceFrame: number) => void;
 }
 ```
 
-When `onSeek` is provided, the component is focusable and supports keyboard navigation: `ArrowLeft`/`ArrowRight` seek by 5% of the total duration.
+When `onSeek` is provided, the component is focusable and supports keyboard navigation: `ArrowLeft`/`ArrowRight` move by about 5% of `waveformData.durationFrames`, snapped to whole frames with a minimum step of one. Standalone waveforms do not need a provider; they only use frame counts and positions, not elapsed-time labels.
 
 ## TypeScript Types
 
@@ -415,6 +439,9 @@ The library exports all TypeScript types for use in your application:
 
 ```typescript
 import type {
+  FrameRate,
+  SequenceLayout,
+  SequenceClipPlacement,
   VideoMetadata,
   RawVideoMetadata,
   VideoClip,
@@ -433,29 +460,35 @@ import type {
 
 ### Key Types
 
+**`FrameRate`**: Frames per second as a ratio. Use `{ numerator: 60, denominator: 1 }` for 60 fps or `{ numerator: 30_000, denominator: 1001 }` for NTSC 29.97 fps.
+
 **`VideoMetadata`**: Parsed video metadata for frontend components.
+- `sourceId`: Host-defined identity of the source
+- `frameRate`: Native source frame rate
 - `title`: Video title
 - `video_url`: HLS stream URL
-- `length`: Video duration in **milliseconds** (`number`)
+- `durationFrames`: Number of native frames in the source
 - `highlights`, `attentions`, `transcription_errors`, `silences`: Arrays of `Section`
 - `chat_history`: Array of `ChatMessage`
 - `transcript`: Array of `TranscriptSegment`
 
 **`RawVideoMetadata`**: Raw video metadata as received from the API. Fields differ from `VideoMetadata`:
-- `length` is an ISO 8601 duration **string** (not milliseconds)
+- `sourceId` and `frameRate` identify the source and its native grid, just as in `VideoMetadata`
+- `length` and raw event timestamps are ISO 8601 duration strings
 - Sections are `RawSection[]`, chat is `RawChatMessage[]`, transcript is `RawTranscriptSegment[]`
 
-Convert `RawVideoMetadata` to `VideoMetadata` before passing data to components.
+Use `parseContent(rawMetadata)` from the package to convert ISO durations to the nearest source frame before passing data to components.
 
-**`Section`**: A time range within a video.
-- `timestamp`: Start time in **milliseconds** (not `start`)
-- `timestamp_end?`: End time in **milliseconds** (not `end`), optional
+**`Section`**: A native range or point event within a source.
+- `sourceFrame`: Inclusive first frame. Chat and transcript events also use `sourceFrame`.
+- `sourceOutFrame?`: Exclusive out point, omitted for point events
 - `category?`, `description?`, `reasoning?`: Optional metadata
 
-**`VideoClip`**: A selected clip within a video.
+**`VideoClip`**: A selection within one source.
 - `id`: Unique identifier
-- `start`: Start time in milliseconds
-- `end`: End time in milliseconds
+- `sourceId`, `sourceFrameRate`: Source identity and native rate
+- `sourceInFrame`, `sourceOutFrame`: Inclusive in point and exclusive out point on the native grid
+- `sourceDurationFrames?`: Native source length, if available, to limit out-point extensions
 - `keyframeSrc?`: Optional thumbnail URL
 
 **`AudioChannel`**: Audio channel configuration.
@@ -463,6 +496,16 @@ Convert `RawVideoMetadata` to `VideoMetadata` before passing data to components.
 - `name`: Display name
 - `level`: Audio level (`0.0` to `1.0`)
 - `muted`: Whether channel is muted
+
+## Upgrading from 0.5.x
+
+When upgrading to 0.6.0, pass editor positions and durations as whole frames instead of milliseconds or seconds.
+
+- **Source review:** Supply `sourceId` and the native `frameRate` in the metadata. If you build `VideoMetadata` directly, replace `length` with `durationFrames` and parsed event timestamps with `sourceFrame` and, for ranges, `sourceOutFrame`. Raw ISO 8601 durations still work with `parseContent`.
+- **Clips:** Replace `start` and `end` with `sourceInFrame` and `sourceOutFrame`. Include `sourceId` and `sourceFrameRate`, and keep these bounds at the source rate even when the project uses a different rate.
+- **Sequence and preview:** Supply the project rate through `ProjectProvider`. Replace `playheadPosition` with `playheadFrame` and preview or waveform `duration` with `durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`. Remove the `duration` prop from `ProjectClipTimeline`; it derives the length from the clips.
+
+To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
 
 ## Development
 

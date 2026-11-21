@@ -1,12 +1,17 @@
 import { action } from "storybook/actions";
+import { sampleFrameRate, sampleSource, withSampleProject } from "@/fixtures/video";
 import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
+import { secondsToFrame } from "@/utils/frames";
 import VideoPreview from "./VideoPreview";
+
+const durationFrames = secondsToFrame(3 * 60, sampleFrameRate);
 
 export default {
   title: "Organisms/VideoPreview",
   component: VideoPreview,
   tags: ["organisms"],
   decorators: [
+    withSampleProject,
     (story: () => React.ReactNode) => <div className="h-screen w-screen">{story()}</div>,
   ],
   parameters: {
@@ -35,7 +40,7 @@ const generateWaveformData = (channelId: string, samples = 400): WaveformData =>
   return {
     channelId,
     amplitudes,
-    duration: 180000, // 3 minutes
+    durationFrames,
     sampleRate: 44100,
   };
 };
@@ -61,29 +66,28 @@ const mockAudioChannels: AudioChannel[] = [
   },
 ];
 
-const mockWaveformData: WaveformData[] = [
-  generateWaveformData("channel-1"),
-  generateWaveformData("channel-2"),
-  generateWaveformData("channel-3"),
-];
-
 const mockCutlist: VideoClip[] = [
   {
     id: "clip-1",
-    start: 10000, // 10 seconds
-    end: 45000, // 45 seconds
+    ...sampleSource,
+    sourceInFrame: 600,
+    sourceOutFrame: 2700,
   },
   {
     id: "clip-2",
-    start: 60000, // 1 minute
-    end: 120000, // 2 minutes
+    ...sampleSource,
+    sourceInFrame: 3600,
+    sourceOutFrame: 7200,
   },
   {
     id: "clip-3",
-    start: 140000, // 2:20
-    end: 170000, // 2:50
+    ...sampleSource,
+    sourceInFrame: 8400,
+    sourceOutFrame: 10_200,
   },
 ];
+
+const mockWaveformData = mockAudioChannels.map(({ id }) => generateWaveformData(id));
 
 const mockPreviewSettings: PreviewSettings = {
   cutlist: mockCutlist,
@@ -96,8 +100,8 @@ export const Default = {
     settings: mockPreviewSettings,
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 30000, // 30 seconds
-    duration: 180000, // 3 minutes
+    playheadFrame: 1800, // 30 seconds
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),
@@ -111,8 +115,8 @@ export const Regenerating = {
     settings: mockPreviewSettings,
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 60000,
-    duration: 180000,
+    playheadFrame: 3600,
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),
@@ -126,8 +130,8 @@ export const Saving = {
     settings: mockPreviewSettings,
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 90000,
-    duration: 180000,
+    playheadFrame: 5400,
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),
@@ -145,8 +149,8 @@ export const SingleChannel = {
     },
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 45000,
-    duration: 180000,
+    playheadFrame: 2700,
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),
@@ -163,8 +167,8 @@ export const EmptyCutlist = {
     },
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 0,
-    duration: 180000,
+    playheadFrame: 0,
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),
@@ -184,8 +188,8 @@ export const AllMuted = {
     },
     previewVideoUrl:
       "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-    playheadPosition: 75000,
-    duration: 180000,
+    playheadFrame: 4500,
+    durationFrames,
     onSettingsChange: action("onSettingsChange"),
     onRegenerate: action("onRegenerate"),
     onSave: action("onSave"),

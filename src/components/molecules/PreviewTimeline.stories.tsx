@@ -1,12 +1,17 @@
 import { action } from "storybook/actions";
+import { sampleFrameRate, sampleSource, withSampleProject } from "@/fixtures/video";
 import type { VideoClip, WaveformData } from "@/types";
+import { secondsToFrame } from "@/utils/frames";
 import PreviewTimeline from "./PreviewTimeline";
+
+const durationFrames = secondsToFrame(2 * 60, sampleFrameRate);
 
 export default {
   title: "Molecules/PreviewTimeline",
   component: PreviewTimeline,
   tags: ["molecules"],
   decorators: [
+    withSampleProject,
     (story: () => React.ReactNode) => (
       <div className="h-[70vh] flex justify-center items-start p-4 overflow-x-auto">{story()}</div>
     ),
@@ -38,7 +43,7 @@ const generateWaveformData = (channelId: string, samples = 400): WaveformData =>
   return {
     channelId,
     amplitudes,
-    duration: 120000, // 2 minutes
+    durationFrames,
     sampleRate: 44100,
   };
 };
@@ -52,91 +57,92 @@ const mockWaveformData: WaveformData[] = [
 const mockCutlist: VideoClip[] = [
   {
     id: "clip-1",
-    start: 5000, // 5 seconds
-    end: 25000, // 25 seconds
+    ...sampleSource,
+    sourceInFrame: 300,
+    sourceOutFrame: 1500,
   },
   {
     id: "clip-2",
-    start: 40000, // 40 seconds
-    end: 70000, // 70 seconds
+    ...sampleSource,
+    sourceInFrame: 2400,
+    sourceOutFrame: 4200,
   },
   {
     id: "clip-3",
-    start: 90000, // 90 seconds
-    end: 110000, // 110 seconds
+    ...sampleSource,
+    sourceInFrame: 5400,
+    sourceOutFrame: 6600,
   },
 ];
 
 export const Default = {
   args: {
     waveformData: mockWaveformData,
-    playheadPosition: 30000, // 30 seconds
+    playheadFrame: 1800, // 30 seconds
     cutlist: mockCutlist,
-    duration: 120000, // 2 minutes
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     onSeek: action("onSeek"),
-    onCutlistChange: action("onCutlistChange"),
   },
 };
 
 export const SingleChannel = {
   args: {
     waveformData: [mockWaveformData[0]],
-    playheadPosition: 15000,
+    playheadFrame: 900,
     cutlist: mockCutlist,
-    duration: 120000,
+    durationFrames,
     width: 800,
     waveformHeight: 80,
     onSeek: action("onSeek"),
-    onCutlistChange: action("onCutlistChange"),
   },
 };
 
 export const LongTimeline = {
   args: {
     waveformData: mockWaveformData,
-    playheadPosition: 180000, // 3 minutes
+    playheadFrame: secondsToFrame(3 * 60, sampleFrameRate),
     cutlist: [
       ...mockCutlist,
       {
         id: "clip-4",
-        start: 150000, // 2.5 minutes
-        end: 210000, // 3.5 minutes
+        ...sampleSource,
+        sourceInFrame: 9000,
+        sourceOutFrame: 12_600,
       },
       {
         id: "clip-5",
-        start: 240000, // 4 minutes
-        end: 280000, // 4:40
+        ...sampleSource,
+        sourceInFrame: 14_400,
+        sourceOutFrame: 16_800,
       },
     ],
-    duration: 300000, // 5 minutes
+    durationFrames: secondsToFrame(5 * 60, sampleFrameRate),
     width: 1200,
     waveformHeight: 50,
     onSeek: action("onSeek"),
-    onCutlistChange: action("onCutlistChange"),
   },
 };
 
 export const EmptyCutlist = {
   args: {
     waveformData: mockWaveformData,
-    playheadPosition: 45000,
+    playheadFrame: 2700,
     cutlist: [],
-    duration: 120000,
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     onSeek: action("onSeek"),
-    onCutlistChange: action("onCutlistChange"),
   },
 };
 
 export const ReadOnly = {
   args: {
     waveformData: mockWaveformData,
-    playheadPosition: 60000,
+    playheadFrame: 3600,
     cutlist: mockCutlist,
-    duration: 120000,
+    durationFrames,
     width: 800,
     waveformHeight: 60,
     // No callbacks provided - should be read-only
@@ -146,12 +152,11 @@ export const ReadOnly = {
 export const CompactView = {
   args: {
     waveformData: mockWaveformData,
-    playheadPosition: 30000,
+    playheadFrame: 1800,
     cutlist: mockCutlist,
-    duration: 120000,
+    durationFrames,
     width: 600,
     waveformHeight: 40,
     onSeek: action("onSeek"),
-    onCutlistChange: action("onCutlistChange"),
   },
 };

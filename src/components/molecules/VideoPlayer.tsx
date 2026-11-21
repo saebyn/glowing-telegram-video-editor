@@ -1,28 +1,46 @@
 import Hls from "hls.js";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import VideoPlayerControls from "@/components/atoms/VideoPlayerControls";
 import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
+import { useProjectFrameRate } from "@/context/ProjectContext";
+import type { FrameRate } from "@/types";
+import { framesToSeconds, secondsToFrame, snapFrame } from "@/utils/frames";
 
 export interface VideoPlayerProps {
   videoUrl: string;
-  onTimeUpdate?: (time: number) => void;
+  /** Omit for a sequence preview, which uses the project frame rate. */
+  sourceFrameRate?: FrameRate;
+  durationFrames: number;
+  onFrameUpdate?: (frame: number) => void;
   onEnd?: () => void;
 }
 
 export interface VideoPlayerRef {
-  seekTo: (milliseconds: number) => void;
+  seekTo: (frame: number) => void;
   togglePlay: () => void;
 }
 
 export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer(
-  { videoUrl, onTimeUpdate, onEnd },
+  { videoUrl, sourceFrameRate, durationFrames, onFrameUpdate, onEnd },
   ref,
 ) {
+  const frameRate = useProjectFrameRate(sourceFrameRate);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [hls, setHls] = useState<Hls | null>(null);
+  const [mediaSeconds, setMediaSeconds] = useState(0);
+  const lastReportedFrame = useRef<number | null>(null);
 
   // manage the hls instance
   useEffect(() => {
+    if (!Hls.isSupported()) return;
     const innerHls = new Hls();
 
     innerHls.loadSource(videoUrl);
@@ -55,22 +73,49 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
     };
   }, [video, hls]);
 
-  const timeUpdate = () => {
-    if (video) {
-      onTimeUpdate?.(video.currentTime * 1000);
-    }
-  };
+  const currentFrame = snapFrame(secondsToFrame(mediaSeconds, frameRate), durationFrames);
+  const reportFrame = useCallback(
+    (frame: number) => {
+      lastReportedFrame.current = frame;
+      onFrameUpdate?.(frame);
+    },
+    [onFrameUpdate],
+  );
 
-  const progress = ((video?.currentTime || 0) / (video?.duration || 1)) * 100;
+  // A new grid can change the frame even when the media clock is paused.
+  useLayoutEffect(() => {
+    if (lastReportedFrame.current !== null && lastReportedFrame.current !== currentFrame) {
+      reportFrame(currentFrame);
+    }
+  }, [currentFrame, reportFrame]);
+
+  const updatePlayhead = useCallback(
+    (seconds: number) => {
+      setMediaSeconds(seconds);
+      reportFrame(snapFrame(secondsToFrame(seconds, frameRate), durationFrames));
+    },
+    [frameRate, durationFrames, reportFrame],
+  );
+
+  const seekToFrame = useCallback(
+    (frame: number) => {
+      if (video) {
+        const seconds = framesToSeconds(snapFrame(frame, durationFrames), frameRate);
+        const target = Number.isFinite(video.duration)
+          ? Math.min(seconds, video.duration)
+          : seconds;
+        video.currentTime = target;
+        // Use the snapped target immediately. Browser playback reports its position later.
+        updatePlayhead(target);
+      }
+    },
+    [video, frameRate, durationFrames, updatePlayhead],
+  );
 
   useImperativeHandle(
     ref,
     () => ({
-      seekTo: (milliseconds: number) => {
-        if (video) {
-          video.currentTime = milliseconds / 1000;
-        }
-      },
+      seekTo: seekToFrame,
 
       togglePlay: () => {
         if (video) {
@@ -82,14 +127,8 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
         }
       },
     }),
-    [video],
+    [video, seekToFrame],
   );
-
-  const seekToPercent = (progress: number) => {
-    if (video) {
-      video.currentTime = (progress / 100) * video.duration;
-    }
-  };
 
   if (!Hls.isSupported()) {
     return (
@@ -108,7 +147,7 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
       <video
         ref={setVideo}
         className="w-full"
-        onTimeUpdate={timeUpdate}
+        onTimeUpdate={(event) => updatePlayhead(event.currentTarget.currentTime)}
         onEnded={onEnd}
         onError={console.error}
       >
@@ -117,9 +156,10 @@ export default forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer
 
       <VideoPlayerControls video={video}>
         <VideoPlayerProgressBar
-          progress={progress}
-          seekToPercent={seekToPercent}
-          duration={video?.duration || 0}
+          playheadFrame={currentFrame}
+          onSeek={seekToFrame}
+          durationFrames={durationFrames}
+          frameRate={frameRate}
         />
       </VideoPlayerControls>
     </>

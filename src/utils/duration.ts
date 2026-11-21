@@ -1,19 +1,23 @@
 import { Temporal } from "temporal-polyfill";
 
+export const NANOSECONDS_PER_SECOND = 1_000_000_000n;
+
 export function isoToSeconds(iso8601Duration: string): number {
   const duration = Temporal.Duration.from(iso8601Duration);
   return duration.total({ unit: "seconds" });
 }
 
-export function isoToMs(iso8601Duration: string): number {
-  const duration = Temporal.Duration.from(iso8601Duration);
-  return duration.total({ unit: "milliseconds" });
-}
-
-export function msToIso(ms: number): string {
-  // truncate to integer, since Temporal.Duration.from() does not accept floats
-  const duration = Temporal.Duration.from({ milliseconds: ms | 0 });
-  return duration.toString();
+/** Get the exact elapsed duration of raw metadata without a floating-point total. */
+export function isoToNanoseconds(iso8601Duration: string): bigint {
+  const { seconds, milliseconds, microseconds, nanoseconds } = Temporal.Duration.from(
+    iso8601Duration,
+  ).round({ largestUnit: "seconds", smallestUnit: "nanoseconds" });
+  return (
+    BigInt(seconds) * NANOSECONDS_PER_SECOND +
+    BigInt(milliseconds) * 1_000_000n +
+    BigInt(microseconds) * 1000n +
+    BigInt(nanoseconds)
+  );
 }
 
 export function secondsToDuration(seconds: number): Temporal.Duration {
@@ -41,27 +45,16 @@ export function format(iso8601: string): string {
   // Cannot use .toLocaleString() since it depends on
   // Intl.DurationFormat which is not yet supported in Node.js.
   // and not supplied by the Temporal polyfill.
-  const seconds = isoToSeconds(iso8601);
-
-  return formatMs(seconds * 1000);
+  return formatSeconds(isoToSeconds(iso8601));
 }
 
-/**
- * Formats a duration in milliseconds into a string representation of minutes and seconds.
- * @param ms - The duration in milliseconds to format.
- * @returns The formatted timestamp string in the format "mm:ss".
- */
-export function formatMs(ms: number): string {
-  const seconds = ms / 1000;
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  let [stringSeconds, stringFractionDigits] = remainingSeconds.toPrecision(2).split(".");
-
-  if (stringFractionDigits === "0") {
-    stringFractionDigits = "";
-  }
-
-  return `${String(minutes).padStart(2, "0")}:${stringSeconds.padStart(2, "0")}${stringFractionDigits ? `.${stringFractionDigits}` : ""}`;
+/** Elapsed-time label, not timecode. Keep enough precision to distinguish neighboring 60 fps frames. */
+export function formatSeconds(seconds: number): string {
+  const ms = Math.round(Math.abs(seconds) * 1000);
+  const minutes = String(Math.floor(ms / 60_000)).padStart(2, "0");
+  const wholeSeconds = String(Math.floor(ms / 1000) % 60).padStart(2, "0");
+  const fraction = String(ms % 1000)
+    .padStart(3, "0")
+    .replace(/0+$/, "");
+  return `${seconds < 0 ? "-" : ""}${minutes}:${wholeSeconds}${fraction ? `.${fraction}` : ""}`;
 }

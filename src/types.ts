@@ -1,3 +1,16 @@
+/** Frames per second as a ratio of positive safe integers (e.g. 30_000 / 1001). */
+export interface FrameRate {
+  numerator: number;
+  denominator: number;
+}
+
+/** An inclusive in point and exclusive out point on a source's native frame grid. */
+export interface SourceRange {
+  sourceInFrame: number;
+  sourceOutFrame: number;
+  sourceFrameRate: FrameRate;
+}
+
 export interface RawSection {
   timestamp_start: string;
   timestamp_end?: string;
@@ -21,6 +34,8 @@ export interface RawChatMessage {
  * Raw video metadata as received from the API.
  */
 export interface RawVideoMetadata {
+  sourceId: string;
+  frameRate: FrameRate;
   title: string;
   video_url: string;
   length: string;
@@ -38,12 +53,12 @@ export interface RawVideoMetadata {
  * This is the type that should be used in the frontend components.
  */
 export interface VideoMetadata {
+  sourceId: string;
+  frameRate: FrameRate;
   title: string;
   video_url: string;
-  /**
-   * Length of the video in milliseconds.
-   */
-  length: number;
+  /** Number of native source frames. Also the exclusive endpoint of the source. */
+  durationFrames: number;
   highlights: Section[];
   attentions: Section[];
   transcription_errors: Section[];
@@ -52,34 +67,19 @@ export interface VideoMetadata {
   transcript: TranscriptSegment[];
 }
 
-export interface Section {
-  /**
-   * Start time of the section in milliseconds.
-   *
-   * If the `timestamp_end` is not provided, this represents a single point in
-   * time.
-   */
-  timestamp: number;
-  /**
-   * End time of the section in milliseconds, if applicable.
-   */
-  timestamp_end?: number;
+export interface Section extends LogEvent {
+  /** Exclusive endpoint; omitted for a point event. */
+  sourceOutFrame?: number;
   category?: string;
   description?: string;
   reasoning?: string;
 }
 
 export interface LogEvent {
-  timestamp: number;
+  sourceFrame: number;
 }
 
 export interface TranscriptSegment extends LogEvent {
-  /**
-   * Start time of the transcript segment in milliseconds.
-   * This is used to sync the transcript with the video.
-   */
-  timestamp: number;
-
   /**
    * The text content of the transcript segment.
    */
@@ -87,11 +87,6 @@ export interface TranscriptSegment extends LogEvent {
 }
 
 export interface ChatMessage extends LogEvent {
-  /**
-   * Timestamp of the chat message in milliseconds.
-   */
-  timestamp: number;
-
   /**
    * Username of the chat message sender.
    */
@@ -106,21 +101,30 @@ export interface ChatMessage extends LogEvent {
 /**
  * A selection within a video.
  */
-export type VideoClip = {
+export interface VideoClip extends SourceRange {
   id: string;
-  /**
-   * Start time in milliseconds
-   */
-  start: number;
-  /**
-   * End time in milliseconds
-   */
-  end: number;
+  /** Host-defined identity of the source, independent of the clip ID. */
+  sourceId: string;
+  /** Optional source length, used to limit out-point extensions. */
+  sourceDurationFrames?: number;
   /**
    * URL to the keyframe image, if available.
    */
   keyframeSrc?: string;
-};
+}
+
+/** A clip in a gapless sequence; the source range remains on its native grid. */
+export interface SequenceClipPlacement {
+  clip: VideoClip;
+  sequenceStartFrame: number;
+  durationFrames: number;
+}
+
+export interface SequenceLayout {
+  frameRate: FrameRate;
+  durationFrames: number;
+  placements: SequenceClipPlacement[];
+}
 
 /**
  * Audio channel information for preview
@@ -151,11 +155,11 @@ export interface WaveformData {
    */
   amplitudes: number[];
   /**
-   * Duration this waveform data represents in milliseconds
+   * Number of project frames this waveform represents
    */
-  duration: number;
+  durationFrames: number;
   /**
-   * Sample rate of the waveform data
+   * Audio sample rate in Hz (not a frame rate)
    */
   sampleRate: number;
 }

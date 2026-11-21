@@ -1,5 +1,5 @@
 import Button from "@/components/atoms/Button";
-import type { Section } from "@/types";
+import type { FrameRate, Section } from "@/types";
 import TimeLink from "../atoms/TimeLink";
 
 function TimeTable({
@@ -9,8 +9,9 @@ function TimeTable({
   includeCategory = false,
   canEdit = false,
   canClip = false,
-  playheadTime,
-  onSeekToTime,
+  playheadFrame,
+  frameRate,
+  onSeekToFrame,
   onClip,
 }: {
   rows: Section[];
@@ -19,8 +20,9 @@ function TimeTable({
   includeCategory?: boolean;
   canEdit?: boolean;
   canClip?: boolean;
-  playheadTime?: number;
-  onSeekToTime?: (milliseconds: number) => void;
+  playheadFrame?: number;
+  frameRate: FrameRate;
+  onSeekToFrame?: (sourceFrame: number) => void;
   onClip?: (section: Section) => void;
 }) {
   return (
@@ -38,23 +40,27 @@ function TimeTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <tr
-              key={`row-${row.category}-${row.timestamp}`}
+              key={`row-${row.sourceFrame}-${index}`}
               className={`${
-                playheadTime &&
-                row.timestamp <= playheadTime &&
-                (row.timestamp_end || 0) >= playheadTime
+                playheadFrame !== undefined &&
+                row.sourceFrame <= playheadFrame &&
+                playheadFrame < (row.sourceOutFrame ?? row.sourceFrame + 1)
                   ? "bg-gray-200 dark:bg-gray-700"
                   : ""
               }`}
             >
               <td className="border-b px-4 py-2">
-                <TimeLink milliseconds={row.timestamp} onClick={onSeekToTime} />
+                <TimeLink frame={row.sourceFrame} frameRate={frameRate} onClick={onSeekToFrame} />
               </td>
               {includeEnd && (
                 <td className="border-b px-4 py-2">
-                  <TimeLink milliseconds={row.timestamp_end} onClick={onSeekToTime} />
+                  <TimeLink
+                    frame={row.sourceOutFrame}
+                    frameRate={frameRate}
+                    onClick={onSeekToFrame}
+                  />
                 </td>
               )}
               {includeCategory && <td className="border-b px-4 py-2">{row?.category}</td>}

@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { withSampleProject } from "@/fixtures/video";
 import ProjectClipPreview from "./ProjectClipPreview";
 
 const meta = {
   title: "Molecules/ProjectClipPreview",
   component: ProjectClipPreview,
   tags: ["molecules"],
+  decorators: [withSampleProject],
 
   argTypes: {
     onSelect: { action: "onSelect" },
@@ -34,7 +36,7 @@ export const Default = {
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-019000.png",
     ],
     title: "Sample Project Clip",
-    durationSeconds: 120,
+    durationFrames: 7200,
     width: "150px",
     height: "115px",
     id: "clip-1",

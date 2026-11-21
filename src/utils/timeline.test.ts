@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createLens, getLensLength, zoomIn, zoomInTowards, zoomOut } from "./timeline";
+import {
+  createLens,
+  getLensLength,
+  zoomIn,
+  zoomInTowards,
+  zoomOut,
+  zoomOutTowards,
+} from "./timeline";
 
 describe("timeline", () => {
   describe("zoom", () => {
@@ -34,8 +41,8 @@ describe("timeline", () => {
       const zoomedLens = zoomInTowards(lens, factor, relativeX);
 
       expect(getLensLength(zoomedLens)).toBe(910);
-      expect(zoomedLens.startMilliseconds).toBe(45);
-      expect(zoomedLens.endMilliseconds).toBe(955);
+      expect(zoomedLens.startFrame).toBe(45);
+      expect(zoomedLens.endFrame).toBe(955);
     });
 
     it("zooms towards the start of the timeline", () => {
@@ -46,10 +53,15 @@ describe("timeline", () => {
 
       const zoomedLens = zoomInTowards(lens, factor, relativeX);
 
-      // When zooming towards the start of the timeline, the startMilliseconds should remain 0
-      // and the endMilliseconds should be reduced by the zoom factor.
-      expect(zoomedLens.startMilliseconds).toBe(0);
-      expect(zoomedLens.endMilliseconds).toBe(909);
+      expect(zoomedLens.startFrame).toBe(0);
+      expect(zoomedLens.endFrame).toBe(909);
     });
+  });
+
+  it("zooms back out from a six-frame view using either zoom control", () => {
+    const lens = { startFrame: 608, endFrame: 614, durationFrames: 3600 };
+
+    expect(getLensLength(zoomOut(lens, 1.1))).toBe(7);
+    expect(getLensLength(zoomOutTowards(lens, 1.1, 0.47))).toBe(7);
   });
 });

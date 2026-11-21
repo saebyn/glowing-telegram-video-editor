@@ -2,15 +2,15 @@ import type React from "react";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import {
   createLens,
+  frameToRelative,
   getLensLength,
   getVisibleElements,
   panLens,
-  relativeToTime,
+  relativeToFrame,
   resetLens,
   type Timeline,
   type TimelineItem,
   type TimelineLens,
-  timeToRelative,
   zoomInTowards,
   zoomOutTowards,
 } from "@/utils/timeline";
@@ -25,13 +25,16 @@ const TimelineContext = createContext<TimelineContextProps | undefined>(undefine
 interface TimelineProviderProps {
   children: ReactNode;
   /**
-   * The total length of the content in milliseconds.
+   * The total length of the source in frames.
    */
-  contentLength: number;
+  durationFrames: number;
 }
 
-export const TimelineProvider = ({ children, contentLength }: TimelineProviderProps) => {
-  const [lens, setLens] = useState<TimelineLens>(createLens(contentLength));
+export const TimelineProvider = ({ children, durationFrames }: TimelineProviderProps) => {
+  const [lens, setLens] = useState<TimelineLens>(() => createLens(durationFrames));
+  if (lens.durationFrames !== durationFrames) {
+    setLens(createLens(durationFrames));
+  }
 
   return <TimelineContext.Provider value={{ lens, setLens }}>{children}</TimelineContext.Provider>;
 };
@@ -39,9 +42,9 @@ export const TimelineProvider = ({ children, contentLength }: TimelineProviderPr
 const zoomFactor = 1.1;
 
 interface TimelineHookResult {
-  timeToRelative(time: number): number;
-  relativeToTime(relative: number): number;
-  pan(deltaMs: number): void;
+  frameToRelative(frame: number): number;
+  relativeToFrame(relative: number): number;
+  pan(offsetFrames: number): void;
   zoomIn(relativeX: number): void;
   zoomOut(relativeX: number): void;
   reset(): void;
@@ -56,14 +59,14 @@ export const useLens = (): TimelineHookResult => {
     throw new Error("useLens must be used within a TimelineProvider");
   }
   return {
-    timeToRelative(time: number) {
-      return timeToRelative(context.lens, time);
+    frameToRelative(frame: number) {
+      return frameToRelative(context.lens, frame);
     },
-    relativeToTime(relative: number) {
-      return relativeToTime(context.lens, relative);
+    relativeToFrame(relative: number) {
+      return relativeToFrame(context.lens, relative);
     },
-    pan(deltaMs: number) {
-      context.setLens((lens) => panLens(lens, deltaMs));
+    pan(offsetFrames: number) {
+      context.setLens((lens) => panLens(lens, offsetFrames));
     },
     zoomIn(relativeX: number) {
       context.setLens((lens) => zoomInTowards(lens, zoomFactor, relativeX));

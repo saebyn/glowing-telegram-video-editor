@@ -1,4 +1,6 @@
 {
+  "sourceId": "demo-sintel",
+  "frameRate": { "numerator": 24, "denominator": 1 },
   "title": "Coding Livestream 1",
   "video_url": "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
   "length": "PT56M35S",

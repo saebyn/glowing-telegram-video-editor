@@ -1,41 +1,39 @@
 import { createRef } from "react";
-import type { LogEvent } from "@/types";
-import useScrollToNearestElementToTime from "../../hooks/useScrollToNearestElementToTime";
+import type { FrameRate, LogEvent } from "@/types";
+import useScrollToNearestFrame from "@/hooks/useScrollToNearestFrame";
 import TimeLink from "../atoms/TimeLink";
 
 interface TimestampedEventLogProps<T extends LogEvent> {
   log: T[];
-  playheadTime: number;
-  onSeekToTime: (milliseconds: number) => void;
+  playheadFrame: number;
+  frameRate: FrameRate;
+  onSeekToFrame: (sourceFrame: number) => void;
   renderEvent: (event: T) => React.ReactNode;
   followPlayback?: boolean;
 }
 
 export default function TimestampedEventLog<T extends LogEvent>({
   log,
-  playheadTime,
-  onSeekToTime,
+  playheadFrame,
+  frameRate,
+  onSeekToFrame,
   renderEvent,
   followPlayback = true,
 }: TimestampedEventLogProps<T>) {
   const ref = createRef<HTMLDivElement>();
-  const nearestElementIndex = useScrollToNearestElementToTime(
-    playheadTime,
-    ref,
-    log,
-    followPlayback,
-  );
+  const nearestElementIndex = useScrollToNearestFrame(playheadFrame, ref, log, followPlayback);
 
   return (
     <div className="mt-4" ref={ref}>
       <ul>
         {log.map((entry, i) => (
           <li
-            key={`entry-${entry.timestamp}`}
+            key={`entry-${entry.sourceFrame}-${i}`}
             className={`mb-2 ${i === nearestElementIndex ? "bg-gray-200 dark:bg-gray-700" : ""}`}
             data-index={i}
           >
-            <TimeLink milliseconds={entry.timestamp} onClick={onSeekToTime} /> {renderEvent(entry)}
+            <TimeLink frame={entry.sourceFrame} frameRate={frameRate} onClick={onSeekToFrame} />{" "}
+            {renderEvent(entry)}
           </li>
         ))}
       </ul>

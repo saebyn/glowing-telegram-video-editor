@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { WaveformData } from "@/types";
+import { snapFrame } from "@/utils/frames";
 
 interface WaveformDisplayProps {
   /**
@@ -15,9 +16,9 @@ interface WaveformDisplayProps {
    */
   height?: number;
   /**
-   * Current playhead position in milliseconds
+   * Current playhead position in sequence frames
    */
-  playheadPosition?: number;
+  playheadFrame?: number;
   /**
    * Color of the waveform
    */
@@ -29,19 +30,21 @@ interface WaveformDisplayProps {
   /**
    * Callback when user clicks on the waveform
    */
-  onSeek?: (milliseconds: number) => void;
+  onSeek?: (sequenceFrame: number) => void;
 }
 
 export default function WaveformDisplay({
   waveformData,
   width = 400,
   height = 80,
-  playheadPosition = 0,
+  playheadFrame = 0,
   color = "#3b82f6",
   playheadColor = "#ef4444",
   onSeek,
 }: WaveformDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { durationFrames } = waveformData;
+  const visibleFrame = snapFrame(playheadFrame, durationFrames);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -74,8 +77,8 @@ export default function WaveformDisplay({
     }
 
     // Draw playhead
-    if (playheadPosition >= 0 && waveformData.duration > 0) {
-      const playheadX = (playheadPosition / waveformData.duration) * width;
+    if (durationFrames > 0) {
+      const playheadX = (visibleFrame / durationFrames) * width;
       ctx.strokeStyle = playheadColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -83,35 +86,29 @@ export default function WaveformDisplay({
       ctx.lineTo(playheadX, height);
       ctx.stroke();
     }
-  }, [waveformData, width, height, playheadPosition, color, playheadColor]);
+  }, [waveformData, width, height, visibleFrame, durationFrames, color, playheadColor]);
 
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!onSeek || waveformData.duration === 0) return;
+    if (!onSeek || durationFrames === 0) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0) return;
     const x = event.clientX - rect.left;
-    const relativeX = x / width;
-    const seekTime = relativeX * waveformData.duration;
-
-    onSeek(Math.max(0, Math.min(seekTime, waveformData.duration)));
+    onSeek(snapFrame((x / rect.width) * durationFrames, durationFrames));
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
-    if (!onSeek || waveformData.duration === 0) return;
+    if (!onSeek || durationFrames === 0) return;
 
     // Allow seeking with arrow keys
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
-      const step = waveformData.duration * 0.05; // 5% step
-      const currentTime = playheadPosition || 0;
-      const newTime =
-        event.key === "ArrowLeft"
-          ? Math.max(0, currentTime - step)
-          : Math.min(waveformData.duration, currentTime + step);
-      onSeek(newTime);
+      const step = Math.max(1, Math.round(durationFrames * 0.05));
+      const offset = event.key === "ArrowLeft" ? -step : step;
+      onSeek(snapFrame(visibleFrame + offset, durationFrames));
     }
   };
 
@@ -128,8 +125,8 @@ export default function WaveformDisplay({
         role="slider"
         aria-label="Waveform timeline"
         aria-valuemin={0}
-        aria-valuemax={waveformData.duration}
-        aria-valuenow={playheadPosition}
+        aria-valuemax={durationFrames}
+        aria-valuenow={visibleFrame}
       />
       {waveformData.amplitudes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">

@@ -1,30 +1,35 @@
 import TimeLink from "@/components/atoms/TimeLink";
-
-export const timeHighlightMargin = 5000;
+import type { FrameRate } from "@/types";
+import { secondsToFrame } from "@/utils/frames";
 
 export default function NavEntry({
-  timestamp,
+  sourceFrame,
   description,
-  onSeekToTime,
-  playheadTime,
+  onSeekToFrame,
+  playheadFrame,
+  frameRate,
 }: {
-  timestamp: number;
+  sourceFrame: number;
   description?: string;
-  onSeekToTime: (milliseconds: number) => void;
-  playheadTime?: number;
+  onSeekToFrame: (sourceFrame: number) => void;
+  playheadFrame?: number;
+  frameRate: FrameRate;
 }) {
-  const shouldHighlight = playheadTime && Math.abs(playheadTime - timestamp) < timeHighlightMargin;
+  const shouldHighlight =
+    playheadFrame !== undefined &&
+    Math.abs(playheadFrame - sourceFrame) < secondsToFrame(5, frameRate);
 
   return (
     <li
-      key={`error-${timestamp}`}
+      key={`error-${sourceFrame}`}
       className={`ml-4 ${shouldHighlight ? "bg-gray-300 dark:bg-gray-600" : ""}`}
     >
       <TimeLink
         className="p-4 text-gray-700 dark:text-gray-200"
-        href={`#${timestamp}`}
-        milliseconds={timestamp}
-        onClick={onSeekToTime}
+        href={`#${sourceFrame}`}
+        frame={sourceFrame}
+        frameRate={frameRate}
+        onClick={onSeekToFrame}
       >
         {" "}
         - {description?.substring(0, 30)}...

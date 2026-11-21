@@ -8,12 +8,12 @@ import type { Section, VideoMetadata } from "@/types";
 
 function Sidebar({
   content,
-  onSeekToTime,
-  playheadTime,
+  onSeekToFrame,
+  playheadFrame,
 }: {
   content: VideoMetadata;
-  onSeekToTime: (milliseconds: number) => void;
-  playheadTime?: number;
+  onSeekToFrame: (sourceFrame: number) => void;
+  playheadFrame?: number;
 }) {
   const [filter, setFilter] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -28,6 +28,20 @@ function Sidebar({
       </aside>
     );
   }
+
+  const matches = matchesFilter(filter);
+  const renderEntries = (sections: Section[], group: string) =>
+    sections.map((section, index) =>
+      matches(section) ? (
+        <NavEntry
+          key={`${group}-${section.sourceFrame}-${index}`}
+          {...section}
+          playheadFrame={playheadFrame}
+          frameRate={content.frameRate}
+          onSeekToFrame={onSeekToFrame}
+        />
+      ) : null,
+    );
 
   return (
     <aside
@@ -46,14 +60,7 @@ function Sidebar({
           <li>
             <HeadingLink href="#highlights">Highlights</HeadingLink>
           </li>
-          {content.highlights.filter(matchesFilter(filter)).map((highlight) => (
-            <NavEntry
-              key={`highlight-${highlight.timestamp}`}
-              {...highlight}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
-            />
-          ))}
+          {renderEntries(content.highlights, "highlight")}
           <li>
             <button
               type="button"
@@ -65,25 +72,11 @@ function Sidebar({
           <li>
             <HeadingLink href="#attentions">Attentions</HeadingLink>
           </li>
-          {content.attentions.filter(matchesFilter(filter)).map((attention) => (
-            <NavEntry
-              key={`attention-${attention.timestamp}`}
-              {...attention}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
-            />
-          ))}
+          {renderEntries(content.attentions, "attention")}
           <li>
             <HeadingLink href="#transcription-errors">Transcription Errors</HeadingLink>
           </li>
-          {content.transcription_errors.filter(matchesFilter(filter)).map((error) => (
-            <NavEntry
-              key={`error-${error.timestamp}`}
-              {...error}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
-            />
-          ))}
+          {renderEntries(content.transcription_errors, "error")}
 
           <li>
             <HeadingLink href="#top">Back to Top</HeadingLink>

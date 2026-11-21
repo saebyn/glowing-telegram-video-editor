@@ -13,7 +13,9 @@ export const Default = () => {
     <div>
       <VideoPlayer
         videoUrl="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-        onTimeUpdate={action("Time Update")}
+        sourceFrameRate={{ numerator: 24, denominator: 1 }}
+        durationFrames={15_216}
+        onFrameUpdate={action("Frame Update")}
         onEnd={action("End")}
       />
     </div>
