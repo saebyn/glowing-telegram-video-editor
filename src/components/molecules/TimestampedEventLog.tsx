@@ -20,11 +20,11 @@ export default function TimestampedEventLog<T extends LogEvent>({
   renderEvent,
   followPlayback = true,
 }: TimestampedEventLogProps<T>) {
-  const ref = createRef<HTMLDivElement>();
-  const nearestElementIndex = useScrollToNearestFrame(playheadFrame, ref, log, followPlayback);
+  const logRef = createRef<HTMLDivElement>();
+  const nearestElementIndex = useScrollToNearestFrame(playheadFrame, logRef, log, followPlayback);
 
   return (
-    <div className="mt-4" ref={ref}>
+    <div className="mt-4" ref={logRef}>
       <ul>
         {log.map((entry, i) => (
           <li

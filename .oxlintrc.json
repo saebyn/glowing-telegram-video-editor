@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "jsx-a11y"],
+  "jsPlugins": [{ "name": "gtve", "specifier": "./scripts/react-ref-lint.mjs" }],
   "env": {
     "browser": true,
     "es2022": true
@@ -11,6 +12,8 @@
     }
   },
   "rules": {
+    "gtve/ref-suffix": "error",
+    "react/immutability": "error",
     "jsx-a11y/click-events-have-key-events": "warn",
     "jsx-a11y/media-has-caption": "warn",
     "jsx-a11y/no-static-element-interactions": "warn"

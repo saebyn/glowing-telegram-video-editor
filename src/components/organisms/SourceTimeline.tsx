@@ -54,10 +54,12 @@ export default function SourceTimeline({
   onSeekToFrame,
   onItemSelect,
 }: SourceTimelineProps) {
-  const widget = useRef<TimelineState>(null);
-  const surface = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ pointerId: number; x: number; left: number; moved: boolean } | null>(null);
-  const pendingScroll = useRef<number | null>(null);
+  const widgetRef = useRef<TimelineState>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; left: number; moved: boolean } | null>(
+    null,
+  );
+  const pendingScrollRef = useRef<number | null>(null);
   const [width, setWidth] = useState(0);
   const [requestedZoom, setZoom] = useState(0);
   const [scrollLeft, setScrolledLeft] = useState(0);
@@ -86,7 +88,7 @@ export default function SourceTimeline({
   const maxScroll = timeWidth * (magnification - 1);
 
   useLayoutEffect(() => {
-    const node = surface.current!;
+    const node = surfaceRef.current!;
     const measure = () => setWidth(node.clientWidth);
     measure();
     const observer = new ResizeObserver(measure);
@@ -95,10 +97,10 @@ export default function SourceTimeline({
   }, []);
 
   useLayoutEffect(() => {
-    const left = Math.min(pendingScroll.current ?? scrollLeft, maxScroll);
-    if (pendingScroll.current !== null || left !== scrollLeft) {
-      pendingScroll.current = null;
-      widget.current?.setScrollLeft(left);
+    const left = Math.min(pendingScrollRef.current ?? scrollLeft, maxScroll);
+    if (pendingScrollRef.current !== null || left !== scrollLeft) {
+      pendingScrollRef.current = null;
+      widgetRef.current?.setScrollLeft(left);
       setScrolledLeft(left);
     }
   }, [maxScroll, scrollLeft]);
@@ -107,12 +109,12 @@ export default function SourceTimeline({
     const next = Math.max(0, Math.min(maxZoom, zoom + delta));
     if (next === zoom) return;
     const anchor = Math.max(0, x - START_LEFT);
-    pendingScroll.current = Math.max(0, (scrollLeft + anchor) * 2 ** (next - zoom) - anchor);
+    pendingScrollRef.current = Math.max(0, (scrollLeft + anchor) * 2 ** (next - zoom) - anchor);
     setZoom(next);
   }
 
   useLayoutEffect(() => {
-    const node = surface.current!;
+    const node = surfaceRef.current!;
     function onWheel(event: WheelEvent) {
       if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY)
         return;
@@ -130,11 +132,16 @@ export default function SourceTimeline({
     if (!(event.target instanceof Element) || !event.target.closest(EDIT_ROW)) {
       return;
     }
-    drag.current = { pointerId: event.pointerId, x: event.clientX, left: scrollLeft, moved: false };
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      left: scrollLeft,
+      moved: false,
+    };
   }
 
   function movePan(event: PointerEvent<HTMLDivElement>) {
-    const pan = drag.current;
+    const pan = dragRef.current;
     if (!pan || pan.pointerId !== event.pointerId) return;
     const delta = pan.x - event.clientX;
     if (!pan.moved) {
@@ -143,11 +150,11 @@ export default function SourceTimeline({
       // Capture only once it's a pan, so a click on a row or marker can still reach the widget.
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-    widget.current?.setScrollLeft(Math.max(0, Math.min(maxScroll, pan.left + delta)));
+    widgetRef.current?.setScrollLeft(Math.max(0, Math.min(maxScroll, pan.left + delta)));
   }
 
   function stopPan(event: PointerEvent<HTMLDivElement>) {
-    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
   }
 
   const { annotationRows, annotations } = useMemo(() => {
@@ -205,7 +212,7 @@ export default function SourceTimeline({
   const rows = useMemo(() => [...annotationRows, chatRow], [annotationRows, chatRow]);
 
   useLayoutEffect(() => {
-    widget.current?.setTime(framesToSeconds(playheadFrame, frameRate));
+    widgetRef.current?.setTime(framesToSeconds(playheadFrame, frameRate));
   }, [playheadFrame, frameRate]);
 
   function seek(seconds: number) {
@@ -227,7 +234,7 @@ export default function SourceTimeline({
           type="button"
           disabled={zoom === 0}
           onClick={() => {
-            pendingScroll.current = 0;
+            pendingScrollRef.current = 0;
             setZoom(0);
           }}
         >
@@ -246,7 +253,7 @@ export default function SourceTimeline({
           ))}
         </div>
         <div
-          ref={surface}
+          ref={surfaceRef}
           className="gtve-source-timeline-surface"
           onPointerDown={startPan}
           onPointerMove={movePan}
@@ -272,7 +279,7 @@ export default function SourceTimeline({
           }}
         >
           <Timeline
-            ref={widget}
+            ref={widgetRef}
             editorData={rows}
             effects={EFFECTS}
             style={{ width: "100%", height: 42 + LANES.length * ROW_HEIGHT + 12 }}

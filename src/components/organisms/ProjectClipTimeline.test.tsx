@@ -11,14 +11,14 @@ vi.mock("@keplar-404/react-timeline-editor", async () => {
   const { useImperativeHandle, useState } = await import("react");
   return {
     Timeline: ({
-      ref,
+      ref: widgetRef,
       editorData,
       getActionRender,
       onClickTimeArea,
       onClickRow,
     }: TimelineEditor & { ref?: Ref<Pick<TimelineState, "setTime">> }) => {
       const [time, setTime] = useState(0);
-      useImperativeHandle(ref, () => ({ setTime }));
+      useImperativeHandle(widgetRef, () => ({ setTime }));
       return (
         <>
           <div
