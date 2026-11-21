@@ -31,7 +31,7 @@ An edit assembled from clip placements across one or more tracks.
 _Avoid_: “Timeline” for the edit itself.
 
 **Track**:
-A part of a sequence on which clips can be placed. A track may be empty or contain placements that cover only part of the sequence.
+A part of a sequence on which clips can be placed. A track may be empty or contain placements that cover only part of the sequence. All tracks extend from the beginning to the end of the sequence timeline, and clips placed on two or more tracks so as to overlap at the same sequence frame can be described as playing simultaneously. Multiple tracks cannot overlap each other  on the same track.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 
 **Clip placement**:
@@ -73,9 +73,6 @@ _Avoid_: “Frame count” for a frame position, or “offset” for a duration.
 **Timecode**:
 A display label that identifies a frame at a specified frame rate.
 _Avoid_: “Timecode” for an elapsed-time label such as `01:30`, or for a stored frame position.
-
-**Media timestamp**:
-A time value on the underlying media stream’s clock, distinct from a source frame, sequence frame, or display timecode.
 
 ### Audio
 
