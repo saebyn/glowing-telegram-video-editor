@@ -4,6 +4,8 @@ import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
 import { convertFrameOffset, formatFrames, layoutSequence, snapFrame } from "@/utils/frames";
 
+const MIN_INLINE_TRIM_WIDTH = 16; // two 8px handles
+
 export interface ProjectClipTimelineProps {
   /**
    * Clips arranged on the timeline
@@ -100,6 +102,7 @@ export default function ProjectClipTimeline({
 }: ProjectClipTimelineProps) {
   const frameRate = useProjectFrameRate();
   const timelineRef = useRef<HTMLElement>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [hoveredClipId, setHoveredClipId] = useState<string | null>(null);
@@ -118,6 +121,23 @@ export default function ProjectClipTimeline({
         frameRate,
       )
     : layout;
+  const narrowClips = layout.placements.filter(
+    ({ durationFrames }) =>
+      trackWidth > 0 &&
+      layout.durationFrames > 0 &&
+      (durationFrames / layout.durationFrames) * trackWidth < MIN_INLINE_TRIM_WIDTH,
+  );
+  const narrowClipIds = new Set(narrowClips.map(({ clip }) => clip.id));
+
+  useEffect(() => {
+    const track = timelineRef.current;
+    if (!track) return;
+    const measure = () => setTrackWidth(track.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, []);
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     event.dataTransfer.setData("text/plain", index.toString());
@@ -242,6 +262,35 @@ export default function ProjectClipTimeline({
     onClipTrim?.(trimmed.id, trimmed.sourceInFrame, trimmed.sourceOutFrame);
   };
 
+  const renderTrimHandle = (clip: VideoClip, edge: TrimEdge, compact = false) => {
+    const label = `Trim ${edge} point`;
+    const side = edge === "in" ? "left-0" : "right-0";
+    return (
+      <button
+        key={edge}
+        type="button"
+        className={
+          compact
+            ? "cursor-ew-resize rounded-sm bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
+            : `absolute ${side} top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0`
+        }
+        onMouseDown={(e) => handleTrimStart(e, clip, edge)}
+        onKeyDown={(e) => handleTrimKeyDown(e, clip, edge)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={label}
+        title={`${label} (drag or use arrow keys)`}
+      >
+        {compact ? (
+          label
+        ) : (
+          <div
+            className={`absolute ${side} top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-sm`}
+          />
+        )}
+      </button>
+    );
+  };
+
   // Handle trim mouse events
   useEffect(() => {
     if (!trimmingClip) return;
@@ -348,19 +397,10 @@ export default function ProjectClipTimeline({
                 width: `${toPercent(durationFrames)}%`,
               }}
             >
-              <div className="relative h-full">
-                {/* Start trim handle */}
-                <button
-                  type="button"
-                  className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
-                  onMouseDown={(e) => handleTrimStart(e, clip, "in")}
-                  onKeyDown={(e) => handleTrimKeyDown(e, clip, "in")}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Trim in point"
-                  title="Trim in point (use arrow keys to adjust)"
-                >
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r" />
-                </button>
+              <div
+                className={`relative h-full ${narrowClipIds.has(clip.id) ? "overflow-hidden" : ""}`}
+              >
+                {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "in")}
 
                 <ProjectClipPreview
                   id={clip.id}
@@ -377,18 +417,7 @@ export default function ProjectClipTimeline({
                   }
                 />
 
-                {/* End trim handle */}
-                <button
-                  type="button"
-                  className="absolute right-0 top-0 bottom-0 w-2 bg-blue-500 opacity-80 hover:opacity-100 focus-visible:opacity-100 cursor-ew-resize z-20 transition-opacity group-hover:opacity-100 border-0 p-0"
-                  onMouseDown={(e) => handleTrimStart(e, clip, "out")}
-                  onKeyDown={(e) => handleTrimKeyDown(e, clip, "out")}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Trim out point"
-                  title="Trim out point (use arrow keys to adjust)"
-                >
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l" />
-                </button>
+                {!narrowClipIds.has(clip.id) && renderTrimHandle(clip, "out")}
 
                 {/* Remove button */}
                 <button
@@ -430,6 +459,24 @@ export default function ProjectClipTimeline({
           </div>
         )}
       </section>
+      {narrowClips.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2 text-sm text-gray-900 dark:text-gray-100">
+          {narrowClips.map(({ clip }) => {
+            const title = titles[clip.id] || `Clip ${clip.id}`;
+            return (
+              <fieldset
+                key={clip.id}
+                aria-label={`Trim ${title}`}
+                className="flex min-w-0 flex-wrap items-center gap-2 rounded-sm border border-gray-300 p-2 dark:border-gray-600"
+              >
+                <span>{title}</span>
+                {renderTrimHandle(clip, "in", true)}
+                {renderTrimHandle(clip, "out", true)}
+              </fieldset>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
