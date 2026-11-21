@@ -1,149 +1,58 @@
 import { describe, expect, it } from "vitest";
-import type { Section } from "@/types";
 import findGaps from "./findGaps";
 
+const settings = { minSectionFrames: 5, minGapFrames: 10, durationFrames: 50 };
+
 describe("findGaps", () => {
-  it("should find gaps between sections", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 20, timestamp_end: 30 },
-      { timestamp: 40, timestamp_end: 50 },
-    ];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 1,
-      length: 50,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([
-      { id: "10-20", start: 10, end: 20 },
-      { id: "30-40", start: 30, end: 40 },
+  it("finds native ranges between sections", () => {
+    expect(
+      findGaps(settings, [
+        { sourceFrame: 0, sourceOutFrame: 10 },
+        { sourceFrame: 20, sourceOutFrame: 30 },
+        { sourceFrame: 40, sourceOutFrame: 50 },
+      ]),
+    ).toEqual([
+      { sourceInFrame: 10, sourceOutFrame: 20 },
+      { sourceInFrame: 30, sourceOutFrame: 40 },
     ]);
   });
 
-  it("should return an empty array if no gaps are found", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 11, timestamp_end: 20 },
-    ];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 2,
-      length: 20,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([]);
+  it("ignores point events and short sections", () => {
+    expect(
+      findGaps(settings, [
+        { sourceFrame: 0, sourceOutFrame: 10 },
+        { sourceFrame: 14, sourceOutFrame: 17 },
+        { sourceFrame: 20 },
+        { sourceFrame: 30, sourceOutFrame: 40 },
+      ]),
+    ).toEqual([
+      { sourceInFrame: 10, sourceOutFrame: 30 },
+      { sourceInFrame: 40, sourceOutFrame: 50 },
+    ]);
   });
 
-  it("should handle sections with undefined timestamp_end", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 20 },
-      { timestamp: 30, timestamp_end: 40 },
-    ];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 1,
-      length: 40,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([{ id: "10-30", start: 10, end: 30 }]);
+  it("ignores gaps smaller than the threshold", () => {
+    expect(
+      findGaps(settings, [
+        { sourceFrame: 0, sourceOutFrame: 10 },
+        { sourceFrame: 19, sourceOutFrame: 41 },
+      ]),
+    ).toEqual([]);
   });
 
-  it("should ignore gaps that are less than the minimum gap duration", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 15, timestamp_end: 25 },
-    ];
-    const settings = {
-      minSectionDuration: 10,
-      minGapDuration: 10,
-      length: 30,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([]);
+  it("includes the entire source when there are no qualifying sections", () => {
+    expect(findGaps(settings, [])).toEqual([{ sourceInFrame: 0, sourceOutFrame: 50 }]);
   });
 
-  it("should handle an empty array of sections", async () => {
-    const sections: Section[] = [];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 1,
-      length: 50,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([{ id: "0-50", start: 0, end: 50 }]);
-  });
-
-  it("should handle a single section", async () => {
-    const sections: Section[] = [{ timestamp: 0, timestamp_end: 10 }];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 1,
-      length: 50,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([expect.objectContaining({ start: 10, end: 50 })]);
-  });
-
-  it("should find gaps greater than or equal to the minimum gap duration but ignore gaps less than the minimum gap duration", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 15, timestamp_end: 25 },
-      { timestamp: 35, timestamp_end: 40 },
-    ];
-    const settings = {
-      minSectionDuration: 1,
-      minGapDuration: 10,
-      length: 40,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([expect.objectContaining({ start: 25, end: 35 })]);
-  });
-
-  it("should handle timestamps that are floats", async () => {
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10.5 },
-      { timestamp: 20.5, timestamp_end: 30.5 },
-    ];
-    const settings = {
-      minSectionDuration: 5,
-      minGapDuration: 1,
-      length: 30.5,
-    };
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([expect.objectContaining({ start: 10.5, end: 20.5 })]);
-  });
-
-  it("should return the entire duration of the video if there are no sections longer than the minimum section duration", async () => {
-    const settings = {
-      minSectionDuration: 1000,
-      minGapDuration: 1,
-      length: 50,
-    };
-    const sections: Section[] = [
-      { timestamp: 0, timestamp_end: 10 },
-      { timestamp: 15, timestamp_end: 20 },
-    ];
-
-    const gaps = await findGaps(settings, sections);
-
-    expect(gaps).toEqual([expect.objectContaining({ start: 0, end: 50 })]);
+  it("does not split overlapping silence sections", () => {
+    expect(
+      findGaps(settings, [
+        { sourceFrame: 17, sourceOutFrame: 22 },
+        { sourceFrame: 12, sourceOutFrame: 36 },
+      ]),
+    ).toEqual([
+      { sourceInFrame: 0, sourceOutFrame: 12 },
+      { sourceInFrame: 36, sourceOutFrame: 50 },
+    ]);
   });
 });

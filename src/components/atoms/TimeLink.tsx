@@ -1,23 +1,27 @@
 import type React from "react";
 
-import { formatMs, msToIso } from "@/utils/duration";
+import type { FrameRate } from "@/types";
+import { secondsToDuration } from "@/utils/duration";
+import { formatFrames, framesToSeconds } from "@/utils/frames";
 
 interface TimeLinkProps {
-  milliseconds?: number;
-  onClick?: (milliseconds: number) => void;
+  frame?: number;
+  frameRate: FrameRate;
+  onClick?: (frame: number) => void;
   children?: React.ReactNode;
   href?: string;
   className?: string;
 }
 
 export default function TimeLink({
-  milliseconds,
+  frame,
+  frameRate,
   onClick,
   children,
   href,
   className,
 }: TimeLinkProps) {
-  if (milliseconds === undefined) {
+  if (frame === undefined || !Number.isSafeInteger(frame) || frame < 0) {
     return null;
   }
 
@@ -34,10 +38,12 @@ export default function TimeLink({
         }
         onClick={(e) => {
           e.preventDefault();
-          onClick(milliseconds);
+          onClick(frame);
         }}
       >
-        <time dateTime={msToIso(milliseconds)}>{formatMs(milliseconds)}</time>
+        <time dateTime={secondsToDuration(framesToSeconds(frame, frameRate)).toString()}>
+          {formatFrames(frame, frameRate)}
+        </time>
         &nbsp;
         {children}
       </a>
@@ -45,7 +51,7 @@ export default function TimeLink({
   }
   return (
     <>
-      {formatMs(milliseconds)}&nbsp;
+      {formatFrames(frame, frameRate)}&nbsp;
       {children}
     </>
   );

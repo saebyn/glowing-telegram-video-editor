@@ -7,14 +7,14 @@ export default {
   tags: ["atoms"],
   decorators: [
     (story: () => React.ReactNode) => (
-      <TimelineProvider contentLength={1000 * 60 * 60}>{story()}</TimelineProvider>
+      <TimelineProvider durationFrames={3600}>{story()}</TimelineProvider>
     ),
   ],
 };
 
 export const Default = {
   args: {
-    timestampMilliseconds: 60000,
+    sourceFrame: 600,
     className: "bg-red-500",
   },
 };

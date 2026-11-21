@@ -1,4 +1,5 @@
-import type { FrameRate, SourceRange } from "@/types";
+import type { FrameRate, SequenceLayout, SourceRange, VideoClip } from "@/types";
+import { formatSeconds } from "./duration";
 
 export function framesToSeconds(frames: number, rate: FrameRate): number {
   return (frames * rate.denominator) / rate.numerator;
@@ -7,6 +8,10 @@ export function framesToSeconds(frames: number, rate: FrameRate): number {
 /** Snap elapsed seconds to the nearest frame, with ties toward the higher frame. */
 export function secondsToFrame(seconds: number, rate: FrameRate): number {
   return Math.round((seconds * rate.numerator) / rate.denominator);
+}
+
+export function formatFrames(frames: number, rate: FrameRate): string {
+  return formatSeconds(framesToSeconds(frames, rate));
 }
 
 /** Clamp to the timeline, including its exclusive endpoint for out points. */
@@ -32,4 +37,16 @@ export function getProjectFrameCount(range: SourceRange, projectFrameRate: Frame
   return sourceCount > 0
     ? Math.max(1, convertFrameOffset(sourceCount, range.sourceFrameRate, projectFrameRate))
     : 0;
+}
+
+/** Lay out a gapless cutlist for both sequence UI and the host renderer. */
+export function layoutSequence(clips: readonly VideoClip[], frameRate: FrameRate): SequenceLayout {
+  let durationFrames = 0;
+  const placements = clips.map((clip) => {
+    const count = getProjectFrameCount(clip, frameRate);
+    const placement = { clip, sequenceStartFrame: durationFrames, durationFrames: count };
+    durationFrames += count;
+    return placement;
+  });
+  return { frameRate, durationFrames, placements };
 }

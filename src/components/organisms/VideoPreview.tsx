@@ -3,7 +3,7 @@ import Button from "@/components/atoms/Button";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPlayer, { type VideoPlayerRef } from "@/components/molecules/VideoPlayer";
-import type { AudioChannel, PreviewSettings, VideoClip } from "@/types";
+import type { AudioChannel, PreviewSettings } from "@/types";
 import { hasAudioChanges } from "@/utils/audioChannels";
 
 interface VideoPreviewProps {
@@ -16,13 +16,13 @@ interface VideoPreviewProps {
    */
   previewVideoUrl: string;
   /**
-   * Current playhead position in milliseconds
+   * Initial playhead position in sequence frames
    */
-  playheadPosition?: number;
+  playheadFrame?: number;
   /**
-   * Total duration of the preview in milliseconds
+   * Number of project frames in the host-supplied preview
    */
-  duration: number;
+  durationFrames: number;
   /**
    * Callback when preview settings change
    */
@@ -48,8 +48,8 @@ interface VideoPreviewProps {
 export default function VideoPreview({
   settings,
   previewVideoUrl,
-  playheadPosition = 0,
-  duration,
+  playheadFrame = 0,
+  durationFrames,
   onSettingsChange,
   onRegenerate,
   onSave,
@@ -57,7 +57,7 @@ export default function VideoPreview({
   saving = false,
 }: VideoPreviewProps) {
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
-  const [currentTime, setCurrentTime] = useState(playheadPosition);
+  const [currentFrame, setCurrentFrame] = useState(playheadFrame);
 
   const handleAudioChannelsChange = (channels: AudioChannel[]) => {
     const updatedSettings = {
@@ -67,21 +67,9 @@ export default function VideoPreview({
     onSettingsChange?.(updatedSettings);
   };
 
-  const handleCutlistChange = (cutlist: VideoClip[]) => {
-    const updatedSettings = {
-      ...settings,
-      cutlist,
-    };
-    onSettingsChange?.(updatedSettings);
-  };
-
-  const handleSeekToTime = (milliseconds: number) => {
-    videoPlayerRef.current?.seekTo(milliseconds);
-    setCurrentTime(milliseconds);
-  };
-
-  const handleTimeUpdate = (time: number) => {
-    setCurrentTime(time);
+  const handleSeek = (sequenceFrame: number) => {
+    setCurrentFrame(sequenceFrame);
+    videoPlayerRef.current?.seekTo(sequenceFrame);
   };
 
   const handleRegenerate = () => {
@@ -127,7 +115,8 @@ export default function VideoPreview({
             <VideoPlayer
               ref={videoPlayerRef}
               videoUrl={previewVideoUrl}
-              onTimeUpdate={handleTimeUpdate}
+              durationFrames={durationFrames}
+              onFrameUpdate={setCurrentFrame}
             />
           </div>
 
@@ -135,11 +124,10 @@ export default function VideoPreview({
           <div className="flex-1 overflow-auto p-4">
             <PreviewTimeline
               waveformData={settings.waveformData}
-              playheadPosition={currentTime}
+              playheadFrame={currentFrame}
               cutlist={settings.cutlist}
-              duration={duration}
-              onSeek={handleSeekToTime}
-              onCutlistChange={handleCutlistChange}
+              durationFrames={durationFrames}
+              onSeek={handleSeek}
             />
           </div>
         </div>

@@ -1,10 +1,8 @@
 import { createRoot } from "react-dom/client";
-import { VideoSelectionPage } from ".";
+import { parseContent, VideoSelectionPage } from ".";
+import rawContent from "./data.json";
 
 const container = document.getElementById("root") as HTMLDivElement;
 const root = createRoot(container);
-
-import parseContent from "@/utils/parseData";
-import rawContent from "./data.json";
 
 root.render(<VideoSelectionPage content={parseContent(rawContent)} />);

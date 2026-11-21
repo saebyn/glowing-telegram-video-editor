@@ -1,4 +1,5 @@
 import { action } from "storybook/actions";
+import { sampleFrameRate } from "@/fixtures/video";
 import VideoPlayerProgressBar from "./VideoPlayerProgressBar";
 
 export default {
@@ -9,16 +10,18 @@ export default {
 
 export const Default = {
   args: {
-    progress: 0,
-    seekToPercent: action("Seek to Percent"),
-    duration: 100,
+    playheadFrame: 0,
+    onSeek: action("Seek to Frame"),
+    durationFrames: 6000,
+    frameRate: sampleFrameRate,
   },
 };
 
 export const Progress = {
   args: {
-    progress: 70,
-    seekToPercent: action("Seek to Percent"),
-    duration: 100,
+    playheadFrame: 4200,
+    onSeek: action("Seek to Frame"),
+    durationFrames: 6000,
+    frameRate: sampleFrameRate,
   },
 };

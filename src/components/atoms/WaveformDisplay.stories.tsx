@@ -22,7 +22,7 @@ const generateWaveformData = (samples = 200): WaveformData => {
   return {
     channelId: "channel-1",
     amplitudes,
-    duration: 60000, // 1 minute
+    durationFrames: 3600, // 1 minute at 60 fps
     sampleRate: 44100,
   };
 };
@@ -34,7 +34,7 @@ export const Default = {
     waveformData: mockWaveformData,
     width: 400,
     height: 80,
-    playheadPosition: 15000, // 15 seconds
+    playheadFrame: 900, // 15 seconds
     onSeek: action("onSeek"),
   },
 };
@@ -44,7 +44,7 @@ export const Large = {
     waveformData: mockWaveformData,
     width: 800,
     height: 120,
-    playheadPosition: 30000, // 30 seconds
+    playheadFrame: 1800, // 30 seconds
     onSeek: action("onSeek"),
   },
 };
@@ -54,7 +54,7 @@ export const CustomColors = {
     waveformData: mockWaveformData,
     width: 600,
     height: 100,
-    playheadPosition: 45000, // 45 seconds
+    playheadFrame: 2700, // 45 seconds
     color: "#10b981", // emerald
     playheadColor: "#f59e0b", // amber
     onSeek: action("onSeek"),
@@ -66,7 +66,7 @@ export const Interactive = {
     waveformData: mockWaveformData,
     width: 500,
     height: 80,
-    playheadPosition: 0,
+    playheadFrame: 0,
     onSeek: action("onSeek"),
   },
 };
@@ -76,7 +76,7 @@ export const NoPlayhead = {
     waveformData: mockWaveformData,
     width: 400,
     height: 80,
-    // No playheadPosition provided - should default to 0
+    // No playheadFrame provided - should default to 0
     onSeek: action("onSeek"),
   },
 };
@@ -86,7 +86,7 @@ export const ReadOnly = {
     waveformData: mockWaveformData,
     width: 400,
     height: 80,
-    playheadPosition: 20000,
+    playheadFrame: 1200,
     // No onSeek callback - should be read-only
   },
 };

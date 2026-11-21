@@ -3,7 +3,8 @@ import IconButton from "@/components/atoms/IconButton";
 
 import TimeLink from "@/components/atoms/TimeLink";
 import type { VideoClip } from "@/types";
-import { formatMs } from "@/utils/duration";
+import { formatSeconds } from "@/utils/duration";
+import { framesToSeconds } from "@/utils/frames";
 import DEFAULT_KEYFRAME_SRC from "../../assets/logo.svg";
 
 interface Props {
@@ -13,9 +14,9 @@ interface Props {
   onExport: () => void;
   onRemove: (id: string) => void;
   onReorder: (clips: VideoClip[]) => void;
-  onCopyStartTime: (id: string) => void;
-  onCopyEndTime: (id: string) => void;
-  onSeekToTime: (milliseconds: number) => void;
+  onCopyInPoint: (id: string) => void;
+  onCopyOutPoint: (id: string) => void;
+  onSeekToFrame: (sourceFrame: number) => void;
 }
 
 export default function ClipSelectionDialog({
@@ -25,22 +26,21 @@ export default function ClipSelectionDialog({
   onExport,
   onRemove,
   onReorder,
-  onCopyStartTime,
-  onCopyEndTime,
-  onSeekToTime,
+  onCopyInPoint,
+  onCopyOutPoint,
+  onSeekToFrame,
 }: Props) {
   if (!show) {
     return null;
   }
 
-  const totalDuration = clips.reduce((total, clip) => {
-    const duration = clip.end - clip.start;
-    return Number.isFinite(clip.start) &&
-      Number.isFinite(clip.end) &&
-      clip.start >= 0 &&
-      Number.isFinite(duration) &&
-      duration > 0
-      ? total + duration
+  const totalSeconds = clips.reduce((total, clip) => {
+    const { sourceInFrame, sourceOutFrame, sourceFrameRate } = clip;
+    return Number.isSafeInteger(sourceInFrame) &&
+      Number.isSafeInteger(sourceOutFrame) &&
+      sourceInFrame >= 0 &&
+      sourceOutFrame > sourceInFrame
+      ? total + framesToSeconds(sourceOutFrame - sourceInFrame, sourceFrameRate)
       : total;
   }, 0);
 
@@ -60,9 +60,9 @@ export default function ClipSelectionDialog({
       <div className="flex items-center justify-between mb-4">
         <div className="mr-4">
           <h2 className="text-xl font-bold">Selected Clips</h2>
-          <p role="status" className="font-semibold tabular-nums">
-            Total duration: {formatMs(totalDuration)}
-          </p>
+          <output className="block font-semibold tabular-nums">
+            Total duration: {formatSeconds(totalSeconds)}
+          </output>
         </div>
         <Button variant="danger" onClick={onClear}>
           Clear
@@ -84,8 +84,17 @@ export default function ClipSelectionDialog({
               className="mr-2"
             />
             <div className="flex-grow">
-              <TimeLink onClick={onSeekToTime} milliseconds={clip.start} />-{" "}
-              <TimeLink onClick={onSeekToTime} milliseconds={clip.end} />
+              <TimeLink
+                onClick={onSeekToFrame}
+                frame={clip.sourceInFrame}
+                frameRate={clip.sourceFrameRate}
+              />
+              -{" "}
+              <TimeLink
+                onClick={onSeekToFrame}
+                frame={clip.sourceOutFrame}
+                frameRate={clip.sourceFrameRate}
+              />
             </div>
             <div className="flex space-x-1">
               <IconButton
@@ -107,15 +116,15 @@ export default function ClipSelectionDialog({
                 title="Move down"
               />
               <IconButton
-                onClick={() => onCopyStartTime(clip.id)}
+                onClick={() => onCopyInPoint(clip.id)}
                 icon="line_start_square"
-                title="Copy start time from playhead"
+                title="Copy in point from playhead"
                 variant="secondary"
               />
               <IconButton
-                onClick={() => onCopyEndTime(clip.id)}
+                onClick={() => onCopyOutPoint(clip.id)}
                 icon="line_end_square"
-                title="Copy end time from playhead"
+                title="Copy out point from playhead"
                 variant="secondary"
               />
             </div>

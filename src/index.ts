@@ -21,4 +21,10 @@ export {
 
 export type * from "./types";
 export { ProjectProvider, type ProjectProviderProps } from "./context/ProjectContext";
-export { framesToSeconds, getProjectFrameCount, secondsToFrame } from "./utils/frames";
+export {
+  framesToSeconds,
+  getProjectFrameCount,
+  layoutSequence,
+  secondsToFrame,
+} from "./utils/frames";
+export { default as parseContent } from "./utils/parseData";

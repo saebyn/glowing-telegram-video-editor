@@ -1,6 +1,8 @@
 import { useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
+import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { VideoClip } from "@/types";
+import { getProjectFrameCount } from "@/utils/frames";
 
 export interface ProjectClipPoolProps {
   /**
@@ -57,6 +59,7 @@ export default function ProjectClipPool({
   onDragStart,
   showCheckboxes = false,
 }: ProjectClipPoolProps) {
+  const frameRate = useProjectFrameRate();
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
 
   const handleClipSelect = (clipId: string, selected: boolean) => {
@@ -88,35 +91,31 @@ export default function ProjectClipPool({
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
       <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Clip Pool</h2>
       <div className="flex flex-wrap gap-4">
-        {clips.map((clip) => {
-          const durationSeconds = (clip.end - clip.start) / 1000;
-
-          return (
-            <div
-              key={clip.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, clip.id)}
-              className="cursor-grab active:cursor-grabbing"
-            >
-              <ProjectClipPreview
-                id={clip.id}
-                thumbnailUrl={thumbnails[clip.id] || clip.keyframeSrc || ""}
-                keyframeUrls={keyframes[clip.id] || []}
-                title={titles[clip.id]}
-                durationSeconds={durationSeconds}
-                width={clipWidth}
-                height={clipHeight}
-                onTitleUpdate={handleTitleUpdate}
-                {...(showCheckboxes
-                  ? {
-                      showCheckbox: true,
-                      onSelect: handleClipSelect,
-                    }
-                  : { showCheckbox: false })}
-              />
-            </div>
-          );
-        })}
+        {clips.map((clip) => (
+          <div
+            key={clip.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, clip.id)}
+            className="cursor-grab active:cursor-grabbing"
+          >
+            <ProjectClipPreview
+              id={clip.id}
+              thumbnailUrl={thumbnails[clip.id] || clip.keyframeSrc || ""}
+              keyframeUrls={keyframes[clip.id] || []}
+              title={titles[clip.id]}
+              durationFrames={getProjectFrameCount(clip, frameRate)}
+              width={clipWidth}
+              height={clipHeight}
+              onTitleUpdate={handleTitleUpdate}
+              {...(showCheckboxes
+                ? {
+                    showCheckbox: true,
+                    onSelect: handleClipSelect,
+                  }
+                : { showCheckbox: false })}
+            />
+          </div>
+        ))}
         {clips.length === 0 && (
           <div className="text-gray-500 dark:text-gray-400 italic">No clips available</div>
         )}

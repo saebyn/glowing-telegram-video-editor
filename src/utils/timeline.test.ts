@@ -34,8 +34,8 @@ describe("timeline", () => {
       const zoomedLens = zoomInTowards(lens, factor, relativeX);
 
       expect(getLensLength(zoomedLens)).toBe(910);
-      expect(zoomedLens.startMilliseconds).toBe(45);
-      expect(zoomedLens.endMilliseconds).toBe(955);
+      expect(zoomedLens.startFrame).toBe(45);
+      expect(zoomedLens.endFrame).toBe(955);
     });
 
     it("zooms towards the start of the timeline", () => {
@@ -46,10 +46,8 @@ describe("timeline", () => {
 
       const zoomedLens = zoomInTowards(lens, factor, relativeX);
 
-      // When zooming towards the start of the timeline, the startMilliseconds should remain 0
-      // and the endMilliseconds should be reduced by the zoom factor.
-      expect(zoomedLens.startMilliseconds).toBe(0);
-      expect(zoomedLens.endMilliseconds).toBe(909);
+      expect(zoomedLens.startFrame).toBe(0);
+      expect(zoomedLens.endFrame).toBe(909);
     });
   });
 });

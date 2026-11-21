@@ -7,10 +7,12 @@ import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPreview from "@/components/organisms/VideoPreview";
+import { ProjectProvider } from "@/context/ProjectContext";
 
 import type { AudioChannel, PreviewSettings, VideoClip, WaveformData } from "@/types";
 
 describe("Video Preview Components", () => {
+  const frameRate = { numerator: 60, denominator: 1 };
   const sampleAudioChannel: AudioChannel = {
     id: "1",
     name: "Test Channel",
@@ -21,15 +23,17 @@ describe("Video Preview Components", () => {
   const sampleWaveformData: WaveformData = {
     channelId: "1",
     amplitudes: [0.1, 0.2, 0.3, 0.2, 0.1],
-    duration: 5000,
+    durationFrames: 300,
     sampleRate: 44100,
   };
 
   const sampleClips: VideoClip[] = [
     {
       id: "1",
-      start: 1000,
-      end: 2000,
+      sourceId: "test-source",
+      sourceFrameRate: frameRate,
+      sourceInFrame: 60,
+      sourceOutFrame: 360,
     },
   ];
 
@@ -68,19 +72,23 @@ describe("Video Preview Components", () => {
 
   it("renders PreviewTimeline", () => {
     const { getByText } = render(
-      <PreviewTimeline
-        waveformData={[sampleWaveformData]}
-        playheadPosition={1500}
-        cutlist={sampleClips}
-        duration={5000}
-      />,
+      <ProjectProvider frameRate={frameRate}>
+        <PreviewTimeline
+          waveformData={[sampleWaveformData]}
+          playheadFrame={90}
+          cutlist={sampleClips}
+          durationFrames={300}
+        />
+      </ProjectProvider>,
     );
     expect(getByText("Preview Timeline")).toBeTruthy();
   });
 
   it("renders VideoPreview", () => {
     const { getByText } = render(
-      <VideoPreview settings={sampleSettings} previewVideoUrl="test-url" duration={5000} />,
+      <ProjectProvider frameRate={frameRate}>
+        <VideoPreview settings={sampleSettings} previewVideoUrl="test-url" durationFrames={300} />
+      </ProjectProvider>,
     );
     expect(getByText("Video Preview")).toBeTruthy();
   });

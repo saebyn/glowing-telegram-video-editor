@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { sampleSource, withSampleProject } from "@/fixtures/video";
 import type { VideoClip } from "@/types";
 import ProjectClipPool from "./ProjectClipPool";
 
@@ -6,6 +7,7 @@ const meta = {
   title: "Organisms/ProjectClipPool",
   component: ProjectClipPool,
   tags: ["organisms"],
+  decorators: [withSampleProject],
   argTypes: {
     onClipSelect: { action: "clipSelected" },
     onTitleUpdate: { action: "titleUpdated" },
@@ -20,29 +22,33 @@ type Story = StoryObj<typeof meta>;
 const sampleClips: VideoClip[] = [
   {
     id: "clip-1",
-    start: 0,
-    end: 30000,
+    ...sampleSource,
+    sourceInFrame: 0,
+    sourceOutFrame: 1800,
     keyframeSrc:
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-016500.png",
   },
   {
     id: "clip-2",
-    start: 30000,
-    end: 75000,
+    ...sampleSource,
+    sourceInFrame: 1800,
+    sourceOutFrame: 4500,
     keyframeSrc:
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-017000.png",
   },
   {
     id: "clip-3",
-    start: 75000,
-    end: 120000,
+    ...sampleSource,
+    sourceInFrame: 4500,
+    sourceOutFrame: 7200,
     keyframeSrc:
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-018000.png",
   },
   {
     id: "clip-4",
-    start: 120000,
-    end: 180000,
+    ...sampleSource,
+    sourceInFrame: 7200,
+    sourceOutFrame: 10_800,
     keyframeSrc:
       "http://d347j9o7s02wqh.cloudfront.net/keyframes/2025-11-09/2025-11-09%2008-38-21.mkv/frame-019000.png",
   },

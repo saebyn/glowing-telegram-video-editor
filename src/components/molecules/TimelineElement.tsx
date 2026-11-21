@@ -11,13 +11,13 @@ interface TimelineElementProps {
   onClick: () => void;
 }
 export default function TimelineElement({
-  content: { startMilliseconds, endMilliseconds, type, text },
+  content: { startFrame, endFrame, type, text },
   onClick,
 }: TimelineElementProps) {
   if (type === "chat") {
     return (
       <TimeDotMarker
-        timestampMilliseconds={startMilliseconds}
+        sourceFrame={startFrame}
         className={`z-40 ${timelineElementTypeColors[type]}`}
       />
     );
@@ -39,8 +39,8 @@ export default function TimelineElement({
   return (
     <TimeSegmentMarker
       onClick={onClick}
-      startMilliseconds={startMilliseconds}
-      endMilliseconds={endMilliseconds}
+      startFrame={startFrame}
+      endFrame={endFrame}
       className={className}
       text={text}
     />

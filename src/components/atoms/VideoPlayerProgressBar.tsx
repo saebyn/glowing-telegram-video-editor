@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { format } from "@/utils/duration";
+import type { FrameRate } from "@/types";
+import { formatFrames, snapFrame } from "@/utils/frames";
 
 interface ProgressBarProps {
-  progress: number;
-  seekToPercent: (progress: number) => void;
-  duration: number;
+  playheadFrame: number;
+  onSeek: (frame: number) => void;
+  durationFrames: number;
+  frameRate: FrameRate;
 }
 
 export default function VideoPlayerProgressBar({
-  progress,
-  seekToPercent,
-  duration,
+  playheadFrame,
+  onSeek,
+  durationFrames,
+  frameRate,
 }: ProgressBarProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverFrame, setHoverFrame] = useState<number | null>(null);
+  const progress = durationFrames > 0 ? (playheadFrame / durationFrames) * 100 : 0;
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -27,18 +31,19 @@ export default function VideoPlayerProgressBar({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    const progress = x / width;
-    console.log("progress", progress);
-    seekToPercent(progress * 100.0);
+    if (width > 0 && durationFrames > 0) {
+      onSeek(snapFrame((x / width) * durationFrames, durationFrames));
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    const progress = x / width;
+    if (width <= 0 || durationFrames <= 0) return;
+    const frame = snapFrame((x / width) * durationFrames, durationFrames);
     if (isDragging) {
-      seekToPercent(progress * 100.0);
+      onSeek(frame);
     } else {
       // show hover effect
       // check if the mouse is inside the progress bar
@@ -46,13 +51,13 @@ export default function VideoPlayerProgressBar({
         return;
       }
 
-      setHoverTime(progress * duration);
+      setHoverFrame(frame);
     }
   };
 
   const handleMouseLeave = () => {
     setIsDragging(false);
-    setHoverTime(null);
+    setHoverFrame(null);
   };
 
   return (
@@ -69,13 +74,13 @@ export default function VideoPlayerProgressBar({
         style={{ left: `calc(${progress}% - 8px)` }}
       />
       {/* Hover */}
-      {hoverTime !== null && !isDragging && (
+      {hoverFrame !== null && durationFrames > 0 && !isDragging && (
         <div
           className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-400 dark:bg-gray-600"
-          style={{ left: `calc(${(hoverTime / duration) * 100}% - 8px)` }}
+          style={{ left: `calc(${(hoverFrame / durationFrames) * 100}% - 8px)` }}
         >
           <div className="absolute top-0 -mt-8 rounded-sm bg-black/50 px-2 py-1 text-xs text-white">
-            {format(`PT${hoverTime.toFixed(0)}S`)}
+            {formatFrames(hoverFrame, frameRate)}
           </div>
         </div>
       )}

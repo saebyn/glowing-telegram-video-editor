@@ -8,12 +8,12 @@ import type { Section, VideoMetadata } from "@/types";
 
 function Sidebar({
   content,
-  onSeekToTime,
-  playheadTime,
+  onSeekToFrame,
+  playheadFrame,
 }: {
   content: VideoMetadata;
-  onSeekToTime: (milliseconds: number) => void;
-  playheadTime?: number;
+  onSeekToFrame: (sourceFrame: number) => void;
+  playheadFrame?: number;
 }) {
   const [filter, setFilter] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -48,10 +48,11 @@ function Sidebar({
           </li>
           {content.highlights.filter(matchesFilter(filter)).map((highlight) => (
             <NavEntry
-              key={`highlight-${highlight.timestamp}`}
+              key={`highlight-${highlight.sourceFrame}`}
               {...highlight}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
+              playheadFrame={playheadFrame}
+              frameRate={content.frameRate}
+              onSeekToFrame={onSeekToFrame}
             />
           ))}
           <li>
@@ -67,10 +68,11 @@ function Sidebar({
           </li>
           {content.attentions.filter(matchesFilter(filter)).map((attention) => (
             <NavEntry
-              key={`attention-${attention.timestamp}`}
+              key={`attention-${attention.sourceFrame}`}
               {...attention}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
+              playheadFrame={playheadFrame}
+              frameRate={content.frameRate}
+              onSeekToFrame={onSeekToFrame}
             />
           ))}
           <li>
@@ -78,10 +80,11 @@ function Sidebar({
           </li>
           {content.transcription_errors.filter(matchesFilter(filter)).map((error) => (
             <NavEntry
-              key={`error-${error.timestamp}`}
+              key={`error-${error.sourceFrame}`}
               {...error}
-              playheadTime={playheadTime}
-              onSeekToTime={onSeekToTime}
+              playheadFrame={playheadFrame}
+              frameRate={content.frameRate}
+              onSeekToFrame={onSeekToFrame}
             />
           ))}
 

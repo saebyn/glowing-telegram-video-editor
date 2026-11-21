@@ -6,22 +6,30 @@ import {
 import TimeSegmentMarker from "@/components/atoms/TimeSegmentMarker";
 import TimelineElement from "@/components/molecules/TimelineElement";
 import { useLens } from "@/context/TimelineContext";
-import type { Section, VideoMetadata } from "@/types";
-import { formatMs } from "@/utils/duration";
+import type { FrameRate, Section, VideoMetadata } from "@/types";
+import { formatFrames, snapFrame } from "@/utils/frames";
 import { createTimeline, generateKey } from "@/utils/timeline";
 
 export default function Timeline({
-  content: { chat_history, silences, highlights, attentions, transcription_errors },
-  playheadTime,
-  onSeekToTime,
+  content: {
+    chat_history,
+    silences,
+    highlights,
+    attentions,
+    transcription_errors,
+    frameRate,
+    durationFrames,
+  },
+  playheadFrame,
+  onSeekToFrame,
   onItemSelect,
 }: {
   content: VideoMetadata;
-  playheadTime: number;
-  onSeekToTime?: (time: number) => void;
+  playheadFrame: number;
+  onSeekToFrame?: (sourceFrame: number) => void;
   onItemSelect?: (item: Section) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
   const lens = useLens();
 
   const [dragging, setDragging] = useState<number | null>(null);
@@ -36,16 +44,6 @@ export default function Timeline({
   }
 
   useEffect(() => {
-    document.addEventListener("mouseup", handleDragEnd);
-    document.addEventListener("mousemove", handleGlobalMouseMove);
-
-    return () => {
-      document.removeEventListener("mouseup", handleDragEnd);
-      document.removeEventListener("mousemove", handleGlobalMouseMove);
-    };
-  });
-
-  useEffect(() => {
     if (!containerRef.current) {
       return;
     }
@@ -58,10 +56,10 @@ export default function Timeline({
       const deltaY = event.deltaY;
 
       // x coordinate of the mouse relative to the container
-      const x = event.pageX - container.offsetLeft;
+      const { left, width } = container.getBoundingClientRect();
 
-      // relativeX is the x coordinate of the mouse relative to the container width
-      const relativeX = x / container.clientWidth;
+      if (width <= 0) return;
+      const relativeX = Math.max(0, Math.min(1, (event.clientX - left) / width));
 
       if (deltaY > 0) {
         lens.zoomOut(relativeX);
@@ -80,35 +78,35 @@ export default function Timeline({
   const timeline = createTimeline<TimelineElementType>([
     ...silences.map((silence, index) => ({
       type: "silence" as TimelineElementType,
-      startMilliseconds: silence.timestamp,
-      endMilliseconds: silence.timestamp_end && silence.timestamp_end,
+      startFrame: silence.sourceFrame,
+      endFrame: silence.sourceOutFrame,
       text: silence.description || "",
       originIndex: index,
     })),
     ...highlights.map((highlight, index) => ({
       type: "highlight" as TimelineElementType,
-      startMilliseconds: highlight.timestamp,
-      endMilliseconds: highlight.timestamp_end && highlight.timestamp_end,
+      startFrame: highlight.sourceFrame,
+      endFrame: highlight.sourceOutFrame,
       text: highlight.description || "",
       originIndex: index,
     })),
     ...attentions.map((attention, index) => ({
       type: "attention" as TimelineElementType,
-      startMilliseconds: attention.timestamp,
-      endMilliseconds: attention.timestamp_end && attention.timestamp_end,
+      startFrame: attention.sourceFrame,
+      endFrame: attention.sourceOutFrame,
       text: attention.description || "",
       originIndex: index,
     })),
     ...transcription_errors.map((error, index) => ({
       type: "error" as TimelineElementType,
-      startMilliseconds: error.timestamp,
-      endMilliseconds: error.timestamp_end && error.timestamp_end,
+      startFrame: error.sourceFrame,
+      endFrame: error.sourceOutFrame,
       text: error.description || "",
       originIndex: index,
     })),
     ...chat_history.map((chat, index) => ({
       type: "chat" as TimelineElementType,
-      startMilliseconds: chat.timestamp,
+      startFrame: chat.sourceFrame,
       text: chat.username,
       originIndex: index,
     })),
@@ -119,11 +117,7 @@ export default function Timeline({
     setDragging(Date.now());
   };
 
-  const handleDragEnd = (e: MouseEvent) => {
-    e.preventDefault();
-
-    setDragging(null);
-  };
+  const handleDragEnd = () => setDragging(null);
 
   const handleGlobalMouseMove = (event: MouseEvent) => {
     if (!containerRef.current) {
@@ -132,17 +126,29 @@ export default function Timeline({
 
     const container = containerRef.current;
 
-    if (isDragging()) {
+    const { width } = container.getBoundingClientRect();
+    if (isDragging() && width > 0) {
       setHoverLocation(null);
 
       const { movementX } = event;
 
-      const relativeMovement = movementX / container.clientWidth;
-      const deltaMs = Math.round(-relativeMovement * lens.getLength());
+      const relativeMovement = movementX / width;
+      const offsetFrames = Math.round(-relativeMovement * lens.getLength());
 
-      lens.pan(deltaMs);
+      lens.pan(offsetFrames);
     }
   };
+
+  useEffect(() => {
+    if (dragging === null) return;
+    document.addEventListener("mouseup", handleDragEnd);
+    document.addEventListener("mousemove", handleGlobalMouseMove);
+
+    return () => {
+      document.removeEventListener("mouseup", handleDragEnd);
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
+    };
+  });
 
   const handleMouseMove = (event: React.MouseEvent) => {
     if (!containerRef.current) {
@@ -151,15 +157,9 @@ export default function Timeline({
 
     const container = containerRef.current;
 
-    if (!isDragging()) {
-      // Set the hover state with the location
-      // x coordinate of the mouse relative to the container
-      const x = event.pageX - container.offsetLeft;
-
-      // relativeX is the x coordinate of the mouse relative to the container width
-      const relativeX = x / container.clientWidth;
-
-      setHoverLocation(relativeX);
+    const { left, width } = container.getBoundingClientRect();
+    if (!isDragging() && width > 0) {
+      setHoverLocation(Math.max(0, Math.min(1, (event.clientX - left) / width)));
     }
   };
 
@@ -188,20 +188,16 @@ export default function Timeline({
       return;
     }
 
-    const containerPixelWidth = containerRef.current.clientWidth;
+    const { left, width } = containerRef.current.getBoundingClientRect();
+    if (width <= 0 || durationFrames <= 0) return;
 
-    const offsetXInContainer = event.pageX - containerRef.current.offsetLeft;
-
-    const relativeClick = offsetXInContainer / containerPixelWidth;
-    const clickMs = Math.round(lens.relativeToTime(relativeClick));
-
-    if (onSeekToTime) {
-      onSeekToTime(clickMs);
-    }
+    const relativeClick = Math.max(0, Math.min(1, (event.clientX - left) / width));
+    onSeekToFrame?.(snapFrame(lens.relativeToFrame(relativeClick), durationFrames));
   };
 
   return (
-    <div
+    <section
+      aria-label="Source timeline"
       className="relative h-16 cursor-crosshair select-none overflow-hidden rounded-sm bg-gray-200 dark:bg-gray-600"
       ref={containerRef}
       onMouseDown={handleDragStart}
@@ -209,7 +205,7 @@ export default function Timeline({
       onMouseMove={handleMouseMove}
       onClick={handleContainerClick}
     >
-      <TimelineHover hoverLocation={hoverLocation} lens={lens} />
+      <TimelineHover hoverLocation={hoverLocation} lens={lens} frameRate={frameRate} />
 
       {elements.map((content) => (
         <TimelineElement
@@ -247,21 +243,22 @@ export default function Timeline({
 
       <TimeSegmentMarker
         onClick={() => {}}
-        startMilliseconds={playheadTime}
-        endMilliseconds={undefined}
+        startFrame={playheadFrame}
         text=""
         className={`z-50 h-16 ${timelineElementTypeColors.cursor}`}
       />
-    </div>
+    </section>
   );
 }
 
 function TimelineHover({
   hoverLocation,
   lens,
+  frameRate,
 }: {
   hoverLocation: number | null;
   lens: ReturnType<typeof useLens>;
+  frameRate: FrameRate;
 }) {
   if (hoverLocation === null) {
     return null;
@@ -273,7 +270,7 @@ function TimelineHover({
         "
       style={{ left: `${hoverLocation * 100}%` }}
     >
-      {formatMs(lens.relativeToTime(hoverLocation))}
+      {formatFrames(lens.relativeToFrame(hoverLocation), frameRate)}
     </div>
   );
 }

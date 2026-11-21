@@ -1,4 +1,5 @@
 import { action } from "storybook/actions";
+import { sampleSource } from "@/fixtures/video";
 
 import ClipSelectionDialog from "./ClipSelectionDialog";
 
@@ -19,18 +20,19 @@ export const Default = () => {
       clips={[
         {
           id: "1",
-          start: 0,
-          end: 10,
+          ...sampleSource,
+          sourceInFrame: 0,
+          sourceOutFrame: 600,
         },
       ]}
-      onCopyStartTime={action("onCopyStartTime")}
-      onCopyEndTime={action("onCopyEndTime")}
+      onCopyInPoint={action("onCopyInPoint")}
+      onCopyOutPoint={action("onCopyOutPoint")}
       onExport={action("onExport")}
       show={true}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
-      onSeekToTime={action("onSeekToTime")}
+      onSeekToFrame={action("onSeekToFrame")}
     />
   );
 };
@@ -42,27 +44,30 @@ export const MultipleCuts = () => {
       clips={[
         {
           id: "1",
-          start: 0,
-          end: 10,
+          ...sampleSource,
+          sourceInFrame: 0,
+          sourceOutFrame: 600,
         },
         {
           id: "2",
-          start: 10,
-          end: 20,
+          ...sampleSource,
+          sourceInFrame: 600,
+          sourceOutFrame: 1200,
         },
         {
           id: "3",
-          start: 20,
-          end: 30,
+          ...sampleSource,
+          sourceInFrame: 1200,
+          sourceOutFrame: 1800,
         },
       ]}
-      onCopyStartTime={action("onCopyStartTime")}
-      onCopyEndTime={action("onCopyEndTime")}
+      onCopyInPoint={action("onCopyInPoint")}
+      onCopyOutPoint={action("onCopyOutPoint")}
       onExport={action("onExport")}
       onClear={action("onClear")}
       onRemove={action("onRemove")}
       onReorder={action("onReorder")}
-      onSeekToTime={action("onSeekToTime")}
+      onSeekToFrame={action("onSeekToFrame")}
     />
   );
 };
