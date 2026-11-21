@@ -505,7 +505,7 @@ When upgrading to 0.6.0, pass editor positions and durations as whole frames ins
 - **Clips:** Replace `start` and `end` with `sourceInFrame` and `sourceOutFrame`. Include `sourceId` and `sourceFrameRate`, and keep these bounds at the source rate even when the project uses a different rate.
 - **Sequence and preview:** Supply the project rate through `ProjectProvider`. Replace `playheadPosition` with `playheadFrame` and preview or waveform `duration` with `durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`. Remove the `duration` prop from `ProjectClipTimeline`; it derives the length from the clips.
 
-To convert a millisecond value, use `secondsToFrame(milliseconds / 1000, frameRate)` with the rate for that field. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
+To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
 
 ## Development
 

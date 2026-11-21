@@ -10,6 +10,17 @@ export function secondsToFrame(seconds: number, rate: FrameRate): number {
   return Math.round((seconds * rate.numerator) / rate.denominator);
 }
 
+/**
+ * Convert an integer millisecond timestamp to the nearest frame, rounding ties up.
+ * Throws RangeError if milliseconds is not a safe integer.
+ */
+export function millisecondsToFrame(milliseconds: number, rate: FrameRate): number {
+  if (!Number.isSafeInteger(milliseconds)) {
+    throw new RangeError("milliseconds must be a safe integer");
+  }
+  return nanosecondsToFrame(BigInt(milliseconds) * 1_000_000n, rate);
+}
+
 /** Snap exact elapsed metadata time to a frame, with ties toward the higher frame. */
 export function nanosecondsToFrame(nanoseconds: bigint, rate: FrameRate): number {
   return roundFrameRatio(

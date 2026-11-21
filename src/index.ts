@@ -25,6 +25,7 @@ export {
   framesToSeconds,
   getProjectFrameCount,
   layoutSequence,
+  millisecondsToFrame,
   secondsToFrame,
 } from "./utils/frames";
 export { default as parseContent } from "./utils/parseData";
