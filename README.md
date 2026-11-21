@@ -67,7 +67,7 @@ If you manage Tailwind yourself and only need the custom (non-utility) styles:
 import '@saebyn/glowing-telegram-video-editor/custom-only.css';
 ```
 
-> **Note:** The library bundles `material-symbols/outlined.css` (Material Symbols icon font) as a side effect of importing styles. This affects network requests for the icon font files.
+Both stylesheets include the source timeline styles and `material-symbols/outlined.css` (Material Symbols icon font).
 
 ## Available Components
 
@@ -136,9 +136,11 @@ function App() {
 
 **Features:**
 - Synchronized video player with HLS support
-- Timeline with color-coded markers for highlights, attentions, and transcription errors
+- Source timeline with labeled lanes for highlights, attention flags, silence, transcription errors, and chat activity
+- Scroll or use the zoom controls to zoom; drag a lane to pan, or choose **Fit full source** to reset
 - Live transcript and chat history display
 - Shift-click a source timeline marker to add its range to the clip selection
+- **Follow playback** scrolls the chat and transcript logs, not the source timeline
 - "Clip Silences" button — automatically selects clips from gaps in silence data
 - Export selected clips for rendering
 - Keyboard shortcuts for playback control (see table below)

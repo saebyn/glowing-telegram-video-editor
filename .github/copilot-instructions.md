@@ -106,7 +106,7 @@ When changing React components:
 - **Video handling**: Components use HLS.js for video playback
 - **Timeline data**: Check `src/data.json` for example data structure
 - **Duration utilities**: Use functions from `src/utils/duration.ts` for time calculations
-- **Timeline utilities**: Use functions from `src/utils/timeline.ts` for timeline operations
+- **Source timeline**: Keep positions in native source frames; use `src/utils/frames.ts` to convert at the widget boundary in `SourceTimeline`.
 
 ## Timing Expectations
 

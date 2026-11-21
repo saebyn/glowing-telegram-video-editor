@@ -11,11 +11,11 @@ type ViewportProps = {
 
 /**
  * A layout for the viewport, which contains the `VideoPlayer`,
- * `VideoCaption`, transcript/chat sidebar, and `Timeline`.
+ * transcript/chat sidebar, and source timeline.
  *
  * The layout is divided into two sections: the video player and the
  * transcript/chat sidebar. The video player takes up 2/3 of the width
- * and the sidebar takes up 1/3 of the width. Then, the `Timeline` is
+ * and the sidebar takes up 1/3 of the width. Then, the timeline is
  * displayed below the video player and sidebar.
  */
 function Viewport({ chatHistory, timeline, transcript, videoPlayer, settings }: ViewportProps) {
