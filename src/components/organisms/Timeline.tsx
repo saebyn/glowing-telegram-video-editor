@@ -32,7 +32,12 @@ export default function Timeline({
   const containerRef = useRef<HTMLElement>(null);
   const lens = useLens();
 
-  const [dragging, setDragging] = useState<number | null>(null);
+  const [dragging, setDragging] = useState<{
+    startedAt: number;
+    startX: number;
+    framesPerPixel: number;
+  } | null>(null);
+  const lastPanOffset = useRef(0);
   const [hoverLocation, setHoverLocation] = useState<number | null>(null);
 
   function isDragging() {
@@ -40,7 +45,7 @@ export default function Timeline({
       return false;
     }
 
-    return Date.now() - dragging > 250;
+    return Date.now() - dragging.startedAt > 250;
   }
 
   useEffect(() => {
@@ -113,29 +118,28 @@ export default function Timeline({
   ]);
   const elements = lens.getVisibleElements(timeline);
 
-  const handleDragStart = () => {
-    setDragging(Date.now());
+  const handleDragStart = (event: React.MouseEvent<HTMLElement>) => {
+    const { width } = event.currentTarget.getBoundingClientRect();
+    if (width <= 0) return;
+    lastPanOffset.current = 0;
+    setDragging({
+      startedAt: Date.now(),
+      startX: event.clientX,
+      framesPerPixel: lens.getLength() / width,
+    });
   };
 
   const handleDragEnd = () => setDragging(null);
 
   const handleGlobalMouseMove = (event: MouseEvent) => {
-    if (!containerRef.current) {
-      return;
-    }
+    if (!dragging || !isDragging()) return;
+    setHoverLocation(null);
 
-    const container = containerRef.current;
-
-    const { width } = container.getBoundingClientRect();
-    if (isDragging() && width > 0) {
-      setHoverLocation(null);
-
-      const { movementX } = event;
-
-      const relativeMovement = movementX / width;
-      const offsetFrames = Math.round(-relativeMovement * lens.getLength());
-
-      lens.pan(offsetFrames);
+    const offsetFrames = Math.round((dragging.startX - event.clientX) * dragging.framesPerPixel);
+    const deltaFrames = offsetFrames - lastPanOffset.current;
+    if (deltaFrames !== 0) {
+      lastPanOffset.current = offsetFrames;
+      lens.pan(deltaFrames);
     }
   };
 
