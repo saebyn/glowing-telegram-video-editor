@@ -1,11 +1,11 @@
 # Video review and editing
 
-**Source review** is for inspecting a recording and selecting clips. **Sequence editing** is for arranging and trimming individual uses of those clips across tracks.
+**Source review** is for inspecting source media and selecting ranges. **Sequence editing** is for arranging and trimming clip placements across tracks.
 
 ## Language
 
 **Source**:
-Original media used for review or editing. A **video source** has a native **source frame rate**; an audio-only source has no video frames.
+Media used for review or editing. A source with video has a native **source frame rate**.
 _Avoid_: “Video” when it could also mean the preview or rendered output.
 
 **Source frame**:
@@ -13,14 +13,14 @@ Zero-based frame index within a specific video source.
 _Avoid_: Unqualified “frame” when both source and sequence positions are in play.
 
 **Source range**:
-The span within a source from the inclusive **in point** to the exclusive **out point**. For video, these points are expressed in source frames.
+The span within a source from the inclusive **in point** to the exclusive **out point**. Video in and out points are boundaries on the source frame grid.
 _Avoid_: Unqualified “start” and “end” when they could mean placement in the sequence.
 
 **Source annotation**:
 A point or span marked for review within a source, such as a highlight or a transcription flag. It can suggest a clip but is not a clip selection.
 
 **Clip**:
-A reusable selection defined by a range within one source, independent of any sequence position. A clip can contain audio, video, or both.
+A reusable selection of audio, video, or both from one source range, independent of any sequence position. Audio-only clips have an expected duration without needing video frames, whether or not the source contains video.
 _Avoid_: “Highlight” as a synonym. A highlight can suggest a clip, but it isn’t itself a selection.
 
 **Clip pool**:
@@ -31,15 +31,15 @@ An edit assembled from clip placements across one or more tracks.
 _Avoid_: “Timeline” for the edit itself.
 
 **Track**:
-A lane in a sequence that holds clip placements.
+A group of clip placements in a sequence, also called a lane.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 
 **Clip placement**:
-One use of a clip’s source range on a specific track at a specific sequence position, with its own trim if needed. The same clip can have multiple placements on the same track or on different tracks.
+One use of a clip on a specific track at a specific sequence position, with a source range that can be trimmed for that placement. The same clip can have multiple placements on the same track or on different tracks.
 _Avoid_: Unqualified “clip” when referring to a particular placement rather than the reusable source selection.
 
 **Clip trim** and **placement trim**:
-A clip trim changes the reusable clip’s source range. A placement trim changes the range used by one placement without changing the reusable clip or other placements.
+A clip trim changes the reusable clip’s source range; the host determines whether to update any existing placements. A placement trim changes only the source range used by that placement.
 
 **Timeline**:
 A time-based view of a source or sequence.
@@ -53,11 +53,11 @@ A view built from a sequence’s tracks and clip placements, showing where each 
 **Transition**:
 A change from one presentation of picture or sound to another over a span of the sequence. A **transition indicator** marks it in the timeline; it is not the change itself.
 
-**Authored edit**:
-A change to the sequence, such as moving, trimming, or splitting a placement.
+**Host application**:
+The application that uses the library and owns the clips and placements.
 
-**Editor session**:
-The working state of the editor, such as playhead position, placement selection, zoom, and monitoring. Changing these does not change the sequence.
+**Editor UI state**:
+Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the clip and placement state owned by the host.
 
 **Sequence frame**:
 Zero-based position in the sequence, measured at the **project frame rate**.
@@ -83,7 +83,7 @@ A time value on the underlying media stream’s clock, distinct from a source fr
 Listening to audio while reviewing or editing. Monitoring adjustments only affect what the editor hears.
 
 **Output audio adjustment**:
-An authored change to the audio the sequence produces.
+An adjustment to the audio the sequence produces, rather than to monitoring.
 
 **Source audio stream**:
 One independently selectable audio signal or group of signals in a source, such as the main mix or commentary. A media container can hold multiple audio streams, each with its own channel layout.
