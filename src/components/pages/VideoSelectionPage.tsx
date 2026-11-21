@@ -3,14 +3,12 @@ import Button from "@/components/atoms/Button";
 import Heading from "@/components/atoms/Heading";
 import ClipSelectionDialog from "@/components/molecules/ClipSelectionDialog";
 import EditableTimestampedEventLog from "@/components/molecules/EditableTimestampedEventLog";
-import TimelineControls from "@/components/molecules/TimelineControls";
 import TimestampedEventLog from "@/components/molecules/TimestampedEventLog";
 import TimeTable from "@/components/molecules/TimeTable";
 import VideoPlayer, { type VideoPlayerRef } from "@/components/molecules/VideoPlayer";
 import Viewport from "@/components/molecules/Viewport";
 import Sidebar from "@/components/organisms/Sidebar";
-import Timeline from "@/components/organisms/Timeline";
-import { TimelineProvider } from "@/context/TimelineContext";
+import SourceTimeline from "@/components/organisms/SourceTimeline";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import type { ChatMessage, Section, TranscriptSegment, VideoClip, VideoMetadata } from "@/types";
 import findGaps from "@/utils/findGaps";
@@ -93,174 +91,172 @@ function SourceReview({ content, onExport }: VideoSelectionPageProps) {
   });
 
   return (
-    <TimelineProvider durationFrames={durationFrames}>
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
-        <ClipSelectionDialog
-          show={selectedClips.length > 0}
-          clips={selectedClips}
-          onExport={() => {
-            onExport?.(selectedClips);
-          }}
-          onClear={() => setSelectedClips([])}
-          onReorder={(newClips) => setSelectedClips(newClips)}
-          onRemove={(id) => setSelectedClips(selectedClips.filter((clip) => clip.id !== id))}
-          onCopyInPoint={handleCopyPoint("sourceInFrame")}
-          onCopyOutPoint={handleCopyPoint("sourceOutFrame")}
-          onSeekToFrame={handleSeekToFrame}
-        />
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
+      <ClipSelectionDialog
+        show={selectedClips.length > 0}
+        clips={selectedClips}
+        onExport={() => {
+          onExport?.(selectedClips);
+        }}
+        onClear={() => setSelectedClips([])}
+        onReorder={(newClips) => setSelectedClips(newClips)}
+        onRemove={(id) => setSelectedClips(selectedClips.filter((clip) => clip.id !== id))}
+        onCopyInPoint={handleCopyPoint("sourceInFrame")}
+        onCopyOutPoint={handleCopyPoint("sourceOutFrame")}
+        onSeekToFrame={handleSeekToFrame}
+      />
 
-        <Sidebar
-          content={content}
-          onSeekToFrame={handleSeekToFrame}
-          playheadFrame={playheadFrame}
-        />
+      <Sidebar content={content} onSeekToFrame={handleSeekToFrame} playheadFrame={playheadFrame} />
 
-        <div className="flex flex-1 flex-col">
-          <main className="flex-1 overflow-auto p-4">
-            <Heading level={1} id="top">
-              {content.title}
-            </Heading>
+      <div className="flex flex-1 flex-col">
+        <main className="flex-1 overflow-auto p-4">
+          <Heading level={1} id="top">
+            {content.title}
+          </Heading>
 
-            <Viewport
-              videoPlayer={
-                <VideoPlayer
-                  ref={videoPlayerRef}
-                  videoUrl={content.video_url}
-                  sourceFrameRate={frameRate}
-                  durationFrames={durationFrames}
-                  onFrameUpdate={setPlayheadFrame}
-                />
-              }
-              chatHistory={
-                <TimestampedEventLog<ChatMessage>
-                  log={content.chat_history}
-                  playheadFrame={playheadFrame}
-                  frameRate={frameRate}
-                  onSeekToFrame={handleSeekToFrame}
-                  renderEvent={(chat) => {
-                    return (
-                      <>
-                        <span className="font-bold">{chat.username}</span>: {chat.message}
-                      </>
-                    );
-                  }}
-                  followPlayback={followPlayback}
-                />
-              }
-              timeline={
-                <Timeline
-                  content={content}
-                  playheadFrame={playheadFrame}
-                  onSeekToFrame={handleSeekToFrame}
-                  onItemSelect={appendSectionToClips}
-                />
-              }
-              transcript={
-                <EditableTimestampedEventLog<TranscriptSegment>
-                  log={content.transcript}
-                  onChange={(updatedSegment) => {
-                    // TODO
-                    console.log(updatedSegment);
-                  }}
-                  onAdd={(newSegment) => {
-                    // TODO
-                    console.log(newSegment);
-                  }}
-                  onRemove={(segment) => {
-                    // TODO
-                    console.log(segment);
-                  }}
-                  playheadFrame={playheadFrame}
-                  frameRate={frameRate}
-                  onSeekToFrame={handleSeekToFrame}
-                  contentField="text"
-                  followPlayback={followPlayback}
-                />
-              }
-              settings={
-                <TimelineControls
-                  followPlayback={followPlayback}
-                  setFollowPlayback={setFollowPlayback}
-                />
-              }
-            />
-
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={() => {
-                  onExport?.(selectedClips);
-                }}
-                variant="primary"
-              >
-                Export
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelectedClips(
-                    findGaps(
-                      {
-                        durationFrames,
-                        minGapFrames: secondsToFrame(SILENCE_CLIP_THRESHOLDS.gapSeconds, frameRate),
-                        minSectionFrames: secondsToFrame(
-                          SILENCE_CLIP_THRESHOLDS.sectionSeconds,
-                          frameRate,
-                        ),
-                      },
-                      content.silences,
-                    ).map((range) => ({
-                      id: `${sourceId}:${range.sourceInFrame}-${range.sourceOutFrame}`,
-                      sourceId,
-                      sourceFrameRate: frameRate,
-                      sourceDurationFrames: durationFrames,
-                      ...range,
-                    })),
+          <Viewport
+            videoPlayer={
+              <VideoPlayer
+                ref={videoPlayerRef}
+                videoUrl={content.video_url}
+                sourceFrameRate={frameRate}
+                durationFrames={durationFrames}
+                onFrameUpdate={setPlayheadFrame}
+              />
+            }
+            chatHistory={
+              <TimestampedEventLog<ChatMessage>
+                log={content.chat_history}
+                playheadFrame={playheadFrame}
+                frameRate={frameRate}
+                onSeekToFrame={handleSeekToFrame}
+                renderEvent={(chat) => {
+                  return (
+                    <>
+                      <span className="font-bold">{chat.username}</span>: {chat.message}
+                    </>
                   );
                 }}
-              >
-                Clip Silences
-              </Button>
-            </div>
+                followPlayback={followPlayback}
+              />
+            }
+            timeline={
+              <SourceTimeline
+                content={content}
+                playheadFrame={playheadFrame}
+                onSeekToFrame={handleSeekToFrame}
+                onItemSelect={appendSectionToClips}
+              />
+            }
+            transcript={
+              <EditableTimestampedEventLog<TranscriptSegment>
+                log={content.transcript}
+                onChange={(updatedSegment) => {
+                  // TODO
+                  console.log(updatedSegment);
+                }}
+                onAdd={(newSegment) => {
+                  // TODO
+                  console.log(newSegment);
+                }}
+                onRemove={(segment) => {
+                  // TODO
+                  console.log(segment);
+                }}
+                playheadFrame={playheadFrame}
+                frameRate={frameRate}
+                onSeekToFrame={handleSeekToFrame}
+                contentField="text"
+                followPlayback={followPlayback}
+              />
+            }
+            settings={
+              <label className="mt-4 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={followPlayback}
+                  onChange={(event) => setFollowPlayback(event.target.checked)}
+                />
+                Follow playback
+              </label>
+            }
+          />
 
-            <Heading level={2} id="highlights">
-              Highlights
-            </Heading>
-            <TimeTable
-              rows={content.highlights}
-              onSeekToFrame={handleSeekToFrame}
-              playheadFrame={playheadFrame}
-              frameRate={frameRate}
-              includeEnd
-              includeReasoning
-              canEdit
-              canClip
-              onClip={appendSectionToClips}
-            />
+          <div className="flex justify-end gap-2">
+            <Button
+              onClick={() => {
+                onExport?.(selectedClips);
+              }}
+              variant="primary"
+            >
+              Export
+            </Button>
+            <Button
+              onClick={() => {
+                setSelectedClips(
+                  findGaps(
+                    {
+                      durationFrames,
+                      minGapFrames: secondsToFrame(SILENCE_CLIP_THRESHOLDS.gapSeconds, frameRate),
+                      minSectionFrames: secondsToFrame(
+                        SILENCE_CLIP_THRESHOLDS.sectionSeconds,
+                        frameRate,
+                      ),
+                    },
+                    content.silences,
+                  ).map((range) => ({
+                    id: `${sourceId}:${range.sourceInFrame}-${range.sourceOutFrame}`,
+                    sourceId,
+                    sourceFrameRate: frameRate,
+                    sourceDurationFrames: durationFrames,
+                    ...range,
+                  })),
+                );
+              }}
+            >
+              Clip Silences
+            </Button>
+          </div>
 
-            <Heading level={2} id="attentions">
-              Attentions
-            </Heading>
-            <TimeTable
-              rows={content.attentions}
-              onSeekToFrame={handleSeekToFrame}
-              playheadFrame={playheadFrame}
-              frameRate={frameRate}
-              includeEnd
-              includeReasoning
-            />
+          <Heading level={2} id="highlights">
+            Highlights
+          </Heading>
+          <TimeTable
+            rows={content.highlights}
+            onSeekToFrame={handleSeekToFrame}
+            playheadFrame={playheadFrame}
+            frameRate={frameRate}
+            includeEnd
+            includeReasoning
+            canEdit
+            canClip
+            onClip={appendSectionToClips}
+          />
 
-            <Heading level={2} id="transcription-errors">
-              Transcription Errors
-            </Heading>
-            <TimeTable
-              rows={content.transcription_errors}
-              playheadFrame={playheadFrame}
-              onSeekToFrame={handleSeekToFrame}
-              frameRate={frameRate}
-              includeCategory
-            />
-          </main>
-        </div>
+          <Heading level={2} id="attentions">
+            Attentions
+          </Heading>
+          <TimeTable
+            rows={content.attentions}
+            onSeekToFrame={handleSeekToFrame}
+            playheadFrame={playheadFrame}
+            frameRate={frameRate}
+            includeEnd
+            includeReasoning
+          />
+
+          <Heading level={2} id="transcription-errors">
+            Transcription Errors
+          </Heading>
+          <TimeTable
+            rows={content.transcription_errors}
+            playheadFrame={playheadFrame}
+            onSeekToFrame={handleSeekToFrame}
+            frameRate={frameRate}
+            includeCategory
+          />
+        </main>
       </div>
-    </TimelineProvider>
+    </div>
   );
 }

@@ -2,8 +2,7 @@ import type { Preview } from "@storybook/react-vite";
 
 // import the tailwindcss styles
 import "tailwindcss/index.css";
-// import the material-symbols
-import "material-symbols";
+import "../src/custom-only.css";
 
 const preview: Preview = {
   parameters: {

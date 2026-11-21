@@ -1,2 +1,4 @@
 /* Custom styles only — no Tailwind base/utilities. Import this in host apps that provide their own Tailwind. */
 @import "material-symbols/outlined.css";
+@import "@keplar-404/react-timeline-editor/dist/react-timeline-editor.css";
+@import "./source-timeline.css";
