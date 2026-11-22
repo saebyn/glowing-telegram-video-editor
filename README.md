@@ -121,6 +121,10 @@ shortens it. With one occupied track, adjust entry and reveal fades using their 
 timeline handles or the Inspector; empty tracks do not disable these controls. The compiler flattens
 fully covered straight cuts across tracks, giving the upper active placement precedence.
 Intersecting entry and reveal fades on the same placement cannot compile.
+Click a fade indicator to select it and see which placement owns it. Hosts store
+each fade as `entryTransition` or `revealTransition` on the placement, with
+`{ id, kind: "fade", durationFrames }`. Split preserves the ID and duration at
+the original edge. Fully covered fades do not prevent export.
 
 To show frame thumbnails on the timeline, supply `keyframes: [{ sourceFrame, url }]`
 on a source. The strip uses only native source frames in the placement’s effective

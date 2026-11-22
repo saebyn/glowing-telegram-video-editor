@@ -206,19 +206,30 @@ export type PlacementMoveResult = { destinations: PlacementMoveDestination[] } &
 );
 
 type ResolvedPlacement = {
+  trackIndex: number;
   sequenceStartFrame: number;
   sequenceEndFrame: number;
   sourceInFrame: number;
   s3Location: string;
-  entryTransitionFrames?: number;
-  revealTransitionFrames?: number;
 };
 
-function isValidFadeDuration(duration: number | undefined, frameCount: number) {
-  return (
-    duration === undefined ||
-    (Number.isSafeInteger(duration) && duration > 0 && duration <= frameCount)
-  );
+type VisibleSpan = {
+  start: number;
+  end: number;
+  placement: ResolvedPlacement;
+  transitionIn?: CutList["outputTrack"][number]["transitionIn"];
+  transitionOut?: CutList["outputTrack"][number]["transitionOut"];
+};
+
+function firstSpanEndingAfter(spans: readonly VisibleSpan[], frame: number) {
+  let low = 0;
+  let high = spans.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (spans[mid].end <= frame) low = mid + 1;
+    else high = mid;
+  }
+  return low;
 }
 
 export function hasMultipleOccupiedTracks(sequence: Sequence) {
@@ -233,12 +244,15 @@ export function compileCutList(
   frameRate: FrameRate,
 ): CutList | null {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
-  // A fade whose authored edge is hidden must not silently disappear from the output.
-  let remainingFades = 0;
+  const fades: {
+    placement: ResolvedPlacement;
+    edge: "entry" | "reveal";
+    duration: number;
+  }[] = [];
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
     for (const placement of inSequenceOrder(track.placements)) {
-      const { sequenceStartFrame, entryTransitionFrames, revealTransitionFrames } = placement;
+      const { sequenceStartFrame, entryTransition, revealTransition } = placement;
       if (sequenceStartFrame < trackEndFrame) return null;
       const clip = clips.find(({ id }) => id === placement.clipId);
       if (!clip) return null;
@@ -260,29 +274,27 @@ export function compileCutList(
       ) {
         return null;
       }
-      if (
-        !isValidFadeDuration(entryTransitionFrames, frameCount) ||
-        !isValidFadeDuration(revealTransitionFrames, frameCount) ||
-        (entryTransitionFrames ?? 0) + (revealTransitionFrames ?? 0) > frameCount
-      ) {
-        return null;
+      const resolved = {
+        trackIndex,
+        sequenceStartFrame,
+        sequenceEndFrame,
+        sourceInFrame,
+        s3Location: source.s3Location,
+      };
+      for (const [edge, transition] of [
+        ["entry", entryTransition],
+        ["reveal", revealTransition],
+      ] as const) {
+        if (!transition) continue;
+        const duration = transition.durationFrames;
+        if (transition.kind !== "fade" || !Number.isSafeInteger(duration) || duration <= 0) {
+          return null;
+        }
+        fades.push({ placement: resolved, edge, duration });
       }
-      if (entryTransitionFrames !== undefined) remainingFades++;
-      if (revealTransitionFrames !== undefined) remainingFades++;
 
       boundaries.push(
-        {
-          frame: sequenceStartFrame,
-          trackIndex,
-          placement: {
-            sequenceStartFrame,
-            sequenceEndFrame,
-            sourceInFrame,
-            s3Location: source.s3Location,
-            entryTransitionFrames,
-            revealTransitionFrames,
-          },
-        },
+        { frame: sequenceStartFrame, trackIndex, placement: resolved },
         { frame: sequenceEndFrame, trackIndex },
       );
       trackEndFrame = sequenceEndFrame;
@@ -294,8 +306,7 @@ export function compileCutList(
   const active: (ResolvedPlacement | undefined)[] = sequence.tracks.map(() => undefined);
   let visible: ResolvedPlacement | undefined;
   let cutStartFrame = 0;
-  const inputMedia: CutList["inputMedia"] = [];
-  const output: CutList["outputTrack"][number][] = [];
+  const spans: VisibleSpan[] = [];
   for (const [index, { frame, trackIndex, placement }] of boundaries.entries()) {
     active[trackIndex] = placement;
     // Resolve priority after applying every change at this exclusive boundary.
@@ -303,44 +314,61 @@ export function compileCutList(
     const nextVisible = active.find((candidate) => candidate !== undefined);
     if (nextVisible === visible) continue;
 
-    if (visible) {
-      const {
-        s3Location,
-        sourceInFrame,
-        sequenceStartFrame,
-        sequenceEndFrame,
-        entryTransitionFrames,
-        revealTransitionFrames,
-      } = visible;
-      let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
-      if (mediaIndex === -1) {
-        mediaIndex = inputMedia.length;
-        inputMedia.push({ s3Location, sections: [] });
-      }
-      const { sections } = inputMedia[mediaIndex];
-      const section: CutList["outputTrack"][number] = { mediaIndex, sectionIndex: sections.length };
-      if (entryTransitionFrames !== undefined && cutStartFrame === sequenceStartFrame) {
-        if (frame - cutStartFrame < entryTransitionFrames) return null;
-        section.transitionIn = { type: "fade", duration: entryTransitionFrames };
-        remainingFades--;
-      }
-      if (revealTransitionFrames !== undefined && frame === sequenceEndFrame) {
-        if (frame - cutStartFrame < revealTransitionFrames) return null;
-        section.transitionOut = { type: "fade", duration: revealTransitionFrames };
-        remainingFades--;
-      }
-      output.push(section);
-      sections.push({
-        startFrame: sourceInFrame + (cutStartFrame - sequenceStartFrame),
-        endFrame: sourceInFrame + (frame - sequenceStartFrame),
-      });
-    } else if (frame > cutStartFrame) {
-      return null;
-    }
+    if (visible) spans.push({ start: cutStartFrame, end: frame, placement: visible });
+    else if (frame > cutStartFrame) return null;
     visible = nextVisible;
     cutStartFrame = frame;
   }
+  if (!spans.length || cutStartFrame !== sequence.durationFrames) return null;
+
+  for (const { placement, edge, duration } of fades) {
+    const entry = edge === "entry";
+    const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
+    const end = entry ? start + duration : placement.sequenceEndFrame;
+    const index = firstSpanEndingAfter(spans, start);
+    const first = spans[index];
+    if (
+      first?.placement === placement &&
+      first.end >= end &&
+      (entry ? first.start === start : first.end === end)
+    ) {
+      if (entry) first.transitionIn = { type: "fade", duration };
+      else first.transitionOut = { type: "fade", duration };
+      if (
+        (first.transitionIn?.duration ?? 0) + (first.transitionOut?.duration ?? 0) >
+        first.end - first.start
+      ) {
+        return null;
+      }
+    } else {
+      // A hidden edge is harmless only when higher tracks obscure the entire window.
+      for (let i = index; i < spans.length && spans[i].start < end; i++) {
+        if (spans[i].placement.trackIndex >= placement.trackIndex) return null;
+      }
+    }
+  }
+
+  const inputMedia: CutList["inputMedia"] = [];
+  const output = spans.map(({ start, end, placement, transitionIn, transitionOut }) => {
+    const { s3Location, sourceInFrame, sequenceStartFrame } = placement;
+    let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
+    if (mediaIndex === -1) {
+      mediaIndex = inputMedia.length;
+      inputMedia.push({ s3Location, sections: [] });
+    }
+    const { sections } = inputMedia[mediaIndex];
+    const sectionIndex = sections.length;
+    sections.push({
+      startFrame: sourceInFrame + (start - sequenceStartFrame),
+      endFrame: sourceInFrame + (end - sequenceStartFrame),
+    });
+    return {
+      mediaIndex,
+      sectionIndex,
+      ...(transitionIn && { transitionIn }),
+      ...(transitionOut && { transitionOut }),
+    };
+  });
   const [first, ...rest] = output;
-  if (!first || cutStartFrame !== sequence.durationFrames || remainingFades !== 0) return null;
   return { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] };
 }

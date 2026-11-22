@@ -7,7 +7,8 @@ export type PlacementTrimEdge = "leading" | "trailing";
 export function getMinimumTrimLength(placement: ClipPlacement) {
   return Math.max(
     1,
-    (placement.entryTransitionFrames ?? 0) + (placement.revealTransitionFrames ?? 0),
+    (placement.entryTransition?.durationFrames ?? 0) +
+      (placement.revealTransition?.durationFrames ?? 0),
   );
 }
 

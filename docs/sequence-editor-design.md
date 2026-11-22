@@ -90,7 +90,7 @@ and reports interaction input; its rows are not editor state or compiler input.
   picture or sound from lower to higher tracks. Explicit overlay tracks are
   a possible follow-up, not part of the first pass; more flexible compositing
   would need a future `CutList` format.
-- **Transition objects (design direction):** A transition has its own
+- **Transition objects:** A transition has its own
   identity and can be selected separately. It is anchored to one edge of one
   placement. Start with at most one transition per placement edge. The
   surrounding visible sequence determines what it transitions from or to;
@@ -291,11 +291,10 @@ then the section from the uppermost placement active at the outgoing
 placement's exclusive end. In the A → B → A example, B's `transitionOut`
 is followed by the resumed section of A, which starts at source frame 160
 at sequence frame 60. Entry fades use the preceding section in flattened
-order. Empty tracks do not affect this ordering. Today, obscuring a fade
-edge or region can make the compiler return `null`. In the transition
-object model, omit a fully covered fade from the compiled output without
-removing it from the sequence. A visible fade the format cannot represent
-still produces `null`.
+order. Empty tracks do not affect this ordering. The compiler omits a
+fully covered fade without removing it from the sequence. A partially
+visible fade can still make the compiler return `null`, even if its
+anchoring edge is covered.
 
 ## Storybook editing setups
 

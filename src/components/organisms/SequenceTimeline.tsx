@@ -15,7 +15,7 @@ import {
   useState,
 } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { MediaKind, Sequence, SequenceSource, VideoClip } from "@/types";
+import type { MediaKind, PlacementTransition, Sequence, SequenceSource, VideoClip } from "@/types";
 import { getFadeBounds, type PlacementFadeField } from "@/utils/fadePlacement";
 import {
   formatFrames,
@@ -77,6 +77,8 @@ type SequenceTimelineProps = {
   onPlacementTrim?: (next: Sequence) => void;
   selectedPlacementIds: readonly string[];
   onPlacementSelect?: (id: string | null, toggle: boolean) => void;
+  selectedTransitionId?: string;
+  onTransitionSelect: (id: string) => void;
 };
 
 type MoveDestination = { trackIndex: number | null; sequenceFrame: number };
@@ -128,6 +130,8 @@ export default function SequenceTimeline({
   onPlacementTrim,
   selectedPlacementIds,
   onPlacementSelect,
+  selectedTransitionId,
+  onTransitionSelect,
 }: SequenceTimelineProps) {
   const { durationFrames, tracks } = sequence;
   const frameRate = useProjectFrameRate();
@@ -276,8 +280,8 @@ export default function SequenceTimeline({
       string,
       {
         label: string;
-        entryFadeFrames: number;
-        revealFadeFrames: number;
+        entryTransition?: PlacementTransition;
+        revealTransition?: PlacementTransition;
         sequenceFrame: number;
         duration: number;
         trackIndex: number;
@@ -299,8 +303,8 @@ export default function SequenceTimeline({
         const source = sourcesById.get(clip.sourceId);
         items.set(placement.id, {
           label: titles[clip.id] ?? `Clip ${clip.id}`,
-          entryFadeFrames: placement.entryTransitionFrames ?? 0,
-          revealFadeFrames: placement.revealTransitionFrames ?? 0,
+          entryTransition: placement.entryTransition,
+          revealTransition: placement.revealTransition,
           sequenceFrame: placement.sequenceStartFrame,
           duration,
           trackIndex,
@@ -693,7 +697,7 @@ export default function SequenceTimeline({
             getActionRender={({ id }) => {
               const item = items.get(id);
               if (!item) return null;
-              const { label, entryFadeFrames, revealFadeFrames, trimRange, mediaKind, thumbnails } =
+              const { label, entryTransition, revealTransition, trimRange, mediaKind, thumbnails } =
                 item;
               const mediaKindLabel = mediaKind && mediaKindLabels[mediaKind];
               const title = mediaKindLabel ? `${label} — ${mediaKindLabel}` : label;
@@ -740,7 +744,7 @@ export default function SequenceTimeline({
               } ${compactTrim ? "inset-ring" : "border px-2"} ${
                 hasThumbnails
                   ? "items-end pb-3"
-                  : entryFadeFrames > 0 || revealFadeFrames > 0
+                  : entryTransition || revealTransition
                     ? "items-end pb-0.5"
                     : "items-center"
               }`;
@@ -828,31 +832,34 @@ export default function SequenceTimeline({
                         {content}
                       </div>
                     )}
-                    {(["entry", "reveal"] as const).map((edge) => (
-                      <SequenceFadeHandle
-                        key={edge}
-                        label={label}
-                        edge={edge}
-                        frames={edge === "entry" ? entryFadeFrames : revealFadeFrames}
-                        placementFrames={item.duration}
-                        pixelsPerFrame={pixelsPerFrame}
-                        edit={
-                          evaluateFade && onPlacementFade && getFadeBounds(sequence, item.duration)
-                            ? {
-                                evaluate: (frames) =>
-                                  evaluateFade(
-                                    id,
-                                    edge === "entry"
-                                      ? "entryTransitionFrames"
-                                      : "revealTransitionFrames",
-                                    frames,
-                                  ),
-                                commit: onPlacementFade,
-                              }
-                            : undefined
-                        }
-                      />
-                    ))}
+                    {(["entry", "reveal"] as const).map((edge) => {
+                      const field = edge === "entry" ? "entryTransition" : "revealTransition";
+                      const transition = item[field];
+                      return (
+                        <SequenceFadeHandle
+                          key={edge}
+                          label={label}
+                          edge={edge}
+                          frames={transition?.durationFrames ?? 0}
+                          placementFrames={item.duration}
+                          pixelsPerFrame={pixelsPerFrame}
+                          selected={!!transition && transition.id === selectedTransitionId}
+                          onSelect={
+                            transition ? () => onTransitionSelect(transition.id) : undefined
+                          }
+                          edit={
+                            evaluateFade &&
+                            onPlacementFade &&
+                            getFadeBounds(sequence, item.duration)
+                              ? {
+                                  evaluate: (frames) => evaluateFade(id, field, frames),
+                                  commit: onPlacementFade,
+                                }
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                     {!compactTrim && trimGrips}
                   </div>
                   {compactTrim && trimGrips}

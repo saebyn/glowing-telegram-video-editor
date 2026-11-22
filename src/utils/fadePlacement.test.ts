@@ -16,7 +16,7 @@ const placement = {
   sequenceStartFrame: 20,
   sourceInOffsetFrames: 6,
   sourceOutOffsetFrames: -2,
-  entryTransitionFrames: 8,
+  entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 8 } as const,
 };
 const sequence: Sequence = {
   durationFrames: 64,
@@ -26,14 +26,19 @@ const sequence: Sequence = {
 test("an entry fade can span the entire effective placement", () => {
   // The placement uses source [106, 146), exactly 40 frames at the project rate.
   expect(
-    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransitionFrames", 40),
+    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransition", 40),
   ).toStrictEqual({
     durationFrames: 64,
     tracks: [
       {
         id: "main",
         label: "Main",
-        placements: [{ ...placement, entryTransitionFrames: 40 }],
+        placements: [
+          {
+            ...placement,
+            entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
+          },
+        ],
       },
     ],
   });
@@ -41,6 +46,6 @@ test("an entry fade can span the entire effective placement", () => {
 
 test("resubmitting the authored entry fade duration produces no edit", () => {
   expect(
-    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransitionFrames", 8),
+    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransition", 8),
   ).toBeNull();
 });

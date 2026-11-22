@@ -83,7 +83,11 @@ test("resubmitting the current source out point produces no edit", () => {
 });
 
 test("a trailing trim can leave touching fades but cannot make them overlap", () => {
-  const faded = { ...placement, entryTransitionFrames: 10, revealTransitionFrames: 5 };
+  const faded = {
+    ...placement,
+    entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
+    revealTransition: { id: "reveal", kind: "fade", durationFrames: 5 },
+  } as const;
   const track = { id: "main", label: "Main", placements: [faded] };
   const withFades: Sequence = { ...sequence, tracks: [track] };
 
@@ -198,7 +202,11 @@ test("a leading trim shifts the sequence start and source in without moving the 
 });
 
 test("a leading trim keeps both fade durations and stops where the fades touch", () => {
-  const faded = { ...placement, entryTransitionFrames: 10, revealTransitionFrames: 5 };
+  const faded = {
+    ...placement,
+    entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
+    revealTransition: { id: "reveal", kind: "fade", durationFrames: 5 },
+  } as const;
   const track = { id: "main", label: "Main", placements: [faded] };
   const withFades: Sequence = { ...sequence, tracks: [track] };
 

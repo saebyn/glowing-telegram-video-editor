@@ -24,6 +24,8 @@ const sources: readonly SequenceSource[] = [
   { id: "source-a", s3Location: "s3://media/a.mp4" },
   { id: "source-b", s3Location: "s3://media/b.mp4" },
 ];
+const fade = (id: string, durationFrames: number) =>
+  ({ id, kind: "fade", durationFrames }) as const;
 
 it("uses the upper placement during overlap and resumes the lower source in sequence time", () => {
   const sequence: Sequence = {
@@ -74,7 +76,12 @@ it("keeps a reveal fade on the upper section before the lower source resumes", (
         id: "upper",
         label: "Upper",
         placements: [
-          { id: "placement-b", clipId: "b", sequenceStartFrame: 40, revealTransitionFrames: 10 },
+          {
+            id: "placement-b",
+            clipId: "b",
+            sequenceStartFrame: 40,
+            revealTransition: { id: "reveal-b", kind: "fade", durationFrames: 10 },
+          },
         ],
       },
       {
@@ -117,7 +124,12 @@ it("follows a reveal with the uppermost placement starting at the same boundary"
         id: "upper",
         label: "Upper",
         placements: [
-          { id: "outgoing", clipId: "b", sequenceStartFrame: 40, revealTransitionFrames: 10 },
+          {
+            id: "outgoing",
+            clipId: "b",
+            sequenceStartFrame: 40,
+            revealTransition: fade("outgoing-reveal", 10),
+          },
         ],
       },
       {
@@ -191,8 +203,8 @@ it("attaches an entry and a reveal fade to the distinct fragments containing the
             clipId: "a",
             sequenceStartFrame: 20,
             sourceOutOffsetFrames: -40,
-            entryTransitionFrames: 20,
-            revealTransitionFrames: 20,
+            entryTransition: fade("middle-entry", 20),
+            revealTransition: fade("middle-reveal", 20),
           },
         ],
       },
@@ -288,7 +300,7 @@ it("rejects overlap on one track even when an upper placement covers it", () => 
 
 it.each([
   ["a straight cut", {}],
-  ["a reveal fade", { revealTransitionFrames: 10 }],
+  ["a reveal fade", { revealTransition: fade("gap-reveal", 10) }],
 ] as const)(
   "does not skip an uncovered gap after %s to reach a placement on another track",
   (_, transition) => {
@@ -356,8 +368,18 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
     id: "main",
     label: "Main",
     placements: [
-      { id: "placement-a", clipId: "a", sequenceStartFrame: 0, revealTransitionFrames: 15 },
-      { id: "placement-b", clipId: "b", sequenceStartFrame: 100, entryTransitionFrames: 5 },
+      {
+        id: "placement-a",
+        clipId: "a",
+        sequenceStartFrame: 0,
+        revealTransition: fade("a-reveal", 15),
+      },
+      {
+        id: "placement-b",
+        clipId: "b",
+        sequenceStartFrame: 100,
+        entryTransition: fade("b-entry", 5),
+      },
     ],
   };
   const sequence: Sequence = { durationFrames: 120, tracks: [main] };
@@ -385,14 +407,14 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
   expect(compileCutList(padded, clips, sources, frameRate)).toStrictEqual(expected);
 });
 
-it("does not silently discard a reveal fade on a covered track", () => {
+it("omits a fully covered reveal window even when the owner is visible earlier", () => {
   const sequence: Sequence = {
     durationFrames: 100,
     tracks: [
       {
         id: "upper",
         label: "Upper",
-        placements: [{ id: "placement-a", clipId: "a", sequenceStartFrame: 0 }],
+        placements: [{ id: "cover", clipId: "b", sequenceStartFrame: 80 }],
       },
       {
         id: "lower",
@@ -400,15 +422,78 @@ it("does not silently discard a reveal fade on a covered track", () => {
         placements: [
           {
             id: "placement-b",
-            clipId: "b",
-            sequenceStartFrame: 40,
-            revealTransitionFrames: 10,
+            clipId: "a",
+            sequenceStartFrame: 0,
+            revealTransition: { id: "covered-reveal", kind: "fade", durationFrames: 10 },
           },
         ],
       },
     ],
   };
 
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    version: "1.0.0",
+    inputMedia: [
+      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 180 }] },
+      { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
+    ],
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0 },
+    ],
+  });
+});
+
+it("omits a covered entry ending exactly where its owner becomes visible", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      {
+        id: "upper",
+        label: "Upper",
+        placements: [{ id: "cover", clipId: "b", sequenceStartFrame: 0 }],
+      },
+      {
+        id: "lower",
+        label: "Lower",
+        placements: [
+          { id: "a", clipId: "a", sequenceStartFrame: 0, entryTransition: fade("entry", 20) },
+        ],
+      },
+    ],
+  };
+
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    version: "1.0.0",
+    inputMedia: [
+      { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
+      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 120, endFrame: 200 }] },
+    ],
+    outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }, { mediaIndex: 1, sectionIndex: 0 }],
+  });
+});
+
+it("rejects a fade when its authored edge is covered but its last frame is visible", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      {
+        id: "upper",
+        label: "Upper",
+        placements: [
+          { id: "cover", clipId: "b", sequenceStartFrame: 0, sourceOutOffsetFrames: -1 },
+        ],
+      },
+      {
+        id: "lower",
+        label: "Lower",
+        placements: [
+          { id: "a", clipId: "a", sequenceStartFrame: 0, entryTransition: fade("entry", 20) },
+        ],
+      },
+    ],
+  };
+  // The higher track covers [0, 19); the twentieth frame of the entry is still visible.
   expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
 });
 
@@ -428,7 +513,12 @@ it("rejects a reveal fade when the visible trailing fragment is shorter than the
         id: "lower",
         label: "Lower",
         placements: [
-          { id: "outgoing", clipId: "a", sequenceStartFrame: 0, revealTransitionFrames: 20 },
+          {
+            id: "outgoing",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            revealTransition: fade("outgoing-reveal", 20),
+          },
         ],
       },
     ],
@@ -454,7 +544,12 @@ it("rejects an entry fade when the visible leading fragment is shorter than the 
         id: "lower",
         label: "Lower",
         placements: [
-          { id: "incoming", clipId: "a", sequenceStartFrame: 20, entryTransitionFrames: 20 },
+          {
+            id: "incoming",
+            clipId: "a",
+            sequenceStartFrame: 20,
+            entryTransition: fade("incoming-entry", 20),
+          },
         ],
       },
     ],
@@ -476,8 +571,8 @@ it("does not compile entry and reveal fades whose regions intersect", () => {
             id: "placement-a",
             clipId: "a",
             sequenceStartFrame: 0,
-            entryTransitionFrames: 60,
-            revealTransitionFrames: 50,
+            entryTransition: fade("long-entry", 60),
+            revealTransition: fade("long-reveal", 50),
           },
         ],
       },
@@ -499,8 +594,8 @@ it("retains entry and reveal fades that meet without intersecting", () => {
             id: "placement-a",
             clipId: "a",
             sequenceStartFrame: 0,
-            entryTransitionFrames: 40,
-            revealTransitionFrames: 60,
+            entryTransition: fade("a-entry", 40),
+            revealTransition: fade("a-reveal", 60),
           },
         ],
       },
@@ -525,8 +620,8 @@ it("retains entry and reveal fades that meet without intersecting", () => {
 });
 
 it.each([
-  ["zero-frame entry", { entryTransitionFrames: 0 }],
-  ["fractional-frame reveal", { revealTransitionFrames: 2.5 }],
+  ["zero-frame entry", { entryTransition: fade("zero-entry", 0) }],
+  ["fractional-frame reveal", { revealTransition: fade("fractional-reveal", 2.5) }],
 ] as const)("rejects a %s fade even when its edge is visible", (_, transition) => {
   const sequence: Sequence = {
     durationFrames: 100,

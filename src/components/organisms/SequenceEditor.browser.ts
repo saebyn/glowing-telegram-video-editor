@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { Sequence } from "@/types";
 import {
   noEdits,
   openWorkflow,
@@ -76,7 +75,7 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
 test("applying an entry fade emits the edited placement and its exact CutList edge", async ({
   page,
 }) => {
-  const expectedSequence: Sequence = {
+  const expectedSequence = {
     durationFrames: 240,
     tracks: [
       {
@@ -88,7 +87,7 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
             id: "lighthouse-next",
             clipId: "lighthouse",
             sequenceStartFrame: 120,
-            entryTransitionFrames: 30,
+            entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
           },
         ],
       },
@@ -151,7 +150,7 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
 test("applying a reveal fade marks Harbor's trailing edge without moving the cut", async ({
   page,
 }) => {
-  const expectedSequence: Sequence = {
+  const expectedSequence = {
     durationFrames: 240,
     tracks: [
       {
@@ -162,7 +161,7 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
             id: "harbor-open",
             clipId: "harbor",
             sequenceStartFrame: 0,
-            revealTransitionFrames: 48,
+            revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 48 },
           },
           { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
         ],

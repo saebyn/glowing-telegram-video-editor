@@ -25,7 +25,14 @@ test("Delete removes one Lighthouse placement without removing its other use or 
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, layeredEditStoryId);
+  await openWorkflow(page, layeredEditStoryId, {
+    "sequence.tracks[0].placements[0].revealTransition.id": "opening-reveal",
+    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
+    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
+    "sequence.tracks[2].placements[0].entryTransition.id": "alternate-entry",
+    "sequence.tracks[2].placements[0].entryTransition.kind": "fade",
+    "sequence.tracks[2].placements[0].entryTransition.durationFrames": 18,
+  });
   const deleteButton = page.getByRole("button", { name: "Delete", exact: true });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouses = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -69,6 +76,7 @@ test("Delete removes one Lighthouse placement without removing its other use or 
                 sequenceStartFrame: 120,
                 sourceInOffsetFrames: 6,
                 sourceOutOffsetFrames: -6,
+                entryTransition: { id: "alternate-entry", kind: "fade", durationFrames: 18 },
               },
             ],
           },
@@ -92,6 +100,18 @@ test("Delete removes one Lighthouse placement without removing its other use or 
   await expect(lighthouses).toBeVisible();
   await expect(poolLighthouse).toBeVisible();
   await expect(deleteButton).toBeDisabled();
+  await expect(
+    timeline.getByRole("button", { name: "Select reveal fade: Lighthouse" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(
+    timeline.getByRole("button", { name: "Select reveal fade: Lighthouse" }),
+  ).toBeVisible();
+  expect((await emissions()).sequences[1].tracks[0].placements[0].revealTransition).toEqual({
+    id: "opening-reveal",
+    kind: "fade",
+    durationFrames: 12,
+  });
 });
 
 test("Delete removes the selection across tracks in one edit and leaves uncovered frames in place", async ({

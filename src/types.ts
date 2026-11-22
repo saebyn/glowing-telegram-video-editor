@@ -139,6 +139,14 @@ export interface SequenceSource {
   keyframes?: readonly { sourceFrame: number; url: string }[];
 }
 
+export interface PlacementTransition {
+  /** Stable identity within the sequence. */
+  id: string;
+  kind: "fade";
+  /** Positive whole sequence frames, anchored at the owning edge. */
+  durationFrames: number;
+}
+
 export interface ClipPlacement {
   id: string;
   clipId: string;
@@ -146,10 +154,10 @@ export interface ClipPlacement {
   /** Signed offsets from the clip's native source in and out points. */
   sourceInOffsetFrames?: number;
   sourceOutOffsetFrames?: number;
-  /** Entry fade duration in whole sequence frames inside the placement, when present. */
-  entryTransitionFrames?: number;
-  /** Reveal fade duration in whole sequence frames inside the placement, when present. */
-  revealTransitionFrames?: number;
+  /** Transition owned by the leading edge. Omit for a hard cut. */
+  entryTransition?: PlacementTransition;
+  /** Transition owned by the trailing edge. Omit for a hard cut. */
+  revealTransition?: PlacementTransition;
 }
 
 export interface SequenceTrack {

@@ -62,7 +62,9 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
   await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
 
   const next = structuredClone(paddedStraightCut);
-  next.tracks[1].placements[1].entryTransitionFrames = 24;
+  Object.assign(next.tracks[1].placements[1], {
+    entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 24 },
+  });
   const cutList: CutList = {
     version: "1.0.0",
     inputMedia,
@@ -85,6 +87,50 @@ async function dragFade(page: Page, handle: Locator, dx: number) {
   await page.mouse.move(x + dx, y, { steps: 10 });
 }
 
+test("a covered transition can be selected without selecting its owner or emitting an edit", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, {
+    "sequence.tracks[2].placements[0].entryTransition.id": "covered-entry",
+    "sequence.tracks[2].placements[0].entryTransition.kind": "fade",
+    "sequence.tracks[2].placements[0].entryTransition.durationFrames": 24,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  await fade.click({ timeout: 5_000 });
+  await expect(fade).toHaveAttribute("aria-pressed", "true");
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  await expect(
+    inspector.getByText("Owner: Lighthouse — Alternate, sequence frame 120"),
+  ).toBeVisible();
+  await expect(inspector.getByText("24 sequence frames", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("an editable one-frame fade can be selected separately from its resize handle", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 1,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  await fade.click();
+  await expect(fade).toHaveAttribute("aria-pressed", "true");
+  await expect(timeline.getByLabel("Adjust entry fade: Lighthouse")).toBeVisible();
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  await expect(inspector.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("1");
+  await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveCount(0);
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
 test("a timeline reveal grip edits a placement on a track between empty tracks", async ({
   page,
 }) => {
@@ -100,7 +146,9 @@ test("a timeline reveal grip edits a placement on a track between empty tracks",
   await page.mouse.up();
 
   const next = structuredClone(paddedStraightCut);
-  next.tracks[1].placements[0].revealTransitionFrames = 30;
+  Object.assign(next.tracks[1].placements[0], {
+    revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
+  });
   const cutList: CutList = {
     version: "1.0.0",
     inputMedia,
@@ -153,7 +201,9 @@ test("dragging Lighthouse's entry handle previews 30 frames and commits once wit
 
   await page.mouse.up();
   const next = structuredClone(straightCut);
-  next.tracks[0].placements[1].entryTransitionFrames = 30;
+  Object.assign(next.tracks[0].placements[1], {
+    entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
+  });
   const cutList: CutList = {
     version: "1.0.0",
     inputMedia,
@@ -198,7 +248,9 @@ test("Harbor's separate reveal handle previews 48 frames from the trailing edge 
 
   await page.mouse.up();
   const next = structuredClone(straightCut);
-  next.tracks[0].placements[0].revealTransitionFrames = 48;
+  Object.assign(next.tracks[0].placements[0], {
+    revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 48 },
+  });
   const cutList: CutList = {
     version: "1.0.0",
     inputMedia,
@@ -225,6 +277,8 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   const afterFade = await emissions();
   expect(afterFade.sequences).toHaveLength(1);
+  const entryId = afterFade.sequences[0].tracks[0].placements[1].entryTransition?.id;
+  expect(entryId).toEqual(expect.stringMatching(/\S/));
 
   const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
   await leading.scrollIntoViewIfNeeded();
@@ -251,7 +305,7 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
             clipId: "lighthouse",
             sequenceStartFrame: 144,
             sourceInOffsetFrames: 24,
-            entryTransitionFrames: 30,
+            entryTransition: { id: entryId!, kind: "fade", durationFrames: 30 },
           },
         ],
       },
@@ -315,6 +369,10 @@ test("adjacent fade regions leave both handles usable, and a valid fade still co
   const initial = (await emissions())!;
   expect(initial.cutLists).toHaveLength(2);
   expect(initial.cutLists[1]).not.toBeNull();
+  const { entryTransition, revealTransition } = initial.sequences[1].tracks[0].placements[0];
+  expect(entryTransition?.id).toEqual(expect.stringMatching(/\S/));
+  expect(revealTransition?.id).toEqual(expect.stringMatching(/\S/));
+  expect(entryTransition?.id).not.toBe(revealTransition?.id);
 
   // At 72 + 48 = 120, the handles share a sequence position, not a hit target.
   // Extending just the entry by 18 frames makes the fade regions intersect.
@@ -332,8 +390,8 @@ test("adjacent fade regions leave both handles usable, and a valid fade still co
 
   const next = structuredClone(straightCut);
   Object.assign(next.tracks[0].placements[0], {
-    entryTransitionFrames: 90,
-    revealTransitionFrames: 48,
+    entryTransition: { id: entryTransition!.id, kind: "fade", durationFrames: 90 },
+    revealTransition: { id: revealTransition!.id, kind: "fade", durationFrames: 48 },
   });
   await expect.poll(emissions).toStrictEqual({
     sequences: [...initial.sequences, next],

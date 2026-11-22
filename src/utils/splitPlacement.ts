@@ -25,7 +25,7 @@ function getSplitPoint(
   const leftFrames = playheadFrame - placement.sequenceStartFrame;
   const sourceSplitFrame = sourceInFrame + leftFrames;
   if (leftFrames <= 0 || sourceSplitFrame >= sourceOutFrame) return null;
-  return { clip, leftFrames, sourceSplitFrame, sourceOutFrame };
+  return { clip, sourceSplitFrame };
 }
 
 /** Check availability without allocating placement IDs. */
@@ -61,30 +61,21 @@ export function splitPlacementsAtPlayhead(
       if (!selected.has(placement.id)) return [placement];
       const split = getSplitPoint(placement, clips, frameRate, playheadFrame);
       if (!split) return [placement];
-      const { clip, leftFrames, sourceSplitFrame, sourceOutFrame } = split;
+      const { clip, sourceSplitFrame } = split;
 
-      const { entryTransitionFrames, revealTransitionFrames, ...placementWithoutFades } = placement;
+      const { entryTransition, revealTransition, ...placementWithoutTransitions } = placement;
       return [
         {
-          ...placementWithoutFades,
+          ...placementWithoutTransitions,
           sourceOutOffsetFrames: sourceSplitFrame - clip.sourceOutFrame,
-          ...(entryTransitionFrames === undefined
-            ? {}
-            : { entryTransitionFrames: Math.min(entryTransitionFrames, leftFrames) }),
+          ...(entryTransition && { entryTransition }),
         },
         {
-          ...placementWithoutFades,
+          ...placementWithoutTransitions,
           id: allocatePlacementId(),
           sequenceStartFrame: playheadFrame,
           sourceInOffsetFrames: sourceSplitFrame - clip.sourceInFrame,
-          ...(revealTransitionFrames === undefined
-            ? {}
-            : {
-                revealTransitionFrames: Math.min(
-                  revealTransitionFrames,
-                  sourceOutFrame - sourceSplitFrame,
-                ),
-              }),
+          ...(revealTransition && { revealTransition }),
         },
       ];
     });

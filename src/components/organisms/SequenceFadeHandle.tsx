@@ -7,6 +7,8 @@ type SequenceFadeHandleProps = {
   frames: number;
   placementFrames: number;
   pixelsPerFrame: number;
+  selected?: boolean;
+  onSelect?: () => void;
   edit?: {
     evaluate: (frames: number) => Sequence | null;
     commit: (next: Sequence) => void;
@@ -19,6 +21,8 @@ export default function SequenceFadeHandle({
   frames,
   placementFrames,
   pixelsPerFrame,
+  selected,
+  onSelect,
   edit,
 }: SequenceFadeHandleProps) {
   const drag = useRef<{ pointerId: number; x: number } | null>(null);
@@ -32,6 +36,7 @@ export default function SequenceFadeHandle({
   const isEntry = edge === "entry";
   const styleEdge = isEntry ? "left" : "right";
   const name = `Adjust ${edge} fade: ${label}`;
+  const Indicator = onSelect ? "button" : "span";
 
   // The draft is relative to the authored fade and the scale at pointerdown.
   useLayoutEffect(() => {
@@ -55,13 +60,29 @@ export default function SequenceFadeHandle({
 
   return (
     <>
-      {percent > 0 && (
-        <span
-          className={`pointer-events-none absolute top-0 h-3 overflow-hidden bg-amber-300 indent-1 text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "rounded-r" : "rounded-l"}`}
+      {(percent > 0 || onSelect) && (
+        <Indicator
+          type={onSelect ? "button" : undefined}
+          aria-label={onSelect ? `Select ${edge} fade: ${label}` : undefined}
+          aria-pressed={onSelect ? selected : undefined}
+          className={`absolute h-3 overflow-hidden bg-amber-300 indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "top-0 rounded-r" : "top-3 rounded-l"} ${
+            onSelect
+              ? "min-w-1 cursor-pointer focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 aria-pressed:bg-amber-500 aria-pressed:inset-ring-2 aria-pressed:inset-ring-amber-900"
+              : "pointer-events-none"
+          }`}
           style={{ [styleEdge]: 0, width: `${percent}%` }}
+          onPointerDown={onSelect ? (event) => event.stopPropagation() : undefined}
+          onClick={
+            onSelect
+              ? (event) => {
+                  event.stopPropagation();
+                  onSelect();
+                }
+              : undefined
+          }
         >
           {isEntry ? "Fade in" : "Fade out"}
-        </span>
+        </Indicator>
       )}
       {edit && (
         <button
@@ -70,8 +91,8 @@ export default function SequenceFadeHandle({
           aria-describedby={blocked ? feedbackId : undefined}
           data-state={blocked ? "blocked" : undefined}
           title={name}
-          // Distinct vertical lanes keep the grips reachable even when the fade regions meet.
-          className={`absolute z-10 h-2 w-3 cursor-ew-resize touch-none rounded-sm border border-amber-100 bg-amber-700 text-[8px]/[6px] font-bold text-white select-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white data-[state=blocked]:bg-rose-700 ${isEntry ? "top-0 -translate-x-1/2" : "top-2 translate-x-1/2"}`}
+          // Keep the center of each indicator clickable, even for a one-frame fade.
+          className={`absolute z-10 h-2 w-3 cursor-ew-resize touch-none overflow-hidden rounded-sm border border-amber-100 bg-amber-700 text-[8px]/[6px] font-bold text-white select-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white data-[state=blocked]:bg-rose-700 ${isEntry ? "top-2 -translate-x-1/2" : "top-5 translate-x-1/2"}`}
           style={{ [styleEdge]: `clamp(6px, ${percent}%, calc(100% - 6px))` }}
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => {

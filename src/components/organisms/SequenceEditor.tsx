@@ -1,7 +1,7 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useEffect, useId, useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { Sequence, SequenceSource, VideoClip } from "@/types";
+import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
 import {
   evaluatePlacementFade,
   getFadeBounds,
@@ -45,9 +45,21 @@ export interface SequenceEditorProps {
 }
 
 const fadeFields = [
-  { field: "entryTransitionFrames", label: "Entry fade", button: "Apply entry fade" },
-  { field: "revealTransitionFrames", label: "Reveal fade", button: "Apply reveal fade" },
+  { field: "entryTransition", label: "Entry fade", button: "Apply entry fade" },
+  { field: "revealTransition", label: "Reveal fade", button: "Apply reveal fade" },
 ] as const;
+
+function findTransition(sequence: Sequence, id: string | undefined) {
+  if (id === undefined) return undefined;
+  for (const track of sequence.tracks) {
+    for (const placement of track.placements) {
+      for (const { field, label } of fadeFields) {
+        const transition = placement[field];
+        if (transition?.id === id) return { track, placement, field, label, transition };
+      }
+    }
+  }
+}
 
 export default function SequenceEditor({
   sequence,
@@ -62,6 +74,7 @@ export default function SequenceEditor({
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
   const [selection, setSelection] = useState<readonly string[]>([]);
+  const [transitionId, setTransitionId] = useState<string>();
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
@@ -79,6 +92,9 @@ export default function SequenceEditor({
   const canSplit = !!onSequenceChange && canSplitPlacementsAtPlayhead(...splitArgs);
   const selectedTrack = selectedIds.length === 1 ? selectedTracks[0].track : undefined;
   const selectedPlacement = selectedIds.length === 1 ? selectedTracks[0].placements[0] : undefined;
+  const selectedTransition = findTransition(sequence, transitionId);
+  const fadeOwner: ClipPlacement | undefined = selectedTransition?.placement ?? selectedPlacement;
+  const fadeClip = clips.find(({ id }) => id === fadeOwner?.clipId);
   const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
   const selectedSourceRange =
     selectedClip && selectedPlacement
@@ -88,8 +104,11 @@ export default function SequenceEditor({
     ? getProjectFrameCount(selectedSourceRange, frameRate)
     : null;
   const fadeBounds =
-    onSequenceChange && selectedFrameCount !== null
-      ? getFadeBounds(sequence, selectedFrameCount)
+    onSequenceChange && fadeOwner && fadeClip
+      ? getFadeBounds(
+          sequence,
+          getProjectFrameCount(getPlacementSourceRange(fadeClip, fadeOwner), frameRate),
+        )
       : null;
   const trimBounds =
     onSequenceChange && selectedTrack && selectedPlacement && selectedClip
@@ -100,10 +119,16 @@ export default function SequenceEditor({
   const shortcutsHintId = useId();
 
   function selectPlacement(id: string | null, toggle: boolean) {
+    setTransitionId(undefined);
     if (id === null) setSelection([]);
     else if (!toggle) setSelection([id]);
     else if (selectedIds.includes(id)) setSelection(selectedIds.filter((other) => other !== id));
     else setSelection([...selectedIds, id]);
+  }
+
+  function selectTransition(id: string) {
+    setSelection([]);
+    setTransitionId(id);
   }
 
   function togglePane(pane: WorkspacePane) {
@@ -316,6 +341,19 @@ export default function SequenceEditor({
         }
         inspector={
           <>
+            {selectedTransition && (
+              <div className="mb-3 space-y-1 text-sm">
+                <p className="font-medium">{selectedTransition.label}</p>
+                <p>
+                  Owner:{" "}
+                  {titles[selectedTransition.placement.clipId] ??
+                    `Clip ${selectedTransition.placement.clipId}`}{" "}
+                  — {selectedTransition.track.label}, sequence frame{" "}
+                  {selectedTransition.placement.sequenceStartFrame}
+                </p>
+                <p>{selectedTransition.transition.durationFrames} sequence frames</p>
+              </div>
+            )}
             {selectedIds.length > 1 && (
               <p className="text-sm">
                 {selectedIds.length} placements selected
@@ -376,42 +414,44 @@ export default function SequenceEditor({
                 </button>
               </form>
             )}
-            {fadeBounds && selectedPlacement ? (
+            {fadeBounds && fadeOwner ? (
               <div className="space-y-3">
-                {fadeFields.map(({ field, label, button }) => (
-                  <form
-                    key={`${selectedPlacement.id}:${field}:${selectedPlacement[field]}`}
-                    className="space-y-2"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const duration = Number(new FormData(event.currentTarget).get("duration"));
-                      const next = proposePlacementFade(selectedPlacement.id, field, duration);
-                      if (next) commitEdit(next);
-                    }}
-                  >
-                    <label className="block space-y-1 text-sm">
-                      <span>{label} duration (sequence frames)</span>
-                      <input
-                        name="duration"
-                        type="number"
-                        required
-                        min={fadeBounds.min}
-                        max={fadeBounds.max}
-                        step={1}
-                        defaultValue={selectedPlacement[field]}
-                        className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+                {fadeFields
+                  .filter(({ field }) => !selectedTransition || field === selectedTransition.field)
+                  .map(({ field, label, button }) => (
+                    <form
+                      key={`${fadeOwner.id}:${field}:${fadeOwner[field]?.id}:${fadeOwner[field]?.durationFrames}`}
+                      className="space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const duration = Number(new FormData(event.currentTarget).get("duration"));
+                        const next = proposePlacementFade(fadeOwner.id, field, duration);
+                        if (next) commitEdit(next);
+                      }}
                     >
-                      {button}
-                    </button>
-                  </form>
-                ))}
+                      <label className="block space-y-1 text-sm">
+                        <span>{label} duration (sequence frames)</span>
+                        <input
+                          name="duration"
+                          type="number"
+                          required
+                          min={fadeBounds.min}
+                          max={fadeBounds.max}
+                          step={1}
+                          defaultValue={fadeOwner[field]?.durationFrames}
+                          className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+                      >
+                        {button}
+                      </button>
+                    </form>
+                  ))}
               </div>
-            ) : selectedIds.length === 0 ? (
+            ) : selectedIds.length === 0 && !selectedTransition ? (
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 {onSequenceChange
                   ? "Select a placement to edit it."
@@ -439,6 +479,8 @@ export default function SequenceEditor({
           onPlacementTrim={onSequenceChange ? commitEdit : undefined}
           selectedPlacementIds={selectedIds}
           onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
+          selectedTransitionId={selectedTransition?.transition.id}
+          onTransitionSelect={selectTransition}
         />
       )}
     </section>
