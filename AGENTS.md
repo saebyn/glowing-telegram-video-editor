@@ -6,3 +6,17 @@ Glowing Telegram Video Editor is a React and TypeScript component library for vi
 - Use [the glossary](GLOSSARY.md) for editing terminology. Keep positions as zero-based whole frames: source review and clip in/out points use the native source rate (in inclusive, out exclusive); sequence positions use the project rate supplied by `ProjectProvider`.
 - Use [`src/utils/frames.ts`](src/utils/frames.ts) for conversions. In [`SourceTimeline`](src/components/organisms/SourceTimeline.tsx), keep positions in source frames and convert to or from seconds at the widget boundary.
 - Match checks to the change. For docs-only edits, check links, commands, and `git diff --check`; use the relevant development checks for code changes.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs use local Markdown under `.scratch/`. See [issue tracker](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Triage uses the five default status values. See [triage labels](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single context; use the root `GLOSSARY.md`. See [domain docs](docs/agents/domain.md).
