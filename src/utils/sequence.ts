@@ -1,0 +1,101 @@
+import type { CutList } from "@saebyn/glowing-telegram-types";
+import type { ClipPlacement, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
+import { getProjectFrameCount } from "./frames";
+
+export function getPlacementSourceRange(clip: VideoClip, placement: ClipPlacement) {
+  return {
+    sourceInFrame: clip.sourceInFrame + (placement.sourceInOffsetFrames ?? 0),
+    sourceOutFrame: clip.sourceOutFrame + (placement.sourceOutOffsetFrames ?? 0),
+    sourceFrameRate: clip.sourceFrameRate,
+  };
+}
+
+function inSequenceOrder(placements: readonly ClipPlacement[]) {
+  return [...placements].sort((a, b) => a.sequenceStartFrame - b.sequenceStartFrame);
+}
+
+/** Insert one clip into the uncovered gap under the pointer, if it fits without resizing. */
+export function placeClipInGap(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  frameRate: FrameRate,
+  clipId: string,
+  atFrame: number,
+): Sequence | null {
+  const [track] = sequence.tracks;
+  const clip = clips.find((candidate) => candidate.id === clipId);
+  if (sequence.tracks.length !== 1 || !clip || atFrame < 0 || atFrame >= sequence.durationFrames) {
+    return null;
+  }
+
+  const duration = getProjectFrameCount(clip, frameRate);
+  let gapStart = 0;
+  let gapEnd = sequence.durationFrames;
+  const placements = inSequenceOrder(track.placements);
+  for (const placement of placements) {
+    if (atFrame < placement.sequenceStartFrame) {
+      gapEnd = placement.sequenceStartFrame;
+      break;
+    }
+    const placedClip = clips.find((candidate) => candidate.id === placement.clipId);
+    if (!placedClip) return null;
+    const range = getPlacementSourceRange(placedClip, placement);
+    gapStart = Math.max(
+      gapStart,
+      placement.sequenceStartFrame + getProjectFrameCount(range, frameRate),
+    );
+  }
+  if (atFrame < gapStart || duration <= 0 || gapEnd - gapStart < duration) return null;
+
+  // Keep the entire clip in this gap, including when it is an exact fit.
+  const sequenceStartFrame = Math.min(atFrame, gapEnd - duration);
+  const placement: ClipPlacement = { id: crypto.randomUUID(), clipId, sequenceStartFrame };
+  return { ...sequence, tracks: [{ ...track, placements: [...track.placements, placement] }] };
+}
+
+/** Compile contiguous, straight cuts on one track at matching source and project rates. */
+export function compileCutList(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: readonly SequenceSource[],
+  frameRate: FrameRate,
+): CutList | null {
+  if (sequence.tracks.length !== 1) return null;
+
+  const inputMedia: CutList["inputMedia"] = [];
+  const output: CutList["outputTrack"][number][] = [];
+  let nextFrame = 0;
+  for (const placement of inSequenceOrder(sequence.tracks[0].placements)) {
+    if (placement.sequenceStartFrame !== nextFrame || placement.entryTransitionFrames) return null;
+    const clip = clips.find(({ id }) => id === placement.clipId);
+    if (!clip) return null;
+    const source = sources.find(({ id }) => id === clip.sourceId);
+    const { sourceInFrame, sourceOutFrame, sourceFrameRate } = getPlacementSourceRange(
+      clip,
+      placement,
+    );
+    if (
+      !source ||
+      BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
+        BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator) ||
+      sourceInFrame < 0 ||
+      sourceOutFrame <= sourceInFrame ||
+      (clip.sourceDurationFrames !== undefined && sourceOutFrame > clip.sourceDurationFrames)
+    ) {
+      return null;
+    }
+
+    let mediaIndex = inputMedia.findIndex(({ s3Location }) => s3Location === source.s3Location);
+    if (mediaIndex === -1) {
+      mediaIndex = inputMedia.length;
+      inputMedia.push({ s3Location: source.s3Location, sections: [] });
+    }
+    const { sections } = inputMedia[mediaIndex];
+    output.push({ mediaIndex, sectionIndex: sections.length });
+    sections.push({ startFrame: sourceInFrame, endFrame: sourceOutFrame });
+    nextFrame += sourceOutFrame - sourceInFrame;
+  }
+  const [first, ...rest] = output;
+  if (!first || nextFrame !== sequence.durationFrames) return null;
+  return { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] };
+}

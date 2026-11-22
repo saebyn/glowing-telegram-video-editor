@@ -78,13 +78,26 @@ The library exports the following components:
 - **`VideoPreview`** - Preview component for rendering videos with audio mixing
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
 - **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
+- **`SequenceEditor`** - Controlled editor for explicit clip placements, with `CutList` output
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
 ## Component Usage
 
-Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditor`, `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+
+### SequenceEditor
+
+The host supplies `sequence`, `clips`, and `sources` (source IDs and `s3Location` values).
+On an edit, feed `onSequenceChange` back into `sequence`. `onCutListChange` receives the
+compiled result of the same edit, or `null` if the edit cannot be represented. Loading a
+sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence, clips, sources, frameRate)`
+directly.
+
+The first editing action drops a single clip into an existing gap on one track without
+changing the sequence duration. The compiler currently handles fully covered, straight cuts on
+one track with matching source and project rates. The preview and inspector are placeholders.
 
 ### VideoSelectionPage
 

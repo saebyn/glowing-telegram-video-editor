@@ -126,6 +126,35 @@ export interface SequenceLayout {
   placements: SequenceClipPlacement[];
 }
 
+/** Renderable media identity supplied by the host, separate from a clip's source range. */
+export interface SequenceSource {
+  id: string;
+  s3Location: string;
+}
+
+export interface ClipPlacement {
+  id: string;
+  clipId: string;
+  sequenceStartFrame: number;
+  /** Signed offsets from the clip's native source in and out points. */
+  sourceInOffsetFrames?: number;
+  sourceOutOffsetFrames?: number;
+  /** Entry fade duration in sequence frames, visual only in the first slice. */
+  entryTransitionFrames?: number;
+}
+
+export interface SequenceTrack {
+  id: string;
+  label: string;
+  placements: readonly ClipPlacement[];
+}
+
+export interface Sequence {
+  durationFrames: number;
+  /** Tracks in visual order, top first. */
+  tracks: readonly SequenceTrack[];
+}
+
 /**
  * Audio channel information for preview
  */

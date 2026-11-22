@@ -12,6 +12,7 @@ npm ci
 | --- | --- |
 | Type-check | `npm run typecheck` |
 | Run Vitest once | `npm test -- --run` |
+| Run browser tests against Storybook | `npm run test:browser` |
 | Open the Vitest UI (uses the URL printed on startup) | `npm run test:ui` |
 | Lint with Oxlint | `npm run lint` |
 | Apply Oxlint fixes | `npm run lint:fix` |
@@ -24,6 +25,11 @@ npm ci
 | Build static Storybook | `npm run build-storybook` |
 
 [Unit-test CI](../.github/workflows/unittest.yml) runs `npm ci`, `npm run lint:ci`, `npm run format:check`, and `npm test` on pushes and pull requests to `main`. [Chromatic](../.github/workflows/chromatic.yml) checks Storybook on pushes. For UI changes, exercise the affected stories in the browser and check light and dark modes where applicable.
+
+The browser test starts its own Storybook on port 6007. Install Chromium with
+`npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`
+to a compatible local Chromium executable (for example on NixOS). The
+`SequenceEditor` gap story uses local fixtures and makes no media service requests.
 
 ## Source layout
 
