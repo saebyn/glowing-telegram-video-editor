@@ -10,7 +10,7 @@ type SequenceFadeHandleProps = {
   selected?: boolean;
   onSelect?: () => void;
   edit?: {
-    evaluate: (frames: number) => Sequence | null;
+    evaluate: (frames: number, onConflict?: () => void) => Sequence | null;
     commit: (next: Sequence) => void;
   };
 };
@@ -26,9 +26,9 @@ export default function SequenceFadeHandle({
   edit,
 }: SequenceFadeHandleProps) {
   const drag = useRef<{ pointerId: number; x: number } | null>(null);
-  const [draft, setDraft] = useState<number | "blocked" | null>(null);
+  const [draft, setDraft] = useState<number | "blocked" | "conflict" | null>(null);
   const feedbackId = useId();
-  const blocked = draft === "blocked";
+  const blocked = draft === "blocked" || draft === "conflict";
   const percent = Math.min(
     100,
     (100 * (typeof draft === "number" ? draft : frames)) / placementFrames,
@@ -103,8 +103,16 @@ export default function SequenceFadeHandle({
           }}
           onPointerMove={(event) => {
             const next = proposedFrames(event);
-            if (next !== null)
-              setDraft(next === frames ? null : edit.evaluate(next) ? next : "blocked");
+            if (next === null) return;
+            if (next === frames) {
+              setDraft(null);
+              return;
+            }
+            let reason: "blocked" | "conflict" = "blocked";
+            const evaluated = edit.evaluate(next, () => {
+              reason = "conflict";
+            });
+            setDraft(evaluated ? next : reason);
           }}
           onPointerUp={(event) => {
             const next = proposedFrames(event);
@@ -127,7 +135,9 @@ export default function SequenceFadeHandle({
       )}
       {blocked && (
         <span id={feedbackId} className="sr-only">
-          Fade duration must be between 1 and {placementFrames} sequence frames.
+          {draft === "conflict"
+            ? "This transition competes with another transition on the same cut or visible frames."
+            : `Fade duration must be between 1 and ${placementFrames} sequence frames.`}
         </span>
       )}
     </>

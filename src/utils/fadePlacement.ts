@@ -1,4 +1,4 @@
-import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
+import type { ClipPlacement, FrameRate, PlacementTransition, Sequence, VideoClip } from "@/types";
 import { getProjectFrameCount } from "./frames";
 import { getPlacementSourceRange } from "./sequence";
 import { getTrimmableSourceRange } from "./trimPlacement";
@@ -19,7 +19,7 @@ export function getFadeSourceExtension(
 ) {
   const transition = placement[field];
   const range = getTrimmableSourceRange(placement, clip, projectRate);
-  if (!transition || !range) return null;
+  if (transition?.kind !== "fade" || !range) return null;
 
   const { sourceInFrame, sourceOutFrame } = range;
   const placementFrames = sourceOutFrame - sourceInFrame;
@@ -65,21 +65,33 @@ export function evaluatePlacementFade(
     !Number.isSafeInteger(duration) ||
     duration < bounds.min ||
     duration > bounds.max ||
+    placement[field]?.kind === "dissolve" ||
     duration === placement[field]?.durationFrames
   ) {
     return null;
   }
   const id = placement[field]?.id ?? allocateTransitionId();
+  return replacePlacementTransition(sequence, placement, field, {
+    id,
+    kind: "fade",
+    durationFrames: duration,
+  });
+}
+
+export function replacePlacementTransition(
+  sequence: Sequence,
+  placement: ClipPlacement,
+  field: PlacementFadeField,
+  transition: PlacementTransition,
+): Sequence {
   return {
     ...sequence,
     tracks: sequence.tracks.map((otherTrack) =>
-      otherTrack === track
+      otherTrack.placements.includes(placement)
         ? {
-            ...track,
-            placements: track.placements.map((other) =>
-              other === placement
-                ? { ...placement, [field]: { id, kind: "fade", durationFrames: duration } }
-                : other,
+            ...otherTrack,
+            placements: otherTrack.placements.map((other) =>
+              other === placement ? { ...placement, [field]: transition } : other,
             ),
           }
         : otherTrack,

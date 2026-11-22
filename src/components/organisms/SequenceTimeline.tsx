@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { MediaKind, PlacementTransition, Sequence, SequenceSource, VideoClip } from "@/types";
+import { getDissolveWindow } from "@/utils/dissolveWindow";
 import { getFadeBounds, type PlacementFadeField } from "@/utils/fadePlacement";
 import {
   formatFrames,
@@ -26,6 +27,7 @@ import {
 } from "@/utils/frames";
 import {
   evaluatePoolDrop,
+  type getSequenceDissolves,
   getPlacementSourceRange,
   type PlacementMoveResult,
 } from "@/utils/sequence";
@@ -67,13 +69,19 @@ type SequenceTimelineProps = {
     placementIds: readonly string[],
   ) => PlacementMoveResult;
   onPlacementMove?: (next: Sequence) => void;
-  evaluateFade?: (id: string, field: PlacementFadeField, duration: number) => Sequence | null;
+  evaluateFade?: (
+    id: string,
+    field: PlacementFadeField,
+    duration: number,
+    onConflict?: () => void,
+  ) => Sequence | null;
   onPlacementFade?: (next: Sequence) => void;
   evaluateTrim?: (id: string, edge: PlacementTrimEdge, sourceFrame: number) => Sequence | null;
   onPlacementTrim?: (next: Sequence) => void;
   selectedPlacementIds: readonly string[];
   onPlacementSelect?: (id: string | null, toggle: boolean) => void;
   selectedTransitionId?: string;
+  dissolveDetails: ReturnType<typeof getSequenceDissolves>;
   onTransitionSelect: (id: string) => void;
 };
 
@@ -127,6 +135,7 @@ export default function SequenceTimeline({
   selectedPlacementIds,
   onPlacementSelect,
   selectedTransitionId,
+  dissolveDetails,
   onTransitionSelect,
 }: SequenceTimelineProps) {
   const { durationFrames, tracks } = sequence;
@@ -829,6 +838,7 @@ export default function SequenceTimeline({
                     {(["entry", "reveal"] as const).map((edge) => {
                       const field = edge === "entry" ? "entryTransition" : "revealTransition";
                       const transition = item[field];
+                      if (transition?.kind === "dissolve") return null;
                       return (
                         <SequenceFadeHandle
                           key={edge}
@@ -844,7 +854,8 @@ export default function SequenceTimeline({
                           edit={
                             evaluateFade && onPlacementFade && getFadeBounds(item.duration)
                               ? {
-                                  evaluate: (frames) => evaluateFade(id, field, frames),
+                                  evaluate: (frames, onConflict) =>
+                                    evaluateFade(id, field, frames, onConflict),
                                   commit: onPlacementFade,
                                 }
                               : undefined
@@ -859,6 +870,54 @@ export default function SequenceTimeline({
               );
             }}
           />
+          {Array.from(items.values()).flatMap((item) =>
+            (["entryTransition", "revealTransition"] as const).flatMap((field) => {
+              const transition = item[field];
+              if (transition?.kind !== "dissolve") return [];
+              const cut = item.sequenceFrame + (field === "entryTransition" ? 0 : item.duration);
+              const { startFrame, endFrame } = getDissolveWindow(
+                cut,
+                transition.durationFrames,
+                durationFrames,
+              );
+              const details = dissolveDetails.get(transition.id);
+              const extensions = [details?.outgoingExtension, details?.incomingExtension]
+                .map(
+                  (range, index) =>
+                    range &&
+                    `${index === 0 ? "Outgoing" : "Incoming"} extension: source frames [${range.startFrame}, ${range.endFrame})`,
+                )
+                .filter(Boolean);
+              const left = startFrame * pixelsPerFrame - visibleScrollLeft;
+              const right = endFrame * pixelsPerFrame - visibleScrollLeft;
+              const isEmptyWindow = startFrame === endFrame;
+              if (isEmptyWindow ? left < 0 || left > width : right <= 0 || left >= width) return [];
+              return [
+                <button
+                  key={transition.id}
+                  type="button"
+                  aria-label={`Select centered dissolve: ${item.label}`}
+                  aria-pressed={transition.id === selectedTransitionId}
+                  title={[
+                    `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
+                    ...extensions,
+                  ].join("\n")}
+                  className="absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white"
+                  style={{
+                    left: isEmptyWindow ? Math.min(left, Math.max(0, width - 4)) : left,
+                    top: RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + 4,
+                    width: right - left,
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTransitionSelect(transition.id);
+                  }}
+                >
+                  Dissolve
+                </button>,
+              ];
+            }),
+          )}
           {activeTrimPreview && trimDraft && trimItem && (
             <figure
               aria-label={`Proposed trim: ${trimItem.label}`}

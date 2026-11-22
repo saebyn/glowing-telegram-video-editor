@@ -1,7 +1,7 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { expect, it } from "vitest";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
-import { compileCutList } from "./sequence";
+import { compileCutList, getSequenceDissolves, hasTransitionAuthoringConflict } from "./sequence";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clips: readonly VideoClip[] = [
@@ -26,6 +26,135 @@ const sources: readonly SequenceSource[] = [
 ];
 const fade = (id: string, durationFrames: number) =>
   ({ id, kind: "fade", durationFrames }) as const;
+
+it("omits a dissolve clipped to zero visible frames at the exclusive sequence end", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "a",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            revealTransition: { id: "end", kind: "dissolve", durationFrames: 1 },
+          },
+        ],
+      },
+    ],
+  };
+  expect(compileCutList(sequence, clips, sources, frameRate)?.outputTrack).toEqual([
+    { mediaIndex: 0, sectionIndex: 0 },
+  ]);
+});
+
+it("still finds two competing dissolve owners when unrelated footage has another frame rate", () => {
+  const sequence: Sequence = {
+    durationFrames: 150,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "a",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            revealTransition: { id: "out", kind: "dissolve", durationFrames: 12 },
+          },
+          {
+            id: "b",
+            clipId: "b",
+            sequenceStartFrame: 100,
+            entryTransition: { id: "in", kind: "dissolve", durationFrames: 12 },
+          },
+          { id: "other", clipId: "mixed", sequenceStartFrame: 120 },
+        ],
+      },
+    ],
+  };
+  const mixed = { ...clips[1], id: "mixed", sourceFrameRate: { numerator: 24, denominator: 1 } };
+  expect(
+    hasTransitionAuthoringConflict(sequence, [...clips, mixed], sources, frameRate, "in"),
+  ).toBe(true);
+});
+
+it("omits a centered dissolve when a higher track hides the owning cut", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      { id: "top", label: "Top", placements: [{ id: "a", clipId: "a", sequenceStartFrame: 0 }] },
+      {
+        id: "bottom",
+        label: "Bottom",
+        placements: [
+          {
+            id: "b",
+            clipId: "b",
+            sequenceStartFrame: 40,
+            entryTransition: { id: "covered-dissolve", kind: "dissolve", durationFrames: 9 },
+          },
+        ],
+      },
+    ],
+  };
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    version: "1.0.0",
+    inputMedia: [
+      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 200 }] },
+    ],
+    outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
+  });
+});
+
+it("does not count continuous same-source split pieces as an interruption", () => {
+  const sequence: Sequence = {
+    durationFrames: 120,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          { id: "first-half", clipId: "a", sequenceStartFrame: 0, sourceOutOffsetFrames: -2 },
+          { id: "second-half", clipId: "a", sequenceStartFrame: 98, sourceInOffsetFrames: 98 },
+          {
+            id: "incoming",
+            clipId: "b",
+            sequenceStartFrame: 100,
+            entryTransition: { id: "dissolve", kind: "dissolve", durationFrames: 9 },
+          },
+        ],
+      },
+    ],
+  };
+  expect(getSequenceDissolves(sequence, clips, sources, frameRate).get("dissolve")).toMatchObject({
+    cut: 100,
+    startFrame: 96,
+    endFrame: 105,
+    interrupted: false,
+    covered: false,
+  });
+  const [track] = sequence.tracks;
+  const interrupted = {
+    ...sequence,
+    tracks: [
+      {
+        ...track,
+        placements: track.placements.map((placement) =>
+          placement.id === "second-half"
+            ? { ...placement, sourceInOffsetFrames: 97, sourceOutOffsetFrames: -1 }
+            : placement,
+        ),
+      },
+    ],
+  };
+  expect(
+    getSequenceDissolves(interrupted, clips, sources, frameRate).get("dissolve")?.interrupted,
+  ).toBe(true);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+});
 
 it("uses the upper placement during overlap and resumes the lower source in sequence time", () => {
   const sequence: Sequence = {

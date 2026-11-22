@@ -123,10 +123,15 @@ trim can grow the sequence but never shortens it. Adjust entry and reveal fades 
 handles or the Inspector. The compiler gives the upper active placement precedence.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
-Click a fade indicator to select it and see which placement owns it. Hosts store
-each fade as `entryTransition` or `revealTransition` on the placement, with
-`{ id, kind: "fade", durationFrames }`. Split preserves the ID and duration at
-the original edge. Fully covered fades do not prevent export.
+Click a transition indicator to select it and see which placement owns it.
+Hosts store transitions on placements as `entryTransition` or `revealTransition`,
+with `{ id, kind, durationFrames }`. Split keeps each transition's ID and duration
+at its original edge, even if that split makes it unrepresentable in the `CutList`.
+The compiler omits fully covered fades.
+In the Inspector, **Centered dissolves** adds a dissolve at either placement edge.
+The timeline shows its centered window and the Inspector shows the contributing footage
+beyond each placement trim. An active dissolve is retained and emits a `null` `CutList`;
+the published format cannot carry its timing and contributions.
 
 To show frame thumbnails on the timeline, supply `keyframes: [{ sourceFrame, url }]`
 on a source. The strip uses only native source frames in the placement’s effective

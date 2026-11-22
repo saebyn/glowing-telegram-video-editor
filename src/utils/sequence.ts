@@ -1,5 +1,13 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { ClipPlacement, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
+import type {
+  ClipPlacement,
+  FrameRate,
+  MediaKind,
+  Sequence,
+  SequenceSource,
+  VideoClip,
+} from "@/types";
+import { getDissolveWindow } from "./dissolveWindow";
 import { getProjectFrameCount } from "./frames";
 
 export function getPlacementSourceRange(clip: VideoClip, placement: ClipPlacement) {
@@ -210,6 +218,8 @@ type ResolvedPlacement = {
   sequenceStartFrame: number;
   sequenceEndFrame: number;
   sourceInFrame: number;
+  knownSourceEnd: number;
+  mediaKind?: MediaKind;
   s3Location: string;
 };
 
@@ -222,6 +232,8 @@ type VisibleSpan = {
 };
 
 type ResolvedFade = {
+  id: string;
+  kind: "fade" | "dissolve";
   placement: ResolvedPlacement;
   edge: "entry" | "reveal";
   duration: number;
@@ -243,6 +255,7 @@ function resolveVisibleSequence(
   clips: readonly VideoClip[],
   sources: readonly SequenceSource[],
   frameRate: FrameRate,
+  layoutOnly = false,
 ) {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
   const fades: ResolvedFade[] = [];
@@ -258,12 +271,16 @@ function resolveVisibleSequence(
         clip,
         placement,
       );
-      const frameCount = sourceOutFrame - sourceInFrame;
+      const frameCount = layoutOnly
+        ? getProjectFrameCount({ sourceInFrame, sourceOutFrame, sourceFrameRate }, frameRate)
+        : sourceOutFrame - sourceInFrame;
       const sequenceEndFrame = sequenceStartFrame + frameCount;
       if (
-        !source ||
-        BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
-          BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator) ||
+        (!layoutOnly &&
+          (!source ||
+            BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
+              BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator))) ||
+        frameCount <= 0 ||
         sourceInFrame < 0 ||
         sourceOutFrame <= sourceInFrame ||
         (clip.sourceDurationFrames !== undefined && sourceOutFrame > clip.sourceDurationFrames) ||
@@ -276,7 +293,9 @@ function resolveVisibleSequence(
         sequenceStartFrame,
         sequenceEndFrame,
         sourceInFrame,
-        s3Location: source.s3Location,
+        knownSourceEnd: clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame),
+        mediaKind: source?.mediaKind,
+        s3Location: source?.s3Location ?? clip.sourceId,
       };
       for (const [edge, transition] of [
         ["entry", entryTransition],
@@ -284,10 +303,20 @@ function resolveVisibleSequence(
       ] as const) {
         if (!transition) continue;
         const duration = transition.durationFrames;
-        if (transition.kind !== "fade" || !Number.isSafeInteger(duration) || duration <= 0) {
+        if (
+          (transition.kind !== "fade" && transition.kind !== "dissolve") ||
+          !Number.isSafeInteger(duration) ||
+          duration <= 0
+        ) {
           return null;
         }
-        fades.push({ placement: resolved, edge, duration });
+        fades.push({
+          id: transition.id,
+          kind: transition.kind,
+          placement: resolved,
+          edge,
+          duration,
+        });
       }
 
       boundaries.push(
@@ -326,7 +355,8 @@ function applyVisibleFades(
   durationFrames: number,
 ) {
   let missingNeighbor = false;
-  for (const { placement, edge, duration } of fades) {
+  for (const { placement, edge, duration, kind } of fades) {
+    if (kind !== "fade") continue;
     const entry = edge === "entry";
     const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
     const end = entry ? start + duration : placement.sequenceEndFrame;
@@ -370,7 +400,207 @@ function applyVisibleFades(
   return missingNeighbor ? "gap" : null;
 }
 
-/** Fade-specific output feedback, independent of gaps elsewhere in the sequence. */
+function visibleAt(spans: readonly VisibleSpan[], frame: number) {
+  const span = spans[firstSpanEndingAfter(spans, frame)];
+  return span && span.start <= frame ? span.placement : undefined;
+}
+
+function sourceAt(placement: ResolvedPlacement, frame: number) {
+  return placement.sourceInFrame + frame - placement.sequenceStartFrame;
+}
+
+function isContinuous(
+  spans: readonly VisibleSpan[],
+  placement: ResolvedPlacement | undefined,
+  start: number,
+  end: number,
+) {
+  if (start >= end) return true;
+  let cursor = start;
+  for (let i = firstSpanEndingAfter(spans, start); i < spans.length && spans[i].start < end; i++) {
+    const span = spans[i];
+    if (
+      !placement ||
+      span.start > cursor ||
+      span.placement.s3Location !== placement.s3Location ||
+      sourceAt(span.placement, cursor) !== sourceAt(placement, cursor)
+    )
+      return false;
+    cursor = span.end;
+  }
+  return !placement || cursor >= end;
+}
+
+function transitionCut({ edge, placement }: ResolvedFade) {
+  return edge === "entry" ? placement.sequenceStartFrame : placement.sequenceEndFrame;
+}
+
+function dissolveDetails(
+  spans: readonly VisibleSpan[],
+  transitions: readonly ResolvedFade[],
+  transition: ResolvedFade,
+  sequenceDuration: number,
+) {
+  const { edge, placement, duration, id } = transition;
+  const cut = transitionCut(transition);
+  const window = getDissolveWindow(cut, duration, sequenceDuration);
+  const outgoing = visibleAt(spans, cut - 1);
+  const incoming = visibleAt(spans, cut);
+  const ownerSide = edge === "entry" ? incoming : outgoing;
+  const covered = !!ownerSide && ownerSide.trackIndex < placement.trackIndex;
+  const interrupted =
+    !covered &&
+    (!isContinuous(spans, outgoing, window.startFrame, cut) ||
+      !isContinuous(spans, incoming, cut, window.endFrame));
+  const conflict =
+    !covered &&
+    transitions.some((other) => {
+      if (other.id === id) return false;
+      const entry = other.edge === "entry";
+      const otherCut = transitionCut(other);
+      const side = visibleAt(spans, entry ? otherCut : otherCut - 1);
+      if (other.kind === "dissolve" && side && side.trackIndex < other.placement.trackIndex)
+        return false;
+      const start = entry ? otherCut : otherCut - other.duration;
+      const end = entry ? otherCut + other.duration : otherCut;
+      const otherWindow =
+        other.kind === "dissolve"
+          ? getDissolveWindow(otherCut, other.duration, sequenceDuration)
+          : { startFrame: start, endFrame: end };
+      if (
+        other.kind === "fade" &&
+        !spans.some(
+          (span) => span.placement === other.placement && span.start < end && span.end > start,
+        )
+      )
+        return false;
+      return (
+        cut === otherCut ||
+        (window.startFrame < otherWindow.endFrame && window.endFrame > otherWindow.startFrame)
+      );
+    });
+  function sourceExtension(side: ResolvedPlacement | undefined, start: number, end: number) {
+    if (!side) return null;
+    const startFrame = Math.max(0, sourceAt(side, start));
+    const endFrame = Math.min(side.knownSourceEnd, sourceAt(side, end));
+    return startFrame < endFrame ? { startFrame, endFrame } : null;
+  }
+  function missingContribution(side: ResolvedPlacement | undefined) {
+    return {
+      picture: !side || side.mediaKind === "audio-only",
+      audio: !side || side.mediaKind === "video-only",
+    };
+  }
+  return {
+    ...window,
+    cut,
+    covered,
+    interrupted,
+    conflict,
+    outgoingExtension: outgoing
+      ? sourceExtension(outgoing, Math.max(cut, outgoing.sequenceEndFrame), window.endFrame)
+      : null,
+    incomingExtension: incoming
+      ? sourceExtension(incoming, window.startFrame, Math.min(cut, incoming.sequenceStartFrame))
+      : null,
+    missingOutgoing: !outgoing,
+    missingIncoming: !incoming,
+    outgoingFallback: missingContribution(outgoing),
+    incomingFallback: missingContribution(incoming),
+  };
+}
+
+export function getSequenceDissolves(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: readonly SequenceSource[],
+  frameRate: FrameRate,
+) {
+  const details = new Map<string, ReturnType<typeof dissolveDetails>>();
+  if (
+    !sequence.tracks.some(({ placements }) =>
+      placements.some(
+        ({ entryTransition, revealTransition }) =>
+          entryTransition?.kind === "dissolve" || revealTransition?.kind === "dissolve",
+      ),
+    )
+  )
+    return details;
+  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  if (resolved) {
+    for (const transition of resolved.fades) {
+      if (transition.kind === "dissolve") {
+        details.set(
+          transition.id,
+          dissolveDetails(resolved.spans, resolved.fades, transition, sequence.durationFrames),
+        );
+      }
+    }
+  }
+  return details;
+}
+
+export function hasTransitionAuthoringConflict(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: readonly SequenceSource[],
+  frameRate: FrameRate,
+  transitionId: string,
+) {
+  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
+  if (!resolved) return false;
+  const { spans, fades } = resolved;
+  const changed = fades.find(({ id }) => id === transitionId);
+  if (!changed) return false;
+  if (changed.kind === "dissolve") {
+    return dissolveDetails(spans, fades, changed, sequence.durationFrames).conflict;
+  }
+  function visibleFadeSpans(fade: ResolvedFade) {
+    const cut = transitionCut(fade);
+    const start = fade.edge === "entry" ? cut : cut - fade.duration;
+    const end = fade.edge === "entry" ? cut + fade.duration : cut;
+    return spans.flatMap((span) =>
+      span.placement === fade.placement && span.start < end && span.end > start
+        ? [{ start: Math.max(span.start, start), end: Math.min(span.end, end) }]
+        : [],
+    );
+  }
+  const authoredSpans = visibleFadeSpans(changed);
+  return (
+    authoredSpans.length > 0 &&
+    fades.some((other) => {
+      if (other.id === transitionId) return false;
+      if (other.kind === "dissolve") {
+        return dissolveDetails(spans, [changed, other], other, sequence.durationFrames).conflict;
+      }
+      return visibleFadeSpans(other).some(
+        (span) =>
+          transitionCut(changed) === transitionCut(other) ||
+          authoredSpans.some(({ start, end }) => start < span.end && end > span.start),
+      );
+    })
+  );
+}
+
+function getDissolveIssue(
+  spans: readonly VisibleSpan[],
+  transitions: readonly ResolvedFade[],
+  duration: number,
+) {
+  for (const transition of transitions) {
+    if (transition.kind !== "dissolve") continue;
+    const details = dissolveDetails(spans, transitions, transition, duration);
+    if (!details.covered && details.startFrame < details.endFrame) {
+      if (details.conflict) return "dissolve-conflict";
+      if (details.interrupted) return "dissolve-interrupted";
+      if (details.missingIncoming || details.missingOutgoing) return "dissolve-gap";
+      return "dissolve";
+    }
+  }
+  return null;
+}
+
+/** Transition-specific output feedback, independent of gaps elsewhere in the sequence. */
 export function getFadeOutputIssue(
   sequence: Sequence,
   clips: readonly VideoClip[],
@@ -387,7 +617,8 @@ export function getFadeOutputIssue(
     return null;
   const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
   return resolved
-    ? applyVisibleFades(resolved.spans, resolved.fades, sequence.durationFrames)
+    ? (getDissolveIssue(resolved.spans, resolved.fades, sequence.durationFrames) ??
+        applyVisibleFades(resolved.spans, resolved.fades, sequence.durationFrames))
     : null;
 }
 
@@ -401,7 +632,11 @@ export function compileCutList(
   const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
   if (!resolved || !resolved.spans.length || resolved.hasGap) return null;
   const { spans, fades } = resolved;
-  if (applyVisibleFades(spans, fades, sequence.durationFrames)) return null;
+  if (
+    getDissolveIssue(spans, fades, sequence.durationFrames) ||
+    applyVisibleFades(spans, fades, sequence.durationFrames)
+  )
+    return null;
 
   const inputMedia: CutList["inputMedia"] = [];
   const output = spans.map(({ start, end, placement, transitionIn, transitionOut }) => {

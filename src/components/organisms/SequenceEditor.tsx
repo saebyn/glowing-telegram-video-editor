@@ -2,6 +2,7 @@ import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useEffect, useId, useMemo, useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
+import { evaluatePlacementDissolve } from "@/utils/dissolvePlacement";
 import {
   evaluatePlacementFade,
   getFadeBounds,
@@ -13,6 +14,8 @@ import {
   compileCutList,
   evaluatePlacementMove,
   getFadeOutputIssue,
+  getSequenceDissolves,
+  hasTransitionAuthoringConflict,
   getPlacementSourceRange,
   placeClipInGap,
 } from "@/utils/sequence";
@@ -53,6 +56,11 @@ const fadeOutputMessages = {
   overlap: "CutList unavailable: authored fades overlap.",
   interrupted: "CutList unavailable: an authored fade crosses a visible cut.",
   gap: "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
+  dissolve: "CutList unavailable: the format cannot represent a centered dissolve.",
+  "dissolve-conflict": "CutList unavailable: a centered dissolve competes with another transition.",
+  "dissolve-interrupted": "CutList unavailable: a visible cut interrupts a centered dissolve.",
+  "dissolve-gap":
+    "CutList unavailable: a centered dissolve meets a gap. The missing side contributes black picture and silence.",
 } as const;
 
 function findTransition(sequence: Sequence, id: string | undefined) {
@@ -61,7 +69,14 @@ function findTransition(sequence: Sequence, id: string | undefined) {
     for (const placement of track.placements) {
       for (const { field, label } of fadeFields) {
         const transition = placement[field];
-        if (transition?.id === id) return { track, placement, field, label, transition };
+        if (transition?.id === id)
+          return {
+            track,
+            placement,
+            field,
+            transition,
+            label: transition.kind === "dissolve" ? "Centered dissolve" : label,
+          };
       }
     }
   }
@@ -82,6 +97,7 @@ export default function SequenceEditor({
   const [selection, setSelection] = useState<readonly string[]>([]);
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
+  const [dissolveConflict, setDissolveConflict] = useState(false);
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
@@ -114,6 +130,12 @@ export default function SequenceEditor({
     setInspectorPlacementId(inspectedPlacement?.id);
   }
   const selectedTransition = findTransition(sequence, transitionId);
+  const sequenceDissolves = useMemo(
+    () => getSequenceDissolves(sequence, clips, sources, frameRate),
+    [sequence, clips, sources, frameRate],
+  );
+  const dissolveDetails =
+    selectedTransition && sequenceDissolves.get(selectedTransition.transition.id);
   const fadeOwner: ClipPlacement | undefined = selectedTransition?.placement ?? inspectedPlacement;
   const fadeClip = clips.find(({ id }) => id === fadeOwner?.clipId);
   const fadeSourceExtension =
@@ -150,6 +172,7 @@ export default function SequenceEditor({
   const shortcutsHintId = useId();
 
   function selectPlacement(id: string | null, toggle: boolean) {
+    setDissolveConflict(false);
     setTransitionId(undefined);
     if (id === null) setSelection([]);
     else if (!toggle) setSelection([id]);
@@ -158,6 +181,7 @@ export default function SequenceEditor({
   }
 
   function selectTransition(id: string) {
+    setDissolveConflict(false);
     setSelection([]);
     setTransitionId(id);
   }
@@ -212,8 +236,27 @@ export default function SequenceEditor({
     );
   }
 
-  function proposePlacementFade(placementId: string, field: PlacementFadeField, duration: number) {
-    return evaluatePlacementFade(sequence, clips, frameRate, placementId, field, duration);
+  function proposePlacementFade(
+    placementId: string,
+    field: PlacementFadeField,
+    duration: number,
+    onConflict?: () => void,
+  ) {
+    const next = evaluatePlacementFade(sequence, clips, frameRate, placementId, field, duration);
+    if (next) {
+      const transitions = next.tracks
+        .flatMap(({ placements }) => placements)
+        .find(({ id }) => id === placementId);
+      const transitionId = transitions?.[field]?.id;
+      if (
+        transitionId &&
+        hasTransitionAuthoringConflict(next, clips, sources, frameRate, transitionId)
+      ) {
+        onConflict?.();
+        return null;
+      }
+    }
+    return next;
   }
 
   function proposeTrim(placementId: string, edge: PlacementTrimEdge, sourceFrame: number) {
@@ -353,9 +396,9 @@ export default function SequenceEditor({
         </p>
       </header>
       {fadeOutputIssue && (
-        <p role="status" className="text-sm text-amber-900 dark:text-amber-200">
+        <output className="block text-sm text-amber-900 dark:text-amber-200">
           {fadeOutputMessages[fadeOutputIssue]}
-        </p>
+        </output>
       )}
       <SequenceWorkspace
         hiddenPanes={hiddenPanes}
@@ -388,6 +431,45 @@ export default function SequenceEditor({
                   {selectedTransition.placement.sequenceStartFrame}
                 </p>
                 <p>{selectedTransition.transition.durationFrames} sequence frames</p>
+                {dissolveDetails && (
+                  <>
+                    <p>
+                      Dissolve window: {dissolveDetails.startFrame} inclusive –{" "}
+                      {dissolveDetails.endFrame} exclusive (sequence frames)
+                    </p>
+                    <p>Linear picture blend and audio crossfade</p>
+                    {dissolveDetails.phaseOffsetFrames > 0 && (
+                      <p>
+                        Blend starts {dissolveDetails.phaseOffsetFrames} sequence frames into its
+                        authored phase.
+                      </p>
+                    )}
+                    {dissolveDetails.covered && <p>Covered by a higher track</p>}
+                    {(["outgoing", "incoming"] as const).map((side) => {
+                      const extension =
+                        side === "outgoing"
+                          ? dissolveDetails.outgoingExtension
+                          : dissolveDetails.incomingExtension;
+                      const fallback =
+                        side === "outgoing"
+                          ? dissolveDetails.outgoingFallback
+                          : dissolveDetails.incomingFallback;
+                      const label = side === "outgoing" ? "Outgoing" : "Incoming";
+                      return (
+                        <div key={side}>
+                          {extension && (
+                            <p>
+                              {label} extension: {extension.startFrame} inclusive –{" "}
+                              {extension.endFrame} exclusive (source frames)
+                            </p>
+                          )}
+                          {fallback.picture && <p>{label} picture: black</p>}
+                          {fallback.audio && <p>{label} audio: silence</p>}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
                 {fadeSourceExtension && (
                   <p>
                     Transition source extension: {fadeSourceExtension.startFrame} inclusive –{" "}
@@ -474,7 +556,11 @@ export default function SequenceEditor({
             {fadeBounds && fadeOwner ? (
               <div className="space-y-3">
                 {fadeFields
-                  .filter(({ field }) => !selectedTransition || field === selectedTransition.field)
+                  .filter(
+                    ({ field }) =>
+                      fadeOwner[field]?.kind !== "dissolve" &&
+                      (!selectedTransition || field === selectedTransition.field),
+                  )
                   .map(({ field, label, button }) => (
                     <form
                       key={`${fadeOwner.id}:${field}:${fadeOwner[field]?.id}:${fadeOwner[field]?.durationFrames}`}
@@ -515,6 +601,79 @@ export default function SequenceEditor({
                   : "Placement and transition fields will appear here."}
               </p>
             ) : null}
+            {onSequenceChange &&
+              fadeOwner &&
+              (!selectedTransition || selectedTransition.transition.kind === "dissolve") && (
+                <details
+                  key={fadeOwner.id}
+                  open={selectedTransition?.transition.kind === "dissolve" || undefined}
+                  className="mt-3 space-y-3"
+                >
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Centered dissolves
+                  </summary>
+                  {fadeFields
+                    .filter(
+                      ({ field }) =>
+                        fadeOwner[field]?.kind !== "fade" &&
+                        (!selectedTransition || field === selectedTransition.field),
+                    )
+                    .map(({ field }) => {
+                      const edge = field === "entryTransition" ? "leading" : "trailing";
+                      const transition = fadeOwner[field];
+                      return (
+                        <form
+                          key={`dissolve:${fadeOwner.id}:${field}:${transition?.durationFrames}`}
+                          className="space-y-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const duration = Number(
+                              new FormData(event.currentTarget).get("duration"),
+                            );
+                            const edit = evaluatePlacementDissolve(
+                              sequence,
+                              clips,
+                              sources,
+                              frameRate,
+                              fadeOwner,
+                              field,
+                              duration,
+                            );
+                            setDissolveConflict(edit.kind === "conflict");
+                            if (edit.kind === "edit") commitEdit(edit.sequence);
+                          }}
+                        >
+                          <label className="block space-y-1 text-sm">
+                            <span>
+                              {edge === "leading" ? "Leading" : "Trailing"} dissolve duration
+                              (sequence frames)
+                            </span>
+                            <input
+                              name="duration"
+                              type="number"
+                              required
+                              min={1}
+                              step={1}
+                              defaultValue={transition?.durationFrames}
+                              className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+                          >
+                            Apply {edge} dissolve
+                          </button>
+                        </form>
+                      );
+                    })}
+                </details>
+              )}
+            {dissolveConflict && (
+              <p role="alert" className="text-sm">
+                This transition competes with another transition on the same cut or visible frames.
+              </p>
+            )}
           </>
         }
       />
@@ -537,6 +696,7 @@ export default function SequenceEditor({
           selectedPlacementIds={selectedIds}
           onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
           selectedTransitionId={selectedTransition?.transition.id}
+          dissolveDetails={sequenceDissolves}
           onTransitionSelect={selectTransition}
         />
       )}

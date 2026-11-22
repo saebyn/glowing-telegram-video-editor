@@ -59,11 +59,15 @@ test("an entry extension stops at the source endpoint and a reveal at sequence f
     entryTransition: { id: "entry", kind: "fade", durationFrames: 20 },
     revealTransition: { id: "reveal", kind: "fade", durationFrames: 20 },
   } as const;
-  expect(getFadeSourceExtension(shortened, "entryTransition", harbor, frameRate, 60)).toStrictEqual({
-    startFrame: 140,
-    endFrame: 148,
-  });
-  expect(getFadeSourceExtension(shortened, "revealTransition", harbor, frameRate, 60)).toStrictEqual({
+  expect(getFadeSourceExtension(shortened, "entryTransition", harbor, frameRate, 60)).toStrictEqual(
+    {
+      startFrame: 140,
+      endFrame: 148,
+    },
+  );
+  expect(
+    getFadeSourceExtension(shortened, "revealTransition", harbor, frameRate, 60),
+  ).toStrictEqual({
     startFrame: 133,
     endFrame: 136,
   });

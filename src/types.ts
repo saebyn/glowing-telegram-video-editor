@@ -142,7 +142,8 @@ export interface SequenceSource {
 export interface PlacementTransition {
   /** Stable identity within the sequence. */
   id: string;
-  kind: "fade";
+  /** A dissolve blends picture and sound linearly over the same centered window. */
+  kind: "fade" | "dissolve";
   /** Positive whole sequence frames, anchored at the owning edge. */
   durationFrames: number;
 }

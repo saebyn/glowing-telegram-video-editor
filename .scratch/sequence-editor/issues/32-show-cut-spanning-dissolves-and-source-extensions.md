@@ -1,6 +1,7 @@
 # 32 — Show cut-spanning dissolves and source extensions
 
 Status: ready-for-agent
+Resolution: authored and verified at the `CutList` and host callback boundaries
 Depends on: [37](37-represent-entry-and-reveal-fades-as-transition-objects.md), [31](31-protect-fades-during-moves-and-trims.md)
 
 The current entry and reveal indicators sit inside one placement.
@@ -46,3 +47,27 @@ dissolve that shows which footage it uses from both sides.
   counterpart can come from a different track. Start with a same-track
   cut when investigating faithful export. See the
   [`CutList` change requests](../../../docs/cutlist-change-requests.md).
+- Add a centered dissolve from either placement edge in the Inspector.
+  Its selectable indicator leaves placement geometry untouched. Inspection
+  shows the owning edge's placement, the clipped window, original blend
+  phase, recorded source extensions, and absent picture/audio. The existing
+  schema cannot represent active centered dissolves faithfully; the editor
+  explains the limitation and emits `null`, not a fade approximation.
+- Playwright red → green on authoring from the leading edge; light and
+  dark checks covered the odd window, exact source extensions, conflict
+  rejection on the opposite edge, and clipped boundary with black/silence.
+  The static Inspector, fade, and dissolve run passed 48/48. Vitest covers
+  a covered cut and distinguishes continuous same-source splits from an
+  interrupting visible cut. Stryker killed 67/96 window and compiler
+  mutants (29 survived, no timeouts); report:
+  `/tmp/opencode/gtve-ready-mutation.5Yxjq3/ticket32-dissolve/reports/mutation/mutation.json`.
+- Follow-up: the indicator exposes both source extensions in its tooltip.
+  Moving two previously noncompeting dissolves into overlap commits one
+  sequence retaining both original transition IDs and emits `null` with
+  conflict feedback. The final focused Storybook run passed 20/20 across
+  light and dark, including track-management and Split mode regressions.
+- Directly resizing an entry or reveal fade into a competing transition is
+  now blocked too, while move/trim can keep and report the authored conflict.
+  The regression first failed on the missing drag feedback and then passed.
+  An unrelated mixed-rate placement no longer bypasses the conflict check;
+  a dissolve clipped to no visible frames at the sequence end is omitted.

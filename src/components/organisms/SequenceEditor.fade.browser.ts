@@ -541,7 +541,7 @@ test("an entry fade keeps the recorded source extension after a trailing trim", 
   ).toBeVisible();
 });
 
-test("adjacent fade regions leave both handles usable, and a valid fade still commits when it cannot compile", async ({
+test("adjacent fades leave both handles usable, but a resize cannot make them compete", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -565,27 +565,15 @@ test("adjacent fade regions leave both handles usable, and a valid fade still co
 
   // At 72 + 48 = 120, the handles share a sequence position, not a hit target.
   // Extending just the entry by 18 frames makes the fade regions intersect.
-  await dragFade(
-    page,
-    timeline.getByRole("button", { name: "Adjust entry fade: Harbor" }),
-    before.width * 0.15,
+  const handle = timeline.getByRole("button", { name: "Adjust entry fade: Harbor" });
+  await dragFade(page, handle, before.width * 0.15);
+  await expect(handle).toHaveAccessibleDescription(
+    "This transition competes with another transition on the same cut or visible frames.",
   );
-  const entry = timeline.getByText("Fade in", { exact: true });
-  await expect
-    .poll(async () => (await entry.boundingBox())?.width)
-    .toBeCloseTo(before.width * 0.75, -1);
   expect(await emissions()).toStrictEqual(initial);
   await page.mouse.up();
-
-  const next = structuredClone(straightCut);
-  Object.assign(next.tracks[0].placements[0], {
-    entryTransition: { id: entryTransition!.id, kind: "fade", durationFrames: 90 },
-    revealTransition: { id: revealTransition!.id, kind: "fade", durationFrames: 48 },
-  });
-  await expect.poll(emissions).toStrictEqual({
-    sequences: [...initial.sequences, next],
-    cutLists: [...initial.cutLists, null],
-  });
+  expect(await emissions()).toStrictEqual(initial);
+  await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("72");
 });
 
 test("a fade drag outside the Inspector's bounds leaves the authored fade and cut unchanged", async ({
