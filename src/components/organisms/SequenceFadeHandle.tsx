@@ -12,6 +12,7 @@ type SequenceFadeHandleProps = {
   edit?: {
     evaluate: (frames: number, onConflict?: () => void) => Sequence | null;
     commit: (next: Sequence) => void;
+    locked?: boolean;
   };
 };
 
@@ -137,7 +138,9 @@ export default function SequenceFadeHandle({
         <span id={feedbackId} className="sr-only">
           {draft === "conflict"
             ? "This transition competes with another transition on the same cut or visible frames."
-            : `Fade duration must be between 1 and ${placementFrames} sequence frames.`}
+            : edit?.locked
+              ? "Blocked: the track is locked."
+              : `Fade duration must be between 1 and ${placementFrames} sequence frames.`}
         </span>
       )}
     </>

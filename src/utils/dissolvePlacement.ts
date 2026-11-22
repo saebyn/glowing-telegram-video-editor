@@ -1,6 +1,7 @@
 import type { ClipPlacement, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
 import { replacePlacementTransition, type PlacementFadeField } from "./fadePlacement";
 import { hasTransitionAuthoringConflict } from "./sequence";
+import { findPlacementTrack } from "./sequenceTracks";
 
 export function evaluatePlacementDissolve(
   sequence: Sequence,
@@ -12,6 +13,7 @@ export function evaluatePlacementDissolve(
   duration: number,
   allocateTransitionId = () => crypto.randomUUID(),
 ) {
+  if (findPlacementTrack(sequence, placement.id)?.locked) return { kind: "locked" } as const;
   const current = placement[field];
   if (
     !Number.isSafeInteger(duration) ||

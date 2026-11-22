@@ -515,6 +515,7 @@ export default function SequenceTimeline({
         "outside-tracks": "Drop onto an existing track",
         "negative-frame": "Cannot start before sequence frame 0",
         "invalid-placement": "Cannot move this placement",
+        "locked-track": "The track is locked",
       }[draftResult.reason]
     : null;
   const poolTrack = poolDraft && tracks[poolDraft.trackIndex];
@@ -890,6 +891,7 @@ export default function SequenceTimeline({
                                   evaluate: (frames, onConflict) =>
                                     evaluateFade(id, field, frames, onConflict),
                                   commit: onPlacementFade,
+                                  locked: tracks[item.trackIndex].locked,
                                 }
                               : undefined
                           }
@@ -1010,7 +1012,10 @@ export default function SequenceTimeline({
         {activeTrimPreview && trimDraft && trimItem && (
           <output className="mt-1 block">
             {trimItem.label} · Sequence frame {trimDraft.edge === "leading" ? trimStart : trimEnd}
-            {trimBlocked && " · Blocked: Cannot trim to this edge"}
+            {trimBlocked &&
+              (tracks[trimItem.trackIndex].locked
+                ? " · Blocked: The track is locked"
+                : " · Blocked: Cannot trim to this edge")}
           </output>
         )}
         {draft && draftItem && (
@@ -1024,9 +1029,11 @@ export default function SequenceTimeline({
           <output className="mt-1 block">
             {poolLabel} → {poolTrack.label} · Sequence frame {poolDrop.sequenceStartFrame}
             {poolDrop.kind === "blocked" &&
-              (poolDrop.reason === "overlap"
-                ? ` · Blocked: Overlaps another placement on ${poolTrack.label}`
-                : " · Blocked: The gap is too short for this clip")}
+              {
+                overlap: ` · Blocked: Overlaps another placement on ${poolTrack.label}`,
+                "gap-too-short": " · Blocked: The gap is too short for this clip",
+                locked: " · Blocked: The track is locked",
+              }[poolDrop.reason]}
           </output>
         )}
         {companionDestinations && companionDestinations.length > 0 && (

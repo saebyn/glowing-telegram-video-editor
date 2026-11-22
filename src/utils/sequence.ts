@@ -38,6 +38,15 @@ export function evaluatePoolDrop(
   }
 
   const duration = getProjectFrameCount(clip, frameRate);
+  if (duration <= 0) return null;
+  if (track.locked) {
+    return {
+      kind: "blocked",
+      reason: "locked",
+      sequenceStartFrame: atFrame,
+      duration,
+    } as const;
+  }
   let gapStart = 0;
   let gapEnd = Infinity;
   const placements = inSequenceOrder(track.placements);
@@ -54,7 +63,6 @@ export function evaluatePoolDrop(
       placement.sequenceStartFrame + getProjectFrameCount(range, frameRate),
     );
   }
-  if (duration <= 0) return null;
   if (atFrame < gapStart) {
     return { kind: "blocked", reason: "overlap", sequenceStartFrame: atFrame, duration } as const;
   }
@@ -125,7 +133,10 @@ export function evaluatePlacementMove(
   }
   const trackShift = destinationIndex === null ? null : destinationIndex - originIndex;
   const frameOffset = sequenceStartFrame - grabbed.sequenceStartFrame;
-  const moves = new Map<string, { placement: ClipPlacement; trackIndex: number | null }>();
+  const moves = new Map<
+    string,
+    { placement: ClipPlacement; trackIndex: number | null; originIndex: number }
+  >();
   for (const [index, track] of sequence.tracks.entries()) {
     for (const placement of track.placements) {
       if (!moving.has(placement.id)) continue;
@@ -133,6 +144,7 @@ export function evaluatePlacementMove(
       moves.set(placement.id, {
         placement: { ...placement, sequenceStartFrame: placement.sequenceStartFrame + frameOffset },
         trackIndex,
+        originIndex: index,
       });
     }
   }
@@ -154,10 +166,14 @@ export function evaluatePlacementMove(
 
   let durationFrames = sequence.durationFrames;
   const arrivals = sequence.tracks.map((): ClipPlacement[] => []);
-  for (const { placement, trackIndex } of moves.values()) {
+  for (const { placement, trackIndex, originIndex: origin } of moves.values()) {
     if (trackIndex === null) return block("outside-tracks");
     const destination = sequence.tracks[trackIndex];
     if (!destination) return block("outside-tracks");
+    const originTrack = sequence.tracks[origin];
+    if (originTrack.locked || destination.locked) {
+      return block("locked-track", originTrack.locked ? originTrack.id : destination.id);
+    }
     const start = placement.sequenceStartFrame;
     if (start < 0) return block("negative-frame");
     const clip = clips.find(({ id }) => id === placement.clipId);
@@ -206,6 +222,7 @@ type PlacementMoveBlockReason =
   | "outside-tracks"
   | "negative-frame"
   | "invalid-placement"
+  | "locked-track"
   | "overlap";
 export type PlacementMoveResult = { destinations: PlacementMoveDestination[] } & (
   | { kind: "move"; sequence: Sequence }

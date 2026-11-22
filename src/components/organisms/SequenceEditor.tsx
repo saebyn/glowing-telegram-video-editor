@@ -20,6 +20,7 @@ import {
   placeClipInGap,
 } from "@/utils/sequence";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
+import { findPlacementTrack } from "@/utils/sequenceTracks";
 import {
   applyLeadingTrim,
   applyTrailingTrim,
@@ -99,6 +100,7 @@ export default function SequenceEditor({
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
+  const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [dissolveConflict, setDissolveConflict] = useState(false);
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
@@ -184,6 +186,7 @@ export default function SequenceEditor({
   const shortcutsHintId = useId();
 
   function selectPlacement(id: string | null, toggle: boolean) {
+    setBlockedTrackEdit(undefined);
     setDissolveConflict(false);
     setTransitionId(undefined);
     if (id === null) setSelection([]);
@@ -193,6 +196,7 @@ export default function SequenceEditor({
   }
 
   function selectTransition(id: string) {
+    setBlockedTrackEdit(undefined);
     setDissolveConflict(false);
     setSelection([]);
     setTransitionId(id);
@@ -207,6 +211,7 @@ export default function SequenceEditor({
   }
 
   function emitEdit(next: Sequence) {
+    setBlockedTrackEdit(undefined);
     onSequenceChange?.(next);
     onCutListChange?.(compileCutList(next, clips, sources, frameRate));
   }
@@ -217,6 +222,10 @@ export default function SequenceEditor({
   }
 
   function splitAtPointer(placementId: string, frame: number) {
+    if (findPlacementTrack(sequence, placementId)?.locked) {
+      setBlockedTrackEdit(sequence);
+      return;
+    }
     const next = splitPlacementsAtPlayhead(sequence, clips, frameRate, [placementId], frame, () =>
       crypto.randomUUID(),
     );
@@ -224,6 +233,10 @@ export default function SequenceEditor({
   }
 
   function deleteSelection() {
+    if (selectedTracks.some(({ track }) => track.locked)) {
+      setBlockedTrackEdit(sequence);
+      return;
+    }
     commitEdit({
       ...sequence,
       tracks: sequence.tracks.map((track) => ({
@@ -285,6 +298,10 @@ export default function SequenceEditor({
 
   function trimPlacement(sourceOutFrame: number) {
     if (!onSequenceChange || !inspectedPlacement) return;
+    if (inspectorTarget?.track.locked) {
+      setBlockedTrackEdit(sequence);
+      return;
+    }
     const next = proposeTrim(inspectedPlacement.id, "trailing", sourceOutFrame);
     if (next) commitEdit(next);
   }
@@ -320,6 +337,7 @@ export default function SequenceEditor({
         selectedIds,
       );
       if (move.kind === "move") commitEdit(move.sequence);
+      if (move.kind === "blocked" && move.reason === "locked-track") setBlockedTrackEdit(sequence);
     }
   }
 
@@ -430,6 +448,11 @@ export default function SequenceEditor({
           {fadeOutputMessages[fadeOutputIssue]}
         </output>
       )}
+      {blockedTrackEdit === sequence && (
+        <output className="block text-sm text-amber-900 dark:text-amber-200">
+          Blocked: the track is locked.
+        </output>
+      )}
       <SequenceWorkspace
         hiddenPanes={hiddenPanes}
         clipPool={
@@ -450,6 +473,11 @@ export default function SequenceEditor({
         }
         inspector={
           <>
+            {(inspectorTarget?.track.locked || selectedTransition?.track.locked) && (
+              <p className="mb-2 text-sm">
+                This track is locked. Its placements can be inspected but not edited.
+              </p>
+            )}
             {selectedTransition && (
               <div className="mb-3 space-y-1 text-sm">
                 <p className="font-medium">{selectedTransition.label}</p>
@@ -597,6 +625,10 @@ export default function SequenceEditor({
                       className="space-y-2"
                       onSubmit={(event) => {
                         event.preventDefault();
+                        if (findPlacementTrack(sequence, fadeOwner.id)?.locked) {
+                          setBlockedTrackEdit(sequence);
+                          return;
+                        }
                         const duration = Number(new FormData(event.currentTarget).get("duration"));
                         setDissolveConflict(false);
                         const next = proposePlacementFade(fadeOwner.id, field, duration, () =>
@@ -673,6 +705,7 @@ export default function SequenceEditor({
                               duration,
                             );
                             setDissolveConflict(edit.kind === "conflict");
+                            if (edit.kind === "locked") setBlockedTrackEdit(sequence);
                             if (edit.kind === "edit") commitEdit(edit.sequence);
                           }}
                         >

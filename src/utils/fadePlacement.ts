@@ -1,6 +1,7 @@
 import type { ClipPlacement, FrameRate, PlacementTransition, Sequence, VideoClip } from "@/types";
 import { getProjectFrameCount } from "./frames";
 import { getPlacementSourceRange } from "./sequence";
+import { findPlacementTrack } from "./sequenceTracks";
 import { getTrimmableSourceRange } from "./trimPlacement";
 
 export type PlacementFadeField = keyof Pick<ClipPlacement, "entryTransition" | "revealTransition">;
@@ -50,10 +51,8 @@ export function evaluatePlacementFade(
   duration: number,
   allocateTransitionId = () => crypto.randomUUID(),
 ): Sequence | null {
-  const track = sequence.tracks.find(({ placements }) =>
-    placements.some(({ id }) => id === placementId),
-  );
-  if (!track) return null;
+  const track = findPlacementTrack(sequence, placementId);
+  if (!track || track.locked) return null;
   const placement = track.placements.find(({ id }) => id === placementId);
   const clip = clips.find(({ id }) => id === placement?.clipId);
   if (!placement || !clip) return null;

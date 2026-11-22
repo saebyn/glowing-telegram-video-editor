@@ -7,18 +7,23 @@ without introducing another triage status.
 
 ## Ready for an agent
 
-Start with the first unblocked ticket in this order:
+No unresolved tickets are currently marked `ready-for-agent`.
 
-1. [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md)
-2. [33 — Inspect one placement within a selection](issues/33-inspect-one-placement-without-clearing-the-selection.md)
-3. [35 — Split all placements at the playhead](issues/35-split-all-placements-at-the-playhead.md)
-4. [30 — Author layered fades](issues/30-author-entry-and-reveal-fades-on-layered-edits.md), after 37
-5. [31 — Preserve transitions through placement edits](issues/31-protect-fades-during-moves-and-trims.md), after 37
-6. [32 — Author centered dissolves](issues/32-show-cut-spanning-dissolves-and-source-extensions.md), after 37 and 31; faithful `CutList` support is not a prerequisite
-7. [13 — Add and remove tracks](issues/13-add-and-remove-tracks.md)
-8. [25 — Reorder tracks](issues/25-reorder-tracks.md)
-9. [36 — Click-to-split mode](issues/36-split-a-placement-where-you-click.md), after 35
-10. [38 — Lock tracks](issues/38-lock-tracks.md), after track management, both Split actions, and transition objects
+## Completed in the current burndown
+
+- [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md):
+  stable owner-edge identity and selectable fade indicators; verification ends
+  at editing behavior and the existing `CutList`.
+- [33 — Inspect one placement within a selection](issues/33-inspect-one-placement-without-clearing-the-selection.md).
+- [35 — Split all placements at the playhead](issues/35-split-all-placements-at-the-playhead.md).
+- [30 — Author layered fades](issues/30-author-entry-and-reveal-fades-on-layered-edits.md).
+- [31 — Preserve transitions through placement edits](issues/31-protect-fades-during-moves-and-trims.md).
+- [32 — Author centered dissolves](issues/32-show-cut-spanning-dissolves-and-source-extensions.md):
+  active centered dissolves are authored but not approximated in the emitted `CutList`.
+- [13 — Add and remove tracks](issues/13-add-and-remove-tracks.md).
+- [25 — Reorder tracks](issues/25-reorder-tracks.md).
+- [36 — Click-to-split mode](issues/36-split-a-placement-where-you-click.md).
+- [38 — Lock tracks](issues/38-lock-tracks.md).
 
 ## Completed follow-up batch
 

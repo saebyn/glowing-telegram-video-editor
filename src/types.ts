@@ -164,6 +164,8 @@ export interface ClipPlacement {
 export interface SequenceTrack {
   id: string;
   label: string;
+  /** Protects placement edits without changing this track's output. */
+  locked?: boolean;
   placements: readonly ClipPlacement[];
 }
 

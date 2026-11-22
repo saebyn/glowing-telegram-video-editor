@@ -58,7 +58,7 @@ export function applyTrailingTrim(
   );
   const placement = track?.placements.find(({ id }) => id === placementId);
   const clip = clips.find(({ id }) => id === placement?.clipId);
-  if (!track || !placement || !clip) return null;
+  if (!track || track.locked || !placement || !clip) return null;
 
   const bounds = getTrailingTrimBounds(placement, track, clip, frameRate);
   if (
@@ -100,7 +100,7 @@ export function applyLeadingTrim(
   );
   const placement = track?.placements.find(({ id }) => id === placementId);
   const clip = clips.find(({ id }) => id === placement?.clipId);
-  if (!track || !placement || !clip) return null;
+  if (!track || track.locked || !placement || !clip) return null;
 
   const range = getTrimmableSourceRange(placement, clip, frameRate);
   if (

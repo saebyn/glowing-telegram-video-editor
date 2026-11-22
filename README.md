@@ -112,7 +112,9 @@ Use **Sequence endpoint** to remove uncovered time at the end without cutting an
 **Rename track** edits a track’s display name without changing its placements or order.
 **Add track** creates an empty top track. Remove is offered only for an empty track
 when another track remains. A sequence can start with no tracks.
-Drag a track's reorder grip to change its output priority.
+Drag a track's reorder grip to change its output priority. **Lock** protects the
+track's placements from edits without changing their output or preventing inspection,
+renaming, or reordering.
 Drag a clip from the pool to preview where it would land. Drop it onto an existing track
 to fill a gap or extend the sequence.
 
@@ -124,15 +126,15 @@ either placement edge to trim it in place, or enter a precise trailing trim in t
 Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, even if the
 trim makes them overlap or leaves a placement shorter than its fade. A valid trailing
-trim can grow the sequence but never shortens it. Adjust entry and reveal fades on any track using their timeline
-handles or the Inspector. The compiler gives the upper active placement precedence.
+trim can grow the sequence but never shortens it. Adjust entry and reveal fades on any
+track using their timeline handles or the Inspector. Click a transition indicator to
+select it and see which placement owns it. Hosts store transitions on placements as
+`entryTransition` or `revealTransition`, with `{ id, kind, durationFrames }`.
+Split keeps each transition's ID and duration at its original edge, even if that split
+makes it unrepresentable in the `CutList`.
+The compiler gives the upper active placement precedence and omits fully covered fades.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
-Click a transition indicator to select it and see which placement owns it.
-Hosts store transitions on placements as `entryTransition` or `revealTransition`,
-with `{ id, kind, durationFrames }`. Split keeps each transition's ID and duration
-at its original edge, even if that split makes it unrepresentable in the `CutList`.
-The compiler omits fully covered fades.
 In the Inspector, **Centered dissolves** adds a dissolve at either placement edge.
 The timeline shows its centered window and the Inspector shows the contributing footage
 beyond each placement trim. An active dissolve is retained and emits a `null` `CutList`;

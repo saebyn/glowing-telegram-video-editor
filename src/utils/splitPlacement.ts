@@ -37,11 +37,13 @@ export function canSplitPlacementsAtPlayhead(
   playheadFrame: number,
 ): boolean {
   const targets = new Set(placementIds);
-  return sequence.tracks.some(({ placements }) =>
-    placements.some(
-      (placement) =>
-        targets.has(placement.id) && getSplitPoint(placement, clips, frameRate, playheadFrame),
-    ),
+  return sequence.tracks.some(
+    ({ locked, placements }) =>
+      !locked &&
+      placements.some(
+        (placement) =>
+          targets.has(placement.id) && getSplitPoint(placement, clips, frameRate, playheadFrame),
+      ),
   );
 }
 
@@ -57,6 +59,7 @@ export function splitPlacementsAtPlayhead(
   const targets = new Set(placementIds);
   let didSplit = false;
   const tracks = sequence.tracks.map((track) => {
+    if (track.locked) return track;
     const placements = track.placements.flatMap((placement) => {
       if (!targets.has(placement.id)) return [placement];
       const split = getSplitPoint(placement, clips, frameRate, playheadFrame);

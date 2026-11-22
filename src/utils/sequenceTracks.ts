@@ -10,6 +10,20 @@ export function addSequenceTrack(sequence: Sequence, id: string): Sequence {
   };
 }
 
+export function findPlacementTrack(sequence: Sequence, placementId: string) {
+  return sequence.tracks.find(({ placements }) => placements.some(({ id }) => id === placementId));
+}
+
+export function toggleSequenceTrackLock(sequence: Sequence, trackId: string): Sequence | null {
+  if (!sequence.tracks.some(({ id }) => id === trackId)) return null;
+  return {
+    ...sequence,
+    tracks: sequence.tracks.map((track) =>
+      track.id === trackId ? { ...track, locked: !track.locked } : track,
+    ),
+  };
+}
+
 export function canRemoveSequenceTrack(sequence: Sequence, track: SequenceTrack): boolean {
   return sequence.tracks.length > 1 && track.placements.length === 0;
 }

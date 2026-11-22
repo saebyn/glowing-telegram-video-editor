@@ -1,7 +1,7 @@
 import { type PointerEvent, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { Sequence } from "@/types";
-import { canRemoveSequenceTrack, reorderSequenceTrack } from "@/utils/sequenceTracks";
-import { RemoveSequenceTrack } from "./SequenceTrackActions";
+import { reorderSequenceTrack } from "@/utils/sequenceTracks";
+import { RemoveSequenceTrack, ToggleSequenceTrackLock } from "./SequenceTrackActions";
 
 type TrackHeadersProps = {
   sequence: Sequence;
@@ -93,7 +93,7 @@ export default function SequenceTrackHeaders({
           role="group"
           aria-label={`Track: ${track.label}`}
           className={`relative flex items-center gap-1 border-t border-slate-600 pl-3 pr-1 ${
-            onCommit && canRemoveSequenceTrack(sequence, track) ? "pb-6" : ""
+            onCommit || track.locked ? "pb-6" : ""
           }`}
           style={{ height: rowHeight }}
         >
@@ -134,6 +134,7 @@ export default function SequenceTrackHeaders({
           {onCommit && (
             <RemoveSequenceTrack sequence={sequence} track={track} onCommit={onCommit} />
           )}
+          <ToggleSequenceTrackLock sequence={sequence} track={track} onCommit={onCommit} />
         </div>
       ))}
     </div>
