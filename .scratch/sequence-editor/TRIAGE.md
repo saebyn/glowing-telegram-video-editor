@@ -1,10 +1,12 @@
 # Sequence editor triage
 
 Use this page for follow-up scope. The [original PRD](PRD.md) records the
-first batch. Tickets **01–08** shipped in `dc35b6b`; their `Resolution:` lines
-close them without introducing another triage status.
+first batch. Tickets **01–08** shipped in `dc35b6b`; the expanded batch
+shipped in `2077dd8`. A completed `Resolution:` line closes a ticket
+without introducing another triage status. No unresolved tickets are
+currently ready for implementation.
 
-## Recommended next batch
+## Completed follow-up batch
 
 1. [11 — Delete selected placements](issues/11-delete-selected-placements.md):
    remove the selection without moving other placements or shortening time.
@@ -16,10 +18,9 @@ close them without introducing another triage status.
 4. [10 — Split at the playhead](issues/10-split-at-the-playhead.md):
    shorten any affected entry or reveal fade to fit the resulting placement.
 
-This is a suggested priority, not a requirement to start all the work at
-once. Sequence tickets that touch the same editor code.
+This was the suggested implementation order.
 
-## Ready behind the next batch
+## Also completed in the expanded batch
 
 - [12 — Frame thumbnails](issues/12-show-frame-thumbnails-on-taller-tracks.md)
   and [18 — Media kind](issues/18-distinguish-source-media-types.md):

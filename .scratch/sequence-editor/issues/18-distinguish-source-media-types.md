@@ -1,6 +1,7 @@
 # 18 — Distinguish source media types
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

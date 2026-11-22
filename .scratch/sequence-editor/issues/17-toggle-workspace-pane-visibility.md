@@ -1,6 +1,7 @@
 # 17 — Toggle workspace pane visibility
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

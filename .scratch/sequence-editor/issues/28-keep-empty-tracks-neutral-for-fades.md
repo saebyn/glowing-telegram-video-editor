@@ -1,6 +1,7 @@
 # 28 — Keep empty tracks neutral for fades
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Acceptance criteria
 

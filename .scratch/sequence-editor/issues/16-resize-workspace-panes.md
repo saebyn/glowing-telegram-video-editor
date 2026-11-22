@@ -1,6 +1,7 @@
 # 16 — Resize workspace panes
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

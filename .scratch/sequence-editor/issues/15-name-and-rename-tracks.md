@@ -1,6 +1,7 @@
 # 15 — Name and rename tracks
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

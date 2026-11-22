@@ -1,6 +1,7 @@
 # 10 — Split at the playhead
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 Depends on: [06](06-control-the-playhead-without-media.md)
 
 ## Acceptance criteria

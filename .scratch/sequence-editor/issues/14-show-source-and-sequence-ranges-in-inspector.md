@@ -1,6 +1,7 @@
 # 14 — Show source and sequence ranges in the Inspector
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

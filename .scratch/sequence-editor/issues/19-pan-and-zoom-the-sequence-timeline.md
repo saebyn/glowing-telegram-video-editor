@@ -1,6 +1,7 @@
 # 19 — Pan and zoom the sequence timeline
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 
 ## Proposal
 

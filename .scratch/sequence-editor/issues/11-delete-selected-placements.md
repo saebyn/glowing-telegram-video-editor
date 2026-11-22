@@ -1,6 +1,7 @@
 # 11 — Delete selected placements
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 Depends on: [02](02-select-and-move-placements-together.md)
 
 ## Acceptance criteria

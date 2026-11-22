@@ -1,6 +1,7 @@
 # 22 — Redo an undone edit
 
 Status: ready-for-agent
+Resolution: implemented in `2077dd8`
 Depends on: [09](09-undo-the-last-edit.md)
 
 ## Proposal
