@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import type { Sequence } from "@/types";
 import {
   layeredEditStoryId,
   noEdits,
@@ -15,7 +16,45 @@ async function seek(page: Page, timeline: Locator, fraction: number, frame: numb
   await expect(page.getByLabel("Sequence playhead position")).toHaveText(`Sequence frame ${frame}`);
 }
 
-test("Split commits both selected placements in one edit and compiles the new cut", async ({
+const layeredBeforeSplit: Sequence = {
+  durationFrames: 240,
+  tracks: [
+    {
+      id: "cutaways",
+      label: "Cutaways",
+      placements: [
+        {
+          id: "lighthouse-open",
+          clipId: "lighthouse",
+          sequenceStartFrame: 0,
+          sourceOutOffsetFrames: -60,
+        },
+      ],
+    },
+    {
+      id: "main",
+      label: "Main",
+      placements: [
+        { id: "harbor-bed", clipId: "harbor", sequenceStartFrame: 0, sourceOutOffsetFrames: 120 },
+      ],
+    },
+    {
+      id: "alternate",
+      label: "Alternate",
+      placements: [
+        {
+          id: "lighthouse-alternate",
+          clipId: "lighthouse",
+          sequenceStartFrame: 120,
+          sourceInOffsetFrames: 6,
+          sourceOutOffsetFrames: -6,
+        },
+      ],
+    },
+  ],
+};
+
+test("Split cuts visible and covered placements at the playhead without a selection", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -26,11 +65,8 @@ test("Split commits both selected placements in one edit and compiles the new cu
   const split = page.getByRole("button", { name: "Split", exact: true });
 
   await seek(page, timeline, 1 / 8, 30);
-  await expect(split).toBeDisabled();
-  await harbor.click();
-  await lighthouses.first().click({ modifiers: ["Shift"] });
-  await expect(harbor).toHaveAttribute("aria-pressed", "true");
-  await expect(lighthouses.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(harbor).toHaveAttribute("aria-pressed", "false");
+  await expect(lighthouses.first()).toHaveAttribute("aria-pressed", "false");
   expect(await emissions()).toStrictEqual(noEdits);
   await expect(split).toBeEnabled();
   await split.click();
@@ -127,6 +163,31 @@ test("Split commits both selected placements in one edit and compiles the new cu
   await expect(lighthouses).toHaveCount(3);
 });
 
+test("Split ignores an unrelated selection and Undo restores all split placements", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouses = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  await lighthouses.last().click();
+  await expect(lighthouses.last()).toHaveAttribute("aria-pressed", "true");
+  await seek(page, timeline, 1 / 8, 30);
+  await page.getByRole("button", { name: "Split", exact: true }).click();
+  await expect
+    .poll(async () =>
+      (await emissions()).sequences[0]?.tracks.map(({ placements }) => placements.length),
+    )
+    .toEqual([2, 2, 1]);
+  await expect(lighthouses.last()).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(async () => (await emissions()).sequences[1]).toStrictEqual(layeredBeforeSplit);
+  expect((await emissions()).cutLists).toHaveLength(2);
+  await expect(lighthouses).toHaveCount(2);
+  await expect(lighthouses.last()).toHaveAttribute("aria-pressed", "true");
+});
+
 test("Split blocks an edge touch but still commits an interior split when the sequence cannot compile", async ({
   page,
 }) => {
@@ -149,6 +210,10 @@ test("Split blocks an edge touch but still commits an interior split when the se
   const bounds = await split.boundingBox();
   if (!bounds) throw new Error("Expected the visible Split button");
   await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await seek(page, timeline, 1 / 2, 180);
+  await expect(split).toBeDisabled();
   expect(await emissions()).toStrictEqual(noEdits);
 
   await seek(page, timeline, 3 / 4, 270);

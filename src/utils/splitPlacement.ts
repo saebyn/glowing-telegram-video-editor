@@ -36,16 +36,16 @@ export function canSplitPlacementsAtPlayhead(
   placementIds: readonly string[],
   playheadFrame: number,
 ): boolean {
-  const selected = new Set(placementIds);
+  const targets = new Set(placementIds);
   return sequence.tracks.some(({ placements }) =>
     placements.some(
       (placement) =>
-        selected.has(placement.id) && getSplitPoint(placement, clips, frameRate, playheadFrame),
+        targets.has(placement.id) && getSplitPoint(placement, clips, frameRate, playheadFrame),
     ),
   );
 }
 
-/** Split the eligible selection in one edit, allocating an ID for each right half. */
+/** Split the eligible targets in one edit, allocating an ID for each right half. */
 export function splitPlacementsAtPlayhead(
   sequence: Sequence,
   clips: readonly VideoClip[],
@@ -54,11 +54,11 @@ export function splitPlacementsAtPlayhead(
   playheadFrame: number,
   allocatePlacementId: () => string,
 ): Sequence | null {
-  const selected = new Set(placementIds);
+  const targets = new Set(placementIds);
   let didSplit = false;
   const tracks = sequence.tracks.map((track) => {
     const placements = track.placements.flatMap((placement) => {
-      if (!selected.has(placement.id)) return [placement];
+      if (!targets.has(placement.id)) return [placement];
       const split = getSplitPoint(placement, clips, frameRate, playheadFrame);
       if (!split) return [placement];
       const { clip, sourceSplitFrame } = split;

@@ -104,7 +104,7 @@ Dragging a selected placement moves the selection together, or none of it if any
 destination is blocked. A valid move can grow the sequence but never shortens it.
 Use **Delete** to remove the selected placements in one edit. It leaves gaps in place
 without shortening the sequence or removing tracks or reusable clips from the pool.
-Use **Split** to divide selected placements at an interior playhead position when
+Use **Split** to divide all placements that strictly span the playhead when
 their source and project rates match. Use **Sequence endpoint** to remove uncovered
 time at the end without cutting any placement. **Undo** and **Redo** navigate accepted edits.
 **Rename track** edits a track’s display name without changing its placements or order.

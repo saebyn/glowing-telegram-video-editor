@@ -238,8 +238,7 @@ the group offset, not individual placements.
 
 Click the ruler or drag the playhead to seek. Play forward, play in reverse,
 and pause the sequence playhead even while the preview pane is disconnected.
-The playhead position is session state in sequence frames. Today Split
-acts on eligible selected placements. The planned default is to split
+The playhead position is session state in sequence frames. Split acts on
 all eligible placements at the playhead, regardless of selection.
 Split mode is separate: clicking a placement splits only that placement
 at the pointer's sequence frame, without requiring selection. It does

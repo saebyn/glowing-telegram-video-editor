@@ -469,7 +469,10 @@ it("omits a covered entry ending exactly where its owner becomes visible", () =>
       { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
       { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 120, endFrame: 200 }] },
     ],
-    outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }, { mediaIndex: 1, sectionIndex: 0 }],
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0 },
+    ],
   });
 });
 

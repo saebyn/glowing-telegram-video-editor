@@ -88,7 +88,8 @@ export default function SequenceEditor({
     return placements.length > 0 ? [{ track, placements }] : [];
   });
   const selectedIds = selectedTracks.flatMap(({ placements }) => placements.map(({ id }) => id));
-  const splitArgs = [sequence, clips, frameRate, selectedIds, transport.playheadFrame] as const;
+  const splitTargets = sequence.tracks.flatMap(({ placements }) => placements.map(({ id }) => id));
+  const splitArgs = [sequence, clips, frameRate, splitTargets, transport.playheadFrame] as const;
   const canSplit = !!onSequenceChange && canSplitPlacementsAtPlayhead(...splitArgs);
   const selectedTrack = selectedIds.length === 1 ? selectedTracks[0].track : undefined;
   const selectedPlacement = selectedIds.length === 1 ? selectedTracks[0].placements[0] : undefined;
@@ -144,7 +145,7 @@ export default function SequenceEditor({
     onCutListChange?.(compileCutList(next, clips, sources, frameRate));
   }
 
-  function splitSelection() {
+  function splitAtPlayhead() {
     const next = splitPlacementsAtPlayhead(...splitArgs, () => crypto.randomUUID());
     if (next) commitEdit(next);
   }
@@ -278,7 +279,7 @@ export default function SequenceEditor({
           type="button"
           disabled={!canSplit}
           className="rounded border px-3 py-1 text-sm disabled:opacity-60"
-          onClick={splitSelection}
+          onClick={splitAtPlayhead}
         >
           Split
         </button>
