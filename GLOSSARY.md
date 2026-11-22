@@ -30,16 +30,26 @@ The collection of clips available to place in a sequence.
 An edit assembled from clip placements across one or more tracks.
 _Avoid_: “Timeline” for the edit itself.
 
+**Sequence duration**:
+The full length of the edit in sequence frames, including any uncovered frames. It is independent of where the last placement ends.
+
+**`CutList`**:
+A render description derived from a sequence. It is distinct from the editable sequence and the rendered media.
+
 **Track**:
-A part of a sequence on which clips can be placed. A track may be empty or contain placements that cover only part of the sequence. All tracks extend from the beginning to the end of the sequence timeline, and clips placed on two or more tracks so as to overlap at the same sequence frame can be described as playing simultaneously. Multiple clips cannot be placed to overlap each other on the same track.
+A layer of a sequence that spans its full duration and may be empty or contain non-overlapping clip placements.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 
 **Clip placement**:
-One use of a clip on a specific track at a specific sequence position, with a source range that can be trimmed for that placement. The same clip can have multiple placements on the same track or on different tracks.
+One use of a clip on a specific track at a specific sequence position. Its effective source range can extend beyond the clip’s in or out point, within the same source.
 _Avoid_: Unqualified “clip” when referring to a particular placement rather than the reusable source selection.
 
+**Track overlap**:
+Two or more placements on different tracks cover the same sequence frames. Overlap describes their positions, not whether they are combined in the output.
+_Avoid_: “Playing simultaneously” when only placement positions are known.
+
 **Clip trim** and **placement trim**:
-A clip trim changes the reusable clip’s source range; the host determines whether to update any existing placements. A placement trim changes only the source range used by that placement.
+A clip trim changes the reusable range for new placements without changing what existing placements play. A placement trim changes only the effective source range of that use.
 
 **Timeline**:
 A time-based view of a source or sequence.
@@ -53,8 +63,14 @@ A view of a sequence’s tracks showing each clip placement’s position and dur
 **Transition**:
 A change from one presentation of picture or sound to another over a span of the sequence. A **transition indicator** marks it in the timeline; it is not the change itself.
 
+**Entry transition**:
+A transition toward a placement’s picture or sound, attached to its leading edge.
+
+**Reveal transition**:
+A transition from a placement’s picture or sound toward what would play without it, attached to its trailing edge.
+
 **Host application**:
-The application that uses the library and owns the clips and placements.
+The application that uses the library and owns the persistent clips and sequences.
 
 **Editor UI state**:
 Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the clip and placement state owned by the host.
