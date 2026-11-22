@@ -83,6 +83,44 @@ export const VisualShell: Story = {
   },
 };
 
+export const TrailingTrimFixture: Story = {
+  args: {
+    sequence: {
+      durationFrames: 360,
+      tracks: [
+        {
+          id: "cutaways",
+          label: "Cutaways",
+          placements: [
+            {
+              id: "harbor-cutaway",
+              clipId: "harbor",
+              sequenceStartFrame: 120,
+              sourceInOffsetFrames: 6,
+              sourceOutOffsetFrames: 6,
+            },
+          ],
+        },
+        {
+          id: "main",
+          label: "Main",
+          placements: [
+            {
+              id: "harbor-main",
+              clipId: "harbor",
+              sequenceStartFrame: 0,
+              sourceOutOffsetFrames: 240,
+            },
+          ],
+        },
+      ],
+    },
+    onSequenceChange: fn(),
+    onCutListChange: fn(),
+  },
+  render: renderEditingHost,
+};
+
 export const GapFixture: Story = {
   args: {
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.

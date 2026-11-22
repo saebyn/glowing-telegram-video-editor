@@ -4,6 +4,7 @@ import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
 import { getProjectFrameCount } from "@/utils/frames";
 import { compileCutList, getPlacementSourceRange, placeClipInGap } from "@/utils/sequence";
+import { getTrailingTrimBounds } from "@/utils/trimPlacement";
 import ProjectClipPool from "./ProjectClipPool";
 import SequenceTimeline from "./SequenceTimeline";
 
@@ -34,12 +35,25 @@ export default function SequenceEditor({
   const [selectedPlacementId, selectPlacement] = useState<string>();
   const editableTrack =
     onSequenceChange && sequence.tracks.length === 1 ? sequence.tracks[0] : null;
-  const selectedPlacement = editableTrack?.placements.find(({ id }) => id === selectedPlacementId);
+  const selectedTrack = sequence.tracks.find(({ placements }) =>
+    placements.some(({ id }) => id === selectedPlacementId),
+  );
+  const selectedPlacement = selectedTrack?.placements.find(({ id }) => id === selectedPlacementId);
   const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
   const maxEntryFrames =
     selectedPlacement && selectedClip
       ? getProjectFrameCount(getPlacementSourceRange(selectedClip, selectedPlacement), frameRate)
       : 0;
+  const trimBounds =
+    onSequenceChange && selectedTrack && selectedPlacement && selectedClip
+      ? getTrailingTrimBounds(
+          selectedPlacement,
+          selectedTrack,
+          selectedClip,
+          sequence.durationFrames,
+          frameRate,
+        )
+      : null;
 
   function commitEdit(next: Sequence) {
     onSequenceChange?.(next);
@@ -77,6 +91,39 @@ export default function SequenceEditor({
     });
   }
 
+  function trimPlacement(sourceOutFrame: number) {
+    if (
+      !trimBounds ||
+      !selectedTrack ||
+      !selectedPlacement ||
+      !selectedClip ||
+      !Number.isSafeInteger(sourceOutFrame) ||
+      sourceOutFrame < trimBounds.min ||
+      sourceOutFrame > trimBounds.max ||
+      sourceOutFrame === trimBounds.sourceOutFrame
+    ) {
+      return;
+    }
+    commitEdit({
+      ...sequence,
+      tracks: sequence.tracks.map((track) =>
+        track === selectedTrack
+          ? {
+              ...track,
+              placements: track.placements.map((placement) =>
+                placement === selectedPlacement
+                  ? {
+                      ...placement,
+                      sourceOutOffsetFrames: sourceOutFrame - selectedClip.sourceOutFrame,
+                    }
+                  : placement,
+              ),
+            }
+          : track,
+      ),
+    });
+  }
+
   return (
     <section
       className="space-y-4 bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
@@ -110,7 +157,42 @@ export default function SequenceEditor({
         </section>
         <section className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
           <h2 className="mb-2 text-lg font-semibold">Selection inspector</h2>
-          {selectedPlacement && selectedClip && maxEntryFrames > 0 ? (
+          {selectedClip && (
+            <p className="mb-2 text-sm font-medium">
+              {titles[selectedClip.id] ?? `Clip ${selectedClip.id}`}
+            </p>
+          )}
+          {trimBounds && (
+            <form
+              key={`${selectedPlacement?.id}:${trimBounds.sourceOutFrame}`}
+              className="mb-3 space-y-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                trimPlacement(Number(new FormData(event.currentTarget).get("sourceOutFrame")));
+              }}
+            >
+              <label className="block space-y-1 text-sm">
+                <span>Source out (exclusive frame)</span>
+                <input
+                  name="sourceOutFrame"
+                  type="number"
+                  required
+                  min={trimBounds.min}
+                  max={trimBounds.max}
+                  step={1}
+                  defaultValue={trimBounds.sourceOutFrame}
+                  className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+              >
+                Trim placement
+              </button>
+            </form>
+          )}
+          {editableTrack && selectedPlacement && selectedClip && maxEntryFrames > 0 ? (
             <form
               key={`${selectedPlacement.id}:${selectedPlacement.entryTransitionFrames}`}
               className="space-y-2"
@@ -119,9 +201,6 @@ export default function SequenceEditor({
                 applyEntryFade(Number(new FormData(event.currentTarget).get("duration")));
               }}
             >
-              <p className="text-sm font-medium">
-                {titles[selectedClip.id] ?? `Clip ${selectedClip.id}`}
-              </p>
               <label className="block space-y-1 text-sm">
                 <span>Entry fade duration (sequence frames)</span>
                 <input
@@ -142,13 +221,13 @@ export default function SequenceEditor({
                 Apply
               </button>
             </form>
-          ) : (
+          ) : !selectedPlacement ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              {editableTrack
-                ? "Select a placement to edit its entry fade."
+              {onSequenceChange
+                ? "Select a placement to edit it."
                 : "Placement and transition fields will appear here."}
             </p>
-          )}
+          ) : null}
         </section>
       </div>
       <SequenceTimeline
@@ -157,7 +236,7 @@ export default function SequenceEditor({
         titles={titles}
         onClipDrop={editableTrack ? dropClip : undefined}
         selectedPlacementId={selectedPlacement?.id}
-        onPlacementSelect={editableTrack ? selectPlacement : undefined}
+        onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
       />
     </section>
   );
