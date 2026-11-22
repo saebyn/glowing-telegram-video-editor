@@ -126,10 +126,17 @@ export interface SequenceLayout {
   placements: SequenceClipPlacement[];
 }
 
+/** Media content declared by the host for presentation in the editor. */
+export type MediaKind = "video-only" | "audio-only" | "audio-video";
+
 /** Renderable media identity supplied by the host, separate from a clip's source range. */
 export interface SequenceSource {
   id: string;
   s3Location: string;
+  /** When omitted, the editor treats the media kind as unknown. */
+  mediaKind?: MediaKind;
+  /** Optional frame thumbnails at zero-based positions on this source's native frame grid. */
+  keyframes?: readonly { sourceFrame: number; url: string }[];
 }
 
 export interface ClipPlacement {

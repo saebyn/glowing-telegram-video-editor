@@ -16,6 +16,11 @@
   background: transparent;
 }
 
+/* Keep native drop targets stable while the virtualized grid is scrolling. */
+.gtve-sequence-timeline[data-pool-dragging] .timeline-editor-edit-row {
+  pointer-events: auto;
+}
+
 /* The playhead is controlled by the host and must not intercept editing gestures. */
 .gtve-sequence-timeline .timeline-editor-cursor,
 .gtve-sequence-timeline .timeline-editor-cursor-area {

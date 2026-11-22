@@ -207,6 +207,7 @@ export type PlacementMoveResult = { destinations: PlacementMoveDestination[] } &
 
 type ResolvedPlacement = {
   sequenceStartFrame: number;
+  sequenceEndFrame: number;
   sourceInFrame: number;
   s3Location: string;
   entryTransitionFrames?: number;
@@ -220,7 +221,11 @@ function isValidFadeDuration(duration: number | undefined, frameCount: number) {
   );
 }
 
-/** Compile fully covered edits at matching rates. Fades require one authored track. */
+export function hasMultipleOccupiedTracks(sequence: Sequence) {
+  return sequence.tracks.filter(({ placements }) => placements.length > 0).length > 1;
+}
+
+/** Compile fully covered edits at matching rates. */
 export function compileCutList(
   sequence: Sequence,
   clips: readonly VideoClip[],
@@ -228,6 +233,8 @@ export function compileCutList(
   frameRate: FrameRate,
 ): CutList | null {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
+  // A fade whose authored edge is hidden must not silently disappear from the output.
+  let remainingFades = 0;
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
     for (const placement of inSequenceOrder(track.placements)) {
@@ -253,16 +260,15 @@ export function compileCutList(
       ) {
         return null;
       }
-      // Reject unsupported fades here, before track priority can hide them.
       if (
-        (sequence.tracks.length !== 1 &&
-          (entryTransitionFrames !== undefined || revealTransitionFrames !== undefined)) ||
         !isValidFadeDuration(entryTransitionFrames, frameCount) ||
         !isValidFadeDuration(revealTransitionFrames, frameCount) ||
         (entryTransitionFrames ?? 0) + (revealTransitionFrames ?? 0) > frameCount
       ) {
         return null;
       }
+      if (entryTransitionFrames !== undefined) remainingFades++;
+      if (revealTransitionFrames !== undefined) remainingFades++;
 
       boundaries.push(
         {
@@ -270,6 +276,7 @@ export function compileCutList(
           trackIndex,
           placement: {
             sequenceStartFrame,
+            sequenceEndFrame,
             sourceInFrame,
             s3Location: source.s3Location,
             entryTransitionFrames,
@@ -301,6 +308,7 @@ export function compileCutList(
         s3Location,
         sourceInFrame,
         sequenceStartFrame,
+        sequenceEndFrame,
         entryTransitionFrames,
         revealTransitionFrames,
       } = visible;
@@ -311,11 +319,15 @@ export function compileCutList(
       }
       const { sections } = inputMedia[mediaIndex];
       const section: CutList["outputTrack"][number] = { mediaIndex, sectionIndex: sections.length };
-      if (entryTransitionFrames !== undefined) {
+      if (entryTransitionFrames !== undefined && cutStartFrame === sequenceStartFrame) {
+        if (frame - cutStartFrame < entryTransitionFrames) return null;
         section.transitionIn = { type: "fade", duration: entryTransitionFrames };
+        remainingFades--;
       }
-      if (revealTransitionFrames !== undefined) {
+      if (revealTransitionFrames !== undefined && frame === sequenceEndFrame) {
+        if (frame - cutStartFrame < revealTransitionFrames) return null;
         section.transitionOut = { type: "fade", duration: revealTransitionFrames };
+        remainingFades--;
       }
       output.push(section);
       sections.push({
@@ -329,6 +341,6 @@ export function compileCutList(
     cutStartFrame = frame;
   }
   const [first, ...rest] = output;
-  if (!first || cutStartFrame !== sequence.durationFrames) return null;
+  if (!first || cutStartFrame !== sequence.durationFrames || remainingFades !== 0) return null;
   return { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] };
 }

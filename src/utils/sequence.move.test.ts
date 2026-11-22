@@ -164,6 +164,25 @@ it("rejects a collision even if the move would extend the sequence by one frame"
   expect(sequence.durationFrames).toBe(100);
 });
 
+it("blocks a move that overlaps the last frame of a longer stationary placement", () => {
+  const longerClip = { ...clips[0], id: "longer-clip", sourceOutFrame: 160 };
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      original.tracks[0],
+      {
+        id: "other",
+        label: "Other",
+        placements: [{ id: "stationary", clipId: longerClip.id, sequenceStartFrame: 10 }],
+      },
+    ],
+  };
+  // The stationary placement spans [10, 70), so moving to [69, 94) overlaps by one frame.
+  expect(
+    evaluatePlacementMove(sequence, [...clips, longerClip], frameRate, "placement", "other", 69),
+  ).toMatchObject({ kind: "blocked", reason: "overlap", trackId: "other" });
+});
+
 it("accepts an exact edge touch without shortening the sequence", () => {
   const sequence: Sequence = {
     durationFrames: 100,

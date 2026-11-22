@@ -3,7 +3,9 @@ import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
   layeredEditStoryId,
+  noEdits,
   openWorkflow,
+  recordEditorEmissions,
   roughCutStoryId,
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
@@ -222,8 +224,9 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   await harbor.click();
-  const before = await visibleBox(lighthouse);
   const handle = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
+  await handle.scrollIntoViewIfNeeded();
+  const before = await visibleBox(lighthouse);
   const grip = await visibleBox(handle);
   const fade = await visibleBox(
     timeline.getByRole("button", { name: "Adjust entry fade: Lighthouse" }),
@@ -313,6 +316,63 @@ test("dragging the trailing edge can pan past the endpoint and grow the sequence
   await expect.poll(() => sequences).toStrictEqual([extendedSequence]);
   await expect.poll(() => cutLists).toStrictEqual([extendedCutList]);
   await expect(preview).toHaveCount(0);
+});
+
+test("dragging the trailing edge of a one-frame placement previews and commits a trim", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.durationFrames": 760,
+    "sequence.tracks[0].placements[1].sequenceStartFrame": 380,
+    "sequence.tracks[0].placements[1].sourceOutOffsetFrames": -119,
+  });
+
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = await visibleBox(timeline.getByRole("button", { name: "Harbor", exact: true }));
+  const grip = timeline.getByRole("button", { name: "Trim trailing edge: Lighthouse" });
+  // Read the grip's coordinates even when collapsed, so the real pointer still tries the drag.
+  const { x, y } = await grip.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    return { x: Math.round(rect.x + rect.width / 2), y: rect.y + rect.height / 2 };
+  });
+  const twelveFrames = Math.round(harbor.width / 10);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + twelveFrames, y);
+
+  await expect(timeline.getByRole("status")).toHaveText("Lighthouse · Sequence frame 393");
+  const preview = timeline.getByRole("figure", { name: "Proposed trim: Lighthouse" });
+  await expect(preview).toBeVisible();
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await page.mouse.up();
+  await expect(preview).toHaveCount(0);
+  expect(await emissions()).toStrictEqual({
+    sequences: [
+      {
+        durationFrames: 760,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+              {
+                id: "lighthouse-next",
+                clipId: "lighthouse",
+                sequenceStartFrame: 380,
+                sourceOutOffsetFrames: -107,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutLists: [null],
+  });
 });
 
 test("blocked, cancelled, and unchanged edge drags leave the authored placement untouched", async ({

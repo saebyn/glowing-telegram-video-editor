@@ -15,7 +15,7 @@ import {
   useState,
 } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { Sequence, VideoClip } from "@/types";
+import type { MediaKind, Sequence, SequenceSource, VideoClip } from "@/types";
 import { getFadeBounds, type PlacementFadeField } from "@/utils/fadePlacement";
 import {
   formatFrames,
@@ -36,13 +36,21 @@ import {
 } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
+import { mediaKindLabels } from "./mediaKindLabels";
+import {
+  getSequenceTimelineViewport,
+  getZoomScrollLeft,
+  SEQUENCE_VIEWPORT_TICKS,
+} from "./sequenceTimelineViewport";
 
 const RULER_HEIGHT = 32;
-const ROW_HEIGHT = 40;
-const TICK_COUNT = 4;
+const RULER = ".timeline-editor-time-area-interact";
+const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
+const ROW_HEIGHT = 72;
 const DRAG_THRESHOLD = 4;
 const SCROLL_EDGE = 32;
 const SCROLL_STEP = 12;
+const COMPACT_TRIM_GRIP_WIDTH = 12;
 const EFFECTS = {
   placement: { id: "placement", name: "Placement" },
 };
@@ -51,6 +59,7 @@ type SequenceTimelineProps = {
   playheadFrame: number;
   onSeek: (sequenceFrame: number) => void;
   sequence: Sequence;
+  sources: readonly SequenceSource[];
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   poolClipId?: string;
@@ -106,6 +115,7 @@ export default function SequenceTimeline({
   playheadFrame,
   onSeek,
   sequence,
+  sources,
   clips,
   titles,
   poolClipId,
@@ -127,6 +137,8 @@ export default function SequenceTimeline({
   const moved = useRef(false);
   const pointer = useRef<PointerPosition | null>(null);
   const scrollLeft = useRef(0);
+  const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
+  const pendingScrollLeft = useRef<number | null>(null);
   const [draft, setDraft] = useState<MoveDraft | null>(null);
   const trimDrag = useRef<TrimDrag | null>(null);
   const [trimDraft, setTrimDraft] = useState<TrimDraft | null>(null);
@@ -141,8 +153,32 @@ export default function SequenceTimeline({
   const isTrailingTrim = trimDraft?.edge === "trailing";
   const hasDragHeadroom = isDragging || isPoolDragging || isTrailingTrim;
   const [width, setWidth] = useState(0);
-  const scale = framesToSeconds(Math.max(1, durationFrames), frameRate) / TICK_COUNT;
-  const scaleWidth = Math.max(1, width / TICK_COUNT);
+  const [requestedZoom, setRequestedZoom] = useState(0);
+  const viewport = getSequenceTimelineViewport(width, durationFrames, requestedZoom);
+  const { zoom, maxZoom, tickCount, scaleWidth, pixelsPerFrame, maxScrollLeft } = viewport;
+  const scale = framesToSeconds(Math.max(1, durationFrames) / tickCount, frameRate);
+  // One extra tick lets a placement grabbed at its far end start beyond the endpoint.
+  const headroomTicks = hasDragHeadroom ? SEQUENCE_VIEWPORT_TICKS + (isDragging ? 1 : 0) : 0;
+  const scaleCount = tickCount + headroomTicks;
+  const maxDragScrollLeft = maxScrollLeft + headroomTicks * scaleWidth;
+
+  function changeZoom(nextZoom: number, fit = false) {
+    const next = getSequenceTimelineViewport(width, durationFrames, nextZoom);
+    if (next.zoom === zoom) return;
+    pendingScrollLeft.current = fit
+      ? 0
+      : getZoomScrollLeft(width, scrollLeft.current, playheadFrame, viewport, next);
+    setRequestedZoom(next.zoom);
+  }
+
+  useLayoutEffect(() => {
+    const left = pendingScrollLeft.current ?? scrollLeft.current;
+    const boundedLeft = Math.min(left, maxDragScrollLeft);
+    if (pendingScrollLeft.current !== null || boundedLeft !== scrollLeft.current) {
+      timeline.current?.setScrollLeft(boundedLeft);
+    }
+    pendingScrollLeft.current = null;
+  }, [zoom, maxDragScrollLeft]);
 
   useLayoutEffect(() => {
     timeline.current?.setTime(framesToSeconds(playheadFrame, frameRate));
@@ -152,14 +188,12 @@ export default function SequenceTimeline({
     drag.current = null;
     pointer.current = null;
     setDraft(null);
-    if (scrollLeft.current > 0) timeline.current?.setScrollLeft(0);
   }, []);
 
   const clearTrim = useCallback(() => {
     trimDrag.current = null;
     pointer.current = null;
     setTrimDraft(null);
-    if (scrollLeft.current > 0) timeline.current?.setScrollLeft(0);
   }, []);
 
   useLayoutEffect(() => {
@@ -196,9 +230,11 @@ export default function SequenceTimeline({
           if (
             x >= right - SCROLL_EDGE &&
             (x < right || isTrailingTrim) &&
-            scrollLeft.current < width
+            scrollLeft.current < maxDragScrollLeft
           )
-            timeline.current?.setScrollLeft(Math.min(scrollLeft.current + SCROLL_STEP, width));
+            timeline.current?.setScrollLeft(
+              Math.min(scrollLeft.current + SCROLL_STEP, maxDragScrollLeft),
+            );
           else if (x >= left && x < left + SCROLL_EDGE && scrollLeft.current > 0)
             timeline.current?.setScrollLeft(Math.max(scrollLeft.current - SCROLL_STEP, 0));
         }
@@ -207,14 +243,13 @@ export default function SequenceTimeline({
     };
     animationFrame = requestAnimationFrame(scrollNearEdge);
     return () => cancelAnimationFrame(animationFrame);
-  }, [hasDragHeadroom, isDragging, isTrailingTrim, tracks.length, width]);
+  }, [hasDragHeadroom, isDragging, isTrailingTrim, tracks.length, maxDragScrollLeft]);
 
   const clearPoolDrag = useCallback(() => {
     if (!poolPointer.current) return;
     poolPointer.current = null;
     setIsPoolDragging(false);
     setPoolDraft(undefined);
-    if (scrollLeft.current > 0) timeline.current?.setScrollLeft(0);
   }, []);
 
   useEffect(() => {
@@ -248,15 +283,20 @@ export default function SequenceTimeline({
         trackIndex: number;
         trimRange: ReturnType<typeof getTrimmableSourceRange>;
         minimumTrimLength: number;
+        mediaKind: MediaKind | undefined;
+        thumbnails: SequenceSource["keyframes"];
       }
     >();
+    const sourcesById = new Map(sources.map((source) => [source.id, source]));
     const rows: TimelineEditor["editorData"] = tracks.map((track, trackIndex) => ({
       id: track.id,
       actions: track.placements.flatMap((placement) => {
         const clip = clips.find(({ id }) => id === placement.clipId);
         if (!clip) return [];
-        const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
+        const range = getPlacementSourceRange(clip, placement);
+        const duration = getProjectFrameCount(range, frameRate);
         if (duration <= 0) return [];
+        const source = sourcesById.get(clip.sourceId);
         items.set(placement.id, {
           label: titles[clip.id] ?? `Clip ${clip.id}`,
           entryFadeFrames: placement.entryTransitionFrames ?? 0,
@@ -266,6 +306,16 @@ export default function SequenceTimeline({
           trackIndex,
           trimRange: getTrimmableSourceRange(placement, clip, frameRate),
           minimumTrimLength: getMinimumTrimLength(placement),
+          mediaKind: source?.mediaKind,
+          thumbnails:
+            source?.mediaKind === "audio-only"
+              ? undefined
+              : source?.keyframes
+                  ?.filter(
+                    ({ sourceFrame }) =>
+                      sourceFrame >= range.sourceInFrame && sourceFrame < range.sourceOutFrame,
+                  )
+                  .sort((first, second) => first.sourceFrame - second.sourceFrame),
         });
         return {
           id: placement.id,
@@ -278,7 +328,7 @@ export default function SequenceTimeline({
       }),
     }));
     return { items, rows };
-  }, [tracks, clips, titles, frameRate]);
+  }, [tracks, clips, sources, titles, frameRate]);
 
   function poolDestination(event: PointerPosition) {
     const { left, right, top } = surface.current!.getBoundingClientRect();
@@ -392,7 +442,14 @@ export default function SequenceTimeline({
     const widthMatches = activeDrag.width === event.currentTarget.getBoundingClientRect().width;
     const { trackIndex, sequenceFrame } = moveDestination(event, activeDrag);
     clearMove();
-    if (!moved.current || !widthMatches) return;
+    // Page scrolling can move the tracks under a stationary pointer without updating the draft.
+    if (
+      !widthMatches ||
+      !draft ||
+      draft.trackIndex !== trackIndex ||
+      draft.sequenceFrame !== sequenceFrame
+    )
+      return;
     const result = evaluateMove?.(
       activeDrag.placementId,
       trackIndex,
@@ -479,8 +536,39 @@ export default function SequenceTimeline({
 
   return (
     <section aria-label="Sequence timeline">
-      <div className="mb-2 flex items-baseline justify-between gap-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h2 className="text-lg font-semibold">Sequence timeline</h2>
+        <div className="flex min-w-0 flex-1 basis-[25rem] flex-wrap gap-2">
+          {[
+            { label: "Zoom in", next: zoom + 1, disabled: zoom === maxZoom },
+            { label: "Zoom out", next: zoom - 1, disabled: zoom === 0 },
+            { label: "Fit sequence", next: 0, disabled: zoom === 0, fit: true },
+          ].map(({ label, next, disabled, fit }) => (
+            <button
+              key={label}
+              type="button"
+              className="rounded border px-2 py-0.5 text-sm disabled:opacity-50"
+              disabled={disabled || hasDragHeadroom}
+              onClick={() => changeZoom(next, fit)}
+            >
+              {label}
+            </button>
+          ))}
+          <label className="flex min-w-32 flex-1 items-center gap-2 text-sm">
+            Pan timeline
+            <input
+              type="range"
+              min={0}
+              max={Math.round(maxScrollLeft)}
+              value={Math.min(visibleScrollLeft, maxScrollLeft)}
+              disabled={maxScrollLeft === 0 || hasDragHeadroom}
+              className="min-w-20 flex-1"
+              onChange={(event) =>
+                timeline.current?.setScrollLeft(event.currentTarget.valueAsNumber)
+              }
+            />
+          </label>
+        </div>
         <span className="text-sm tabular-nums">
           Duration: {formatFrames(durationFrames, frameRate)}
         </span>
@@ -503,6 +591,7 @@ export default function SequenceTimeline({
         <div
           ref={surface}
           className="gtve-sequence-timeline relative overflow-hidden"
+          data-pool-dragging={isPoolDragging || undefined}
           style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
           onPointerDown={(event) => {
             if (event.isPrimary && event.button === 0) moved.current = false;
@@ -510,6 +599,16 @@ export default function SequenceTimeline({
           onPointerMove={handlePointerMove}
           onPointerUp={finishPlacementDrag}
           onPointerCancel={cancelPlacementDrag}
+          onClickCapture={(event) => {
+            if (!(event.target as Element).closest(RULER)) return;
+            // The widget's ruler right-bound check subtracts the scroll offset
+            // twice. Read the tracks' current scroll before seeking.
+            const node = event.currentTarget;
+            const left = node.querySelector(EDIT_GRID)?.scrollLeft ?? scrollLeft.current;
+            const x = event.clientX - node.getBoundingClientRect().left + left;
+            event.stopPropagation();
+            onSeek(snapFrame(x / pixelsPerFrame, durationFrames));
+          }}
           onLostPointerCapture={(event) => {
             if (!moved.current || event.target === event.currentTarget) cancelPlacementDrag(event);
           }}
@@ -541,7 +640,9 @@ export default function SequenceTimeline({
             <SequencePlayheadGrip
               frame={playheadFrame}
               durationFrames={durationFrames}
-              rulerWidth={scaleWidth * TICK_COUNT}
+              pixelsPerFrame={pixelsPerFrame}
+              scrollLeft={visibleScrollLeft}
+              viewportWidth={width}
               onSeek={onSeek}
             />
           )}
@@ -555,11 +656,12 @@ export default function SequenceTimeline({
             scaleWidth={scaleWidth}
             scaleSplitCount={4}
             // Add ruler space, not authored duration, while dragging along the tracks.
-            minScaleCount={hasDragHeadroom ? 2 * TICK_COUNT : TICK_COUNT}
-            maxScaleCount={hasDragHeadroom ? 2 * TICK_COUNT : TICK_COUNT}
+            minScaleCount={scaleCount}
+            maxScaleCount={scaleCount}
             onScroll={({ scrollLeft: left }) => {
               if (scrollLeft.current === left) return;
               scrollLeft.current = left;
+              setVisibleScrollLeft(left);
               if (drag.current && pointer.current) previewMove(pointer.current, drag.current);
               if (trimDrag.current && pointer.current)
                 setTrimDraft(proposedTrim(pointer.current.clientX, trimDrag.current));
@@ -588,112 +690,173 @@ export default function SequenceTimeline({
             }}
             disableDrag
             autoReRender={false}
-            onClickTimeArea={(seconds) => {
-              onSeek(snapFrame(secondsToFrame(seconds, frameRate), durationFrames));
-              return false;
-            }}
             getActionRender={({ id }) => {
               const item = items.get(id);
               if (!item) return null;
-              const { label, entryFadeFrames, revealFadeFrames, trimRange } = item;
-              const classes = `absolute inset-0 flex overflow-hidden rounded border border-sky-400 bg-sky-950 px-2 text-xs font-medium whitespace-nowrap text-sky-100 ${
-                entryFadeFrames > 0 || revealFadeFrames > 0 ? "items-end pb-0.5" : "items-center"
-              }`;
-              return (
-                <div className="absolute inset-x-px inset-y-1 overflow-hidden rounded">
-                  {onPlacementSelect ? (
-                    <button
-                      type="button"
-                      title={label}
-                      aria-pressed={selectedPlacementIds.includes(id)}
-                      onPointerDown={(event) => {
-                        if (!event.isPrimary || event.button !== 0) return;
-                        if (!onPlacementMove) return;
-                        const { left, width } = surface.current!.getBoundingClientRect();
-                        event.currentTarget.setPointerCapture(event.pointerId);
-                        drag.current = {
-                          pointerId: event.pointerId,
-                          placementId: id,
-                          placementIds: selectedPlacementIds.includes(id)
-                            ? selectedPlacementIds
-                            : [id],
-                          origin: { clientX: event.clientX, clientY: event.clientY },
-                          contentX: event.clientX - left + scrollLeft.current,
-                          startFrame: item.sequenceFrame,
-                          width,
-                        };
-                      }}
-                      onClick={(event) => {
-                        if (event.detail === 0 || !moved.current)
-                          onPlacementSelect(id, event.shiftKey);
-                      }}
-                      className={`${classes} ${onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} aria-pressed:bg-sky-800`}
-                    >
-                      {label}
-                    </button>
-                  ) : (
-                    <div title={label} className={classes}>
-                      {label}
-                    </div>
+              const { label, entryFadeFrames, revealFadeFrames, trimRange, mediaKind, thumbnails } =
+                item;
+              const mediaKindLabel = mediaKind && mediaKindLabels[mediaKind];
+              const title = mediaKindLabel ? `${label} — ${mediaKindLabel}` : label;
+              const audioOnly = mediaKind === "audio-only";
+              const placementWidth = item.duration * pixelsPerFrame;
+              const placementX = item.sequenceFrame * pixelsPerFrame;
+              // Use the bottom of the row for wider hit targets on tiny placements.
+              // The clipped bodies sit above this lane so a neighboring body keeps its move target.
+              const compactTrim = placementWidth < 16;
+              const gripPairWidth = COMPACT_TRIM_GRIP_WIDTH * 2;
+              const gripPairLeft =
+                Math.max(
+                  0,
+                  Math.min(
+                    width - gripPairWidth,
+                    placementX + (placementWidth - gripPairWidth) / 2,
+                  ),
+                ) - placementX;
+              const hasThumbnails = !compactTrim && (thumbnails?.length ?? 0) > 0;
+              const content = (
+                <>
+                  {hasThumbnails && (
+                    <span className="pointer-events-none absolute inset-x-0 top-4 bottom-7 flex overflow-hidden">
+                      {thumbnails?.map(({ sourceFrame, url }) => (
+                        <img
+                          key={`${sourceFrame}:${url}`}
+                          src={url}
+                          alt=""
+                          draggable={false}
+                          loading="lazy"
+                          className="h-full min-w-0 max-w-16 flex-1 object-cover"
+                        />
+                      ))}
+                    </span>
                   )}
-                  {(["entry", "reveal"] as const).map((edge) => (
-                    <SequenceFadeHandle
-                      key={edge}
-                      label={label}
-                      edge={edge}
-                      frames={edge === "entry" ? entryFadeFrames : revealFadeFrames}
-                      placementFrames={item.duration}
-                      pixelsPerFrame={(scaleWidth * framesToSeconds(1, frameRate)) / scale}
-                      edit={
-                        evaluateFade && onPlacementFade && getFadeBounds(sequence, item.duration)
-                          ? {
-                              evaluate: (frames) =>
-                                evaluateFade(
-                                  id,
-                                  edge === "entry"
-                                    ? "entryTransitionFrames"
-                                    : "revealTransitionFrames",
-                                  frames,
-                                ),
-                              commit: onPlacementFade,
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                  {evaluateTrim &&
-                    onPlacementTrim &&
-                    trimRange &&
-                    (["leading", "trailing"] as const).map((edge) => (
+                  {label}
+                  {mediaKindLabel && <span className="ml-2 text-[10px]/3">{mediaKindLabel}</span>}
+                </>
+              );
+              const classes = `absolute inset-0 flex overflow-hidden rounded text-xs font-medium whitespace-nowrap ${
+                audioOnly
+                  ? "bg-violet-950 text-violet-100 border-violet-400 inset-ring-violet-400"
+                  : "bg-sky-950 text-sky-100 border-sky-400 inset-ring-sky-400"
+              } ${compactTrim ? "inset-ring" : "border px-2"} ${
+                hasThumbnails
+                  ? "items-end pb-3"
+                  : entryFadeFrames > 0 || revealFadeFrames > 0
+                    ? "items-end pb-0.5"
+                    : "items-center"
+              }`;
+              const trimGrips =
+                evaluateTrim &&
+                onPlacementTrim &&
+                trimRange &&
+                (["leading", "trailing"] as const).map((edge) => (
+                  <button
+                    key={edge}
+                    type="button"
+                    aria-label={`Trim ${edge} edge: ${label}`}
+                    title={`Trim ${edge} edge: ${label}`}
+                    className={`absolute bottom-0 cursor-ew-resize touch-none rounded-sm bg-sky-700 inset-ring inset-ring-sky-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
+                      compactTrim
+                        ? "z-[1] h-2"
+                        : `z-10 h-3 w-3 max-w-[40%] ${edge === "leading" ? "left-0" : "right-0"}`
+                    }`}
+                    style={
+                      compactTrim
+                        ? {
+                            left:
+                              gripPairLeft + (edge === "trailing" ? COMPACT_TRIM_GRIP_WIDTH : 0),
+                            width: COMPACT_TRIM_GRIP_WIDTH,
+                          }
+                        : undefined
+                    }
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      if (!event.isPrimary || event.button !== 0) return;
+                      const node = surface.current!;
+                      const { left, width } = node.getBoundingClientRect();
+                      node.setPointerCapture(event.pointerId);
+                      moved.current = true;
+                      trimDrag.current = {
+                        pointerId: event.pointerId,
+                        placementId: id,
+                        edge,
+                        contentX: event.clientX - left + scrollLeft.current,
+                        width,
+                        sourceFrame:
+                          edge === "leading" ? trimRange.sourceInFrame : trimRange.sourceOutFrame,
+                      };
+                    }}
+                  />
+                ));
+              return (
+                <>
+                  <div
+                    className={`absolute inset-y-1 z-[2] overflow-hidden rounded ${compactTrim ? "inset-x-0" : "inset-x-px"}`}
+                  >
+                    {onPlacementSelect ? (
                       <button
-                        key={edge}
                         type="button"
-                        aria-label={`Trim ${edge} edge: ${label}`}
-                        title={`Trim ${edge} edge: ${label}`}
-                        className={`absolute bottom-0 z-10 h-3 w-3 max-w-[40%] cursor-ew-resize touch-none rounded-sm bg-sky-700 inset-ring inset-ring-sky-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${edge === "leading" ? "left-0" : "right-0"}`}
-                        onClick={(event) => event.stopPropagation()}
+                        title={title}
+                        aria-pressed={selectedPlacementIds.includes(id)}
                         onPointerDown={(event) => {
-                          event.stopPropagation();
                           if (!event.isPrimary || event.button !== 0) return;
-                          const node = surface.current!;
-                          const { left, width } = node.getBoundingClientRect();
-                          node.setPointerCapture(event.pointerId);
-                          moved.current = true;
-                          trimDrag.current = {
+                          if (!onPlacementMove) return;
+                          const { left, width } = surface.current!.getBoundingClientRect();
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          drag.current = {
                             pointerId: event.pointerId,
                             placementId: id,
-                            edge,
+                            placementIds: selectedPlacementIds.includes(id)
+                              ? selectedPlacementIds
+                              : [id],
+                            origin: { clientX: event.clientX, clientY: event.clientY },
                             contentX: event.clientX - left + scrollLeft.current,
+                            startFrame: item.sequenceFrame,
                             width,
-                            sourceFrame:
-                              edge === "leading"
-                                ? trimRange.sourceInFrame
-                                : trimRange.sourceOutFrame,
                           };
                         }}
+                        onClick={(event) => {
+                          if (event.detail === 0 || !moved.current)
+                            onPlacementSelect(id, event.shiftKey);
+                        }}
+                        className={`${classes} ${onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <div title={title} className={classes}>
+                        {content}
+                      </div>
+                    )}
+                    {(["entry", "reveal"] as const).map((edge) => (
+                      <SequenceFadeHandle
+                        key={edge}
+                        label={label}
+                        edge={edge}
+                        frames={edge === "entry" ? entryFadeFrames : revealFadeFrames}
+                        placementFrames={item.duration}
+                        pixelsPerFrame={pixelsPerFrame}
+                        edit={
+                          evaluateFade && onPlacementFade && getFadeBounds(sequence, item.duration)
+                            ? {
+                                evaluate: (frames) =>
+                                  evaluateFade(
+                                    id,
+                                    edge === "entry"
+                                      ? "entryTransitionFrames"
+                                      : "revealTransitionFrames",
+                                    frames,
+                                  ),
+                                commit: onPlacementFade,
+                              }
+                            : undefined
+                        }
                       />
                     ))}
-                </div>
+                    {!compactTrim && trimGrips}
+                  </div>
+                  {compactTrim && trimGrips}
+                </>
               );
             }}
           />

@@ -4,23 +4,28 @@ import { snapFrame } from "@/utils/frames";
 type SequencePlayheadGripProps = {
   frame: number;
   durationFrames: number;
-  rulerWidth: number;
+  pixelsPerFrame: number;
+  scrollLeft: number;
+  viewportWidth: number;
   onSeek: (frame: number) => void;
 };
 
 export default function SequencePlayheadGrip({
   frame,
   durationFrames,
-  rulerWidth,
+  pixelsPerFrame,
+  scrollLeft,
+  viewportWidth,
   onSeek,
 }: SequencePlayheadGripProps) {
   const drag = useRef<{ pointerId: number; x: number; frame: number } | null>(null);
+  const x = frame * pixelsPerFrame - scrollLeft;
 
   function seekFromPointer(event: PointerEvent<HTMLDivElement>) {
     const origin = drag.current;
     if (origin?.pointerId !== event.pointerId) return;
     event.stopPropagation();
-    const offset = ((event.clientX - origin.x) / rulerWidth) * durationFrames;
+    const offset = (event.clientX - origin.x) / pixelsPerFrame;
     onSeek(snapFrame(origin.frame + offset, durationFrames));
   }
 
@@ -35,7 +40,10 @@ export default function SequencePlayheadGrip({
       aria-valuemax={durationFrames}
       aria-valuenow={frame}
       className="absolute top-0 z-20 h-4 w-4 -translate-x-1/2 cursor-ew-resize touch-none rounded-b-md bg-sky-400 select-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
-      style={{ left: `clamp(8px, ${(frame / durationFrames) * 100}%, calc(100% - 8px))` }}
+      style={{
+        left: Math.max(8, Math.min(viewportWidth - 8, x)),
+        visibility: x < 0 || x > viewportWidth ? "hidden" : undefined,
+      }}
       onPointerDown={(event) => {
         if (!event.isPrimary || event.button !== 0) return;
         event.stopPropagation();

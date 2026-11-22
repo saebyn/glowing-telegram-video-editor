@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  layeredEditStoryId,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -32,8 +33,50 @@ const inputMedia: CutList["inputMedia"] = [
   },
 ];
 
+const paddedStraightCut: Sequence = {
+  ...straightCut,
+  tracks: [
+    { id: "cutaways", label: "Cutaways", placements: [] },
+    straightCut.tracks[0],
+    { id: "alternate", label: "Alternate", placements: [] },
+  ],
+};
+const paddedStraightCutArgs = {
+  "sequence.tracks[0].placements[0]": undefined,
+  "sequence.tracks[1].placements[0].id": "harbor-open",
+  "sequence.tracks[1].placements[0].sourceOutOffsetFrames": undefined,
+  "sequence.tracks[1].placements[1].id": "lighthouse-next",
+  "sequence.tracks[1].placements[1].clipId": "lighthouse",
+  "sequence.tracks[1].placements[1].sequenceStartFrame": 120,
+  "sequence.tracks[2].placements[0]": undefined,
+};
+
+test("the Inspector edits an entry fade on a track between empty tracks", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, paddedStraightCutArgs);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
+  const entry = page.getByLabel("Entry fade duration (sequence frames)");
+  await expect(entry).toBeVisible();
+  await entry.fill("24");
+  await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+
+  const next = structuredClone(paddedStraightCut);
+  next.tracks[1].placements[1].entryTransitionFrames = 24;
+  const cutList: CutList = {
+    version: "1.0.0",
+    inputMedia,
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 24 } },
+    ],
+  };
+  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+});
+
 async function dragFade(page: Page, handle: Locator, dx: number) {
   await expect(handle).toBeVisible();
+  await handle.scrollIntoViewIfNeeded();
   const box = (await handle.boundingBox())!;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -41,6 +84,43 @@ async function dragFade(page: Page, handle: Locator, dx: number) {
   await page.mouse.down();
   await page.mouse.move(x + dx, y, { steps: 10 });
 }
+
+test("a timeline reveal grip edits a placement on a track between empty tracks", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, paddedStraightCutArgs);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await expect(harbor).toBeVisible();
+  const { width } = (await harbor.boundingBox())!;
+  await dragFade(page, timeline.getByLabel("Adjust reveal fade: Harbor"), -width / 4);
+  await expect(timeline.getByText("Fade out", { exact: true })).toBeVisible();
+  expect(await emissions()).toStrictEqual(noEdits);
+  await page.mouse.up();
+
+  const next = structuredClone(paddedStraightCut);
+  next.tracks[1].placements[0].revealTransitionFrames = 30;
+  const cutList: CutList = {
+    version: "1.0.0",
+    inputMedia,
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 30 } },
+      { mediaIndex: 1, sectionIndex: 0 },
+    ],
+  };
+  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+});
+
+test("sequences with multiple occupied tracks do not expose fade controls", async ({ page }) => {
+  await openWorkflow(page, layeredEditStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  await expect(inspector).toContainText("Harbor");
+  await expect(inspector.getByLabel("Entry fade duration (sequence frames)")).toHaveCount(0);
+  await expect(timeline.getByRole("button", { name: "Adjust reveal fade: Harbor" })).toHaveCount(0);
+});
 
 test("dragging Lighthouse's entry handle previews 30 frames and commits once without moving the cut", async ({
   page,
@@ -52,12 +132,14 @@ test("dragging Lighthouse's entry handle previews 30 frames and commits once wit
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   // A fade handle on an unselected placement must not change the existing selection.
   await harbor.click();
+  const handle = timeline.getByLabel("Adjust entry fade: Lighthouse");
+  await handle.scrollIntoViewIfNeeded();
   const before = (await lighthouse.boundingBox())!;
   const indicator = timeline.getByText("Fade in", { exact: true });
   await expect(indicator).toHaveCount(0);
 
   // The fixture's Lighthouse placement spans 120 sequence frames.
-  await dragFade(page, timeline.getByLabel("Adjust entry fade: Lighthouse"), before.width / 4);
+  await dragFade(page, handle, before.width / 4);
   await expect(indicator).toBeVisible();
   const draft = (await indicator.boundingBox())!;
   expect(Math.abs(draft.x - before.x)).toBeLessThan(2);
@@ -145,7 +227,7 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
   expect(afterFade.sequences).toHaveLength(1);
 
   const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
-  await expect(leading).toBeVisible();
+  await leading.scrollIntoViewIfNeeded();
   await expect(
     timeline.getByRole("button", { name: "Trim trailing edge: Lighthouse" }),
   ).toBeVisible();
@@ -203,11 +285,9 @@ test("a trim that would overlap the fades explains why and commits neither callb
   expect(initial.sequences).toHaveLength(2);
 
   const width = (await lighthouse.boundingBox())!.width;
-  await dragFade(
-    page,
-    timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" }),
-    (71 * width) / 120,
-  );
+  const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
+  await leading.scrollIntoViewIfNeeded();
+  await dragFade(page, leading, (71 * width) / 120);
   await expect(timeline.getByRole("status")).toHaveText(
     "Lighthouse · Sequence frame 191 · Blocked: The fades need at least 50 sequence frames",
   );
@@ -278,9 +358,10 @@ test("a fade drag outside the Inspector's bounds leaves the authored fade and cu
   await expect(indicator).toBeVisible();
   const initial = (await emissions())!;
   expect(initial.sequences).toHaveLength(1);
+  const handle = timeline.getByRole("button", { name: "Adjust entry fade: Lighthouse" });
+  await handle.scrollIntoViewIfNeeded();
   const before = await lighthouse.boundingBox();
   if (!before) throw new Error("Expected a visible Lighthouse placement");
-  const handle = timeline.getByRole("button", { name: "Adjust entry fade: Lighthouse" });
   const boundsMessage = "Fade duration must be between 1 and 120 sequence frames.";
 
   for (const dx of [-before.width / 4, before.width * 0.8]) {

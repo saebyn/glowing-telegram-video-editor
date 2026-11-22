@@ -7,16 +7,21 @@ import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import type { SequenceTrack } from "@/types";
 import SequenceEditor, { type SequenceEditorProps } from "./SequenceEditor";
 
+type EditingHostArgs = SequenceEditorProps & { acceptEdits?: boolean };
+
 const meta = {
   title: "Organisms/SequenceEditor",
   component: SequenceEditor,
   decorators: [withSampleProject],
   parameters: { layout: "fullscreen" },
   argTypes: {
-    // Accept nested `sequence` URL args as well as edits in the Controls panel.
+    // Accept nested fixture URL args as well as edits in the Controls panel.
     sequence: { control: "object", type: { name: "object", value: {} } },
+    sources: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
+    acceptEdits: { control: "boolean", name: "Accept edits" },
   },
   args: {
+    acceptEdits: true,
     clips: [
       {
         id: "harbor",
@@ -44,7 +49,7 @@ const meta = {
     titles: { harbor: "Harbor", lighthouse: "Lighthouse" },
     keyframes: { harbor: [harborThumbnail], lighthouse: [lighthouseThumbnail] },
   },
-} satisfies Meta<typeof SequenceEditor>;
+} satisfies Meta<EditingHostArgs>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -70,7 +75,7 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media.",
+          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media. With focus in the editor, press Left or Right Arrow to step the playhead by one sequence frame.",
       },
     },
   },
@@ -89,7 +94,7 @@ export const RearrangeALayeredEdit: Story = {
     docs: {
       description: {
         story:
-          "Select Harbor on Main and Shift-click Lighthouse on Alternate. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Escape cancels a move.",
+          "Select Harbor on Main and Shift-click Lighthouse on Alternate. Press ] to move the selection one sequence frame later and extend the sequence. Press [ to move it back without shortening the sequence. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Escape cancels a move. Try Undo and Redo after an accepted edit, Rename track to change a display name, or Delete to remove the selection without closing the gaps.",
       },
     },
   },
@@ -142,15 +147,15 @@ export const RearrangeALayeredEdit: Story = {
   render: renderEditingHost,
 };
 
-function renderEditingHost(args: SequenceEditorProps) {
-  const [, updateArgs] = useArgs<SequenceEditorProps>();
+function renderEditingHost({ acceptEdits = true, ...args }: EditingHostArgs) {
+  const [, updateArgs] = useArgs<EditingHostArgs>();
 
   return (
     <SequenceEditor
       {...args}
       onSequenceChange={(next) => {
         args.onSequenceChange?.(next);
-        updateArgs({ sequence: next });
+        if (acceptEdits) updateArgs({ sequence: next });
         window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
       }}
       onCutListChange={(next) => {

@@ -1,6 +1,6 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
 import { getProjectFrameCount } from "./frames";
-import { getPlacementSourceRange } from "./sequence";
+import { getPlacementSourceRange, hasMultipleOccupiedTracks } from "./sequence";
 
 export type PlacementFadeField = keyof Pick<
   ClipPlacement,
@@ -8,7 +8,7 @@ export type PlacementFadeField = keyof Pick<
 >;
 
 export function getFadeBounds(sequence: Sequence, placementFrames: number) {
-  return sequence.tracks.length === 1 && placementFrames > 0
+  return !hasMultipleOccupiedTracks(sequence) && placementFrames > 0
     ? { min: 1, max: placementFrames }
     : null;
 }
@@ -22,8 +22,9 @@ export function evaluatePlacementFade(
   field: PlacementFadeField,
   duration: number,
 ): Sequence | null {
-  const track = sequence.tracks[0];
-  const placement = track?.placements.find(({ id }) => id === placementId);
+  const track = sequence.tracks.find(({ placements }) => placements.length > 0);
+  if (!track) return null;
+  const placement = track.placements.find(({ id }) => id === placementId);
   const clip = clips.find(({ id }) => id === placement?.clipId);
   if (!placement || !clip) return null;
   const bounds = getFadeBounds(
@@ -41,13 +42,15 @@ export function evaluatePlacementFade(
   }
   return {
     ...sequence,
-    tracks: [
-      {
-        ...track,
-        placements: track.placements.map((other) =>
-          other === placement ? { ...placement, [field]: duration } : other,
-        ),
-      },
-    ],
+    tracks: sequence.tracks.map((otherTrack) =>
+      otherTrack === track
+        ? {
+            ...track,
+            placements: track.placements.map((other) =>
+              other === placement ? { ...placement, [field]: duration } : other,
+            ),
+          }
+        : otherTrack,
+    ),
   };
 }

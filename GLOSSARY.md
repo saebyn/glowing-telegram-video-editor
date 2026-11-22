@@ -12,6 +12,9 @@ _Avoid_: “Video” when it could also mean the preview or rendered output.
 Zero-based frame index within a specific video source.
 _Avoid_: Unqualified “frame” when both source and sequence positions are in play.
 
+**Frame thumbnail**:
+A still image representing a video source at a particular source frame. It need not come from a codec keyframe.
+
 **Source range**:
 The span within a source from the inclusive **in point** to the exclusive **out point**. Video in and out points are boundaries on the source frame grid.
 _Avoid_: Unqualified “start” and “end” when they could mean placement in the sequence.

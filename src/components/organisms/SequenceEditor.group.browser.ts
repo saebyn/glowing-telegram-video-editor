@@ -43,7 +43,7 @@ test("click, Shift-click, and empty track space change only the placement select
   page,
 }) => {
   const { harbor, stationary, alternate, emissions } = await openGroupStory(page);
-  const inspector = page.getByRole("region", { name: "Selection inspector" });
+  const inspector = page.getByRole("region", { name: "Inspector", exact: true });
   const sourceOut = inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" });
 
   await harbor.click();
@@ -240,7 +240,7 @@ test("an edge-touching group previews at the old scale and commits one extending
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(alternate).toHaveAttribute("aria-pressed", "true");
   await expect(stationary).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByRole("region", { name: "Selection inspector" })).toContainText(
+  await expect(page.getByRole("region", { name: "Inspector", exact: true })).toContainText(
     "Cutaways, Main",
   );
 });

@@ -75,7 +75,7 @@ The library exports the following components:
 
 - **`VideoSelectionPage`** - Main page component for video review and clip selection
 - **`ProjectProvider`** - Supplies the project frame rate to sequence components without taking ownership of the edit
-- **`VideoPreview`** - Preview component for rendering videos with audio mixing
+- **`VideoPreview`** - Plays a host-rendered stream with audio monitoring controls
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
 - **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
 - **`SequenceEditor`** - Controlled editor for explicit clip placements, with `CutList` output
@@ -92,30 +92,54 @@ Pass positions and durations as whole frames. Positions are zero-based. Source r
 The host supplies `sequence`, `clips`, and `sources` (source IDs and `s3Location` values).
 On an edit, feed `onSequenceChange` back into `sequence`. `onCutListChange` receives the
 compiled result of the same edit, or `null` if the edit cannot be represented. Loading a
-sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence, clips, sources, frameRate)`
-directly.
+sequence does not emit a `CutList`. To keep Undo history, feed the same sequence object
+received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
+different sequence object is an independent host replacement and clears history. Hosts
+can also call `compileCutList(sequence, clips, sources, frameRate)` directly.
+The editor and compiler do not render the sequence; their output contract ends at the `CutList`.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
 Dragging a selected placement moves the selection together, or none of it if any
 destination is blocked. A valid move can grow the sequence but never shortens it.
+Use **Delete** to remove the selected placements in one edit. It leaves gaps in place
+without shortening the sequence or removing tracks or reusable clips from the pool.
+Use **Split** to divide selected placements at an interior playhead position when
+their source and project rates match. Use **Sequence endpoint** to remove uncovered
+time at the end without cutting any placement. **Undo** and **Redo** navigate accepted edits.
+**Rename track** edits a track’s display name without changing its placements or order.
 Drag a clip from the pool to preview where it would land. Drop it onto an existing track
 to fill a gap or extend the sequence.
 
-At matching frame rates, drag either placement edge to trim it in place, or enter a precise
-trailing trim in the inspector’s **Source out** field. Trim handles remain available after
+For one selected placement, the **Inspector** shows the effective source in/out and
+the sequence start/end on their respective frame grids. At matching frame rates, drag
+either placement edge to trim it in place, or enter a precise trailing trim in the
+Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, and a trim that
 would make them overlap is blocked. A valid trailing trim can grow the sequence but never
-shortens it. On a single track, adjust entry and reveal fades using their separate timeline
-handles or the inspector. The compiler flattens
+shortens it. With one occupied track, adjust entry and reveal fades using their separate
+timeline handles or the Inspector; empty tracks do not disable these controls. The compiler flattens
 fully covered straight cuts across tracks, giving the upper active placement precedence.
-It compiles fades only on single-track sequences, and only when the fades don't intersect.
+Intersecting entry and reveal fades on the same placement cannot compile.
+
+To show frame thumbnails on the timeline, supply `keyframes: [{ sourceFrame, url }]`
+on a source. The strip uses only native source frames in the placement’s effective
+range, including any part outside the reusable clip’s original in and out points.
+Optional source `mediaKind` values (`video-only`, `audio-only`, `audio-video`) label
+clips in the pool and on the timeline. Omit `mediaKind` for a neutral appearance.
+
+Drag the workspace separators to resize panes. Use the toolbar toggles to hide or show
+the pool, Preview, Inspector, or timeline. These changes are session-only.
 
 Click the ruler or drag the playhead to seek. Forward, reverse, and pause work even while
 the media preview is disconnected. Transport and selection do not emit edits.
+The timeline’s **Zoom in**, **Zoom out**, **Fit sequence**, and **Pan timeline** controls
+change the view without changing the edit or seeking.
+With focus in the editor (outside text and number fields), Left and Right Arrow step the
+playhead one sequence frame. The `[` and `]` keys nudge selected placements earlier or later.
 
 In Storybook, try **Assemble a rough cut** for single-track edits and **Rearrange a layered edit**
-for cross-track moves.
+for cross-track moves and deletion.
 
 ### VideoSelectionPage
 

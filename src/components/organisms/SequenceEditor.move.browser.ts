@@ -215,6 +215,41 @@ test("moving a placement to an upper track covers the lower track at the matchin
   await expect.poll(async () => (await lighthouse.boundingBox())?.y).toBeLessThan(middle.y);
 });
 
+test("scrolling the page cannot commit a move to an unpreviewed track", async ({ page }) => {
+  await page.setViewportSize({ width: 1_280, height: 470 });
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true }).last();
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  // Start with Alternate near the bottom, leaving room for a full row of page scroll.
+  await lighthouse.evaluate((placement) => {
+    const bounds = placement.getBoundingClientRect();
+    window.scrollBy(0, bounds.bottom - window.innerHeight + 8);
+  });
+  const [source, main] = await Promise.all([lighthouse.boundingBox(), harbor.boundingBox()]);
+  if (!source || !main) throw new Error("Expected visible placements on Alternate and Main");
+  const x = source.x + source.width / 2;
+  await page.mouse.move(x, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x - (source.x - main.x) / 2, main.y + main.height / 2, { steps: 12 });
+  const status = timeline.getByRole("status");
+  const blockedPreview =
+    "Lighthouse → Main · Sequence frame 60 · Blocked: Overlaps another placement on Main";
+  await expect(status).toHaveText(blockedPreview);
+
+  // Scroll one track height so the stationary pointer is now over Alternate.
+  await page.mouse.wheel(0, source.y - main.y);
+  await expect.poll(async () => (await lighthouse.boundingBox())?.y).toBe(main.y);
+  await expect(status).toHaveText(blockedPreview);
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await page.mouse.up();
+  await expect(status).toHaveCount(0);
+  expect(await emissions()).toStrictEqual(noEdits);
+  expect((await lighthouse.boundingBox())?.x).toBe(source.x);
+});
+
 test("a placement can preview beyond the endpoint at the same scale and extend on release", async ({
   page,
 }) => {
@@ -273,6 +308,105 @@ test("a placement can preview beyond the endpoint at the same scale and extend o
                 sourceInOffsetFrames: -6,
                 sourceOutOffsetFrames: 6,
                 entryTransitionFrames: 30,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutLists: [null],
+  });
+});
+
+test("grabbing the far end of a placement can still move its start past the sequence endpoint", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  await expect(harbor).toBeVisible();
+  const [source, first, last, timelineBox] = await Promise.all([
+    harbor.boundingBox(),
+    lighthouse.first().boundingBox(),
+    lighthouse.last().boundingBox(),
+    timeline.boundingBox(),
+  ]);
+  if (!source || !first || !last || !timelineBox) throw new Error("Expected a visible timeline");
+  const pixelsPerFrame = (last.x - first.x) / 120;
+  const grabOffset = source.width - 1;
+  const y = source.y + source.height / 2;
+  await page.mouse.move(source.x + grabOffset, y);
+  await page.mouse.down();
+  await page.mouse.move(source.x + grabOffset - 80, y);
+  await page.mouse.move(timelineBox.x + timelineBox.width - 1, y);
+
+  // The sequence ends at 240. Pan slightly farther so frame 241 can be
+  // previewed without holding the pointer in the scrolling region.
+  const status = timeline.getByRole("status");
+  await expect
+    .poll(async () => Number((await status.textContent())?.match(/Sequence frame (\d+)/)?.[1]), {
+      // Edge panning advances once per animation frame, which can slow under parallel browser load.
+      timeout: 12_000,
+    })
+    .toBeGreaterThanOrEqual(250);
+  await page.mouse.move(source.x + grabOffset / 2, y);
+  const scrolled = await harbor.boundingBox();
+  if (!scrolled) throw new Error("Expected Harbor to remain on Main");
+  const destinationX = scrolled.x + 241 * pixelsPerFrame;
+  await page.mouse.move(destinationX + grabOffset, y);
+
+  await expect(status).toHaveText("Harbor → Main · Sequence frame 241");
+  await expect(timeline).toContainText("Duration: 00:04");
+  const preview = await timeline
+    .getByRole("figure", { name: "Proposed placement: Harbor" })
+    .boundingBox();
+  if (!preview) throw new Error("Expected a visible Harbor preview");
+  expect(preview.x).toBeCloseTo(destinationX, 0);
+  expect(preview.width).toBeCloseTo(source.width, 0);
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await page.mouse.up();
+  await expect.poll(emissions).toStrictEqual({
+    sequences: [
+      {
+        durationFrames: 481,
+        tracks: [
+          {
+            id: "cutaways",
+            label: "Cutaways",
+            placements: [
+              {
+                id: "lighthouse-open",
+                clipId: "lighthouse",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: -60,
+              },
+            ],
+          },
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                id: "harbor-bed",
+                clipId: "harbor",
+                sequenceStartFrame: 241,
+                sourceOutOffsetFrames: 120,
+              },
+            ],
+          },
+          {
+            id: "alternate",
+            label: "Alternate",
+            placements: [
+              {
+                id: "lighthouse-alternate",
+                clipId: "lighthouse",
+                sequenceStartFrame: 120,
+                sourceInOffsetFrames: 6,
+                sourceOutOffsetFrames: -6,
               },
             ],
           },
