@@ -81,7 +81,7 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media. With focus in the editor, press Left or Right Arrow to step the playhead by one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
+          "The transport bar shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to frame zero. Press Space on the focused Play or Play reverse button to start playback, then press it again to pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values, or the ruler to seek. With focus in the editor, press Left or Right Arrow to step the playhead by one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
       },
     },
   },

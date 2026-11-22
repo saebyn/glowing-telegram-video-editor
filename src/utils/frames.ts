@@ -33,6 +33,20 @@ export function formatFrames(frames: number, rate: FrameRate): string {
   return formatSeconds(framesToSeconds(frames, rate));
 }
 
+/** Non-drop-frame timecode counts frames at the nominal project rate. */
+export function formatTimecode(frame: number, rate: FrameRate): string {
+  const nominalFps = Math.max(1, Math.round(rate.numerator / rate.denominator));
+  const seconds = Math.floor(frame / nominalFps);
+  return [
+    Math.floor(seconds / 3600),
+    Math.floor(seconds / 60) % 60,
+    seconds % 60,
+    frame % nominalFps,
+  ]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
+}
+
 /** Clamp to the timeline, including its exclusive endpoint for out points. */
 export function snapFrame(position: number, durationFrames: number): number {
   return Math.max(0, Math.min(durationFrames, Math.round(position)));

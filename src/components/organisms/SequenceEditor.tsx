@@ -1,3 +1,4 @@
+import { TransportBar } from "@keplar-404/react-timeline-editor";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useEffect, useId, useMemo, useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
@@ -9,7 +10,12 @@ import {
   getFadeSourceExtension,
   type PlacementFadeField,
 } from "@/utils/fadePlacement";
-import { getProjectFrameCount } from "@/utils/frames";
+import {
+  formatTimecode,
+  framesToSeconds,
+  getProjectFrameCount,
+  secondsToFrame,
+} from "@/utils/frames";
 import {
   compileCutList,
   evaluatePlacementMove,
@@ -96,6 +102,7 @@ export default function SequenceEditor({
 }: SequenceEditorProps) {
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
+  const jumpFrames = secondsToFrame(1, frameRate);
   const [selection, setSelection] = useState<readonly string[]>([]);
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
@@ -354,37 +361,57 @@ export default function SequenceEditor({
     >
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-3 text-xl font-semibold">Sequence editor</h1>
-        <button
-          type="button"
-          disabled={transport.playheadFrame === 0}
-          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
-          onClick={() => transport.play(-1)}
-        >
-          Play reverse
-        </button>
-        <button
-          type="button"
-          disabled={transport.playheadFrame === sequence.durationFrames}
-          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
-          onClick={() => transport.play(1)}
-        >
-          Play forward
-        </button>
-        <button
-          type="button"
-          disabled={!transport.isPlaying}
-          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
-          onClick={transport.pause}
-        >
-          Pause
-        </button>
-        <output
-          aria-label="Sequence playhead position"
-          aria-live="off"
-          className="text-sm tabular-nums"
-        >
-          Sequence frame {transport.playheadFrame}
-        </output>
+        <fieldset className="gtve-sequence-transport">
+          <legend className="sr-only">Sequence transport</legend>
+          <button
+            type="button"
+            disabled={transport.playheadFrame === 0}
+            className="timeline-transport-btn timeline-transport-btn--primary gtve-play-reverse"
+            aria-label="Play reverse"
+            aria-pressed={transport.isReversing}
+            title={transport.isReversing ? "Pause reverse" : "Play reverse"}
+            onClick={() => {
+              if (transport.isReversing) transport.pause();
+              else transport.play(-1);
+            }}
+          >
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M12 1.5 1 7l11 5.5z" />
+            </svg>
+          </button>
+          <div
+            className="min-w-0 max-w-full"
+            onClickCapture={(event) => {
+              // Keplar's buttons omit type="button"; never submit a surrounding host form.
+              if ((event.target as Element).closest("button")) event.preventDefault();
+            }}
+          >
+            <TransportBar
+              playRates={[]}
+              formatDisplayTime={() =>
+                `${formatTimecode(transport.playheadFrame, frameRate)}\n${transport.playheadFrame} fr`
+              }
+              player={{
+                isPlaying: transport.isPlaying,
+                currentTime: framesToSeconds(transport.playheadFrame, frameRate),
+                playRate: 1,
+                play: () => {
+                  if (transport.playheadFrame < sequence.durationFrames) transport.play(1);
+                },
+                pause: transport.pause,
+                stop: () => transport.seek(0),
+                toStart: () => transport.seek(0),
+                rewind: () => transport.seek(transport.playheadFrame - jumpFrames),
+                forward: () => transport.seek(transport.playheadFrame + jumpFrames),
+                setTime: (seconds) => transport.seek(secondsToFrame(seconds, frameRate)),
+                setPlayRate: () => {},
+              }}
+            />
+          </div>
+          <output aria-label="Sequence playhead position" aria-live="off" className="sr-only">
+            Sequence frame {transport.playheadFrame}
+          </output>
+        </fieldset>
         <button
           type="button"
           disabled={!canSplit}

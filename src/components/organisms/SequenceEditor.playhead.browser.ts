@@ -3,7 +3,7 @@ import { openWorkflow, roughCutStoryId } from "./SequenceEditor.browserHarness";
 
 type RecordingWindow = Window & { playheadEdits?: string[] };
 
-async function openSequence(page: Page) {
+async function openSequence(page: Page, durationFrames?: number) {
   await page.addInitScript(() => {
     const emissions: string[] = [];
     (window as RecordingWindow).playheadEdits = emissions;
@@ -11,7 +11,11 @@ async function openSequence(page: Page) {
       window.addEventListener(name, () => emissions.push(name));
     }
   });
-  await openWorkflow(page, roughCutStoryId);
+  await openWorkflow(
+    page,
+    roughCutStoryId,
+    durationFrames === undefined ? {} : { "sequence.durationFrames": durationFrames },
+  );
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
   await expect(ruler).toBeVisible();
@@ -30,6 +34,48 @@ async function readPlaybackFrame(readout: Locator, onTime: number, oneTickBehind
   return Number((await readout.innerText()).slice("Sequence frame ".length));
 }
 
+test("transport shows timecode and frame count when stepping, jumping, and stopping", async ({
+  page,
+}) => {
+  const { timeline, frameReadout, edits } = await openSequence(page);
+  const transport = page.getByRole("group", { name: "Sequence transport" });
+  await expect(transport.getByText("00:00:00:00 0 fr", { exact: true })).toBeVisible();
+  const playhead = timeline.getByRole("slider", { name: "Sequence playhead", exact: true });
+  await playhead.press("ArrowRight");
+  await expect(transport.getByText("00:00:00:01 1 fr", { exact: true })).toBeVisible();
+  await playhead.press("Home");
+
+  const forward = page.getByRole("button", { name: "Forward", exact: true });
+  await forward.click({ timeout: 3_000 });
+  await expect(frameReadout).toHaveText("Sequence frame 60");
+  await expect(transport.getByText("00:00:01:00 60 fr", { exact: true })).toBeVisible();
+  await forward.click();
+  await expect(frameReadout).toHaveText("Sequence frame 120");
+  await page.getByRole("button", { name: "Rewind", exact: true }).click();
+  await expect(frameReadout).toHaveText("Sequence frame 60");
+
+  await page.clock.install({ time: new Date("2025-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2025-01-01T00:00:01Z"));
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.clock.runFor(800);
+  await expect(frameReadout).toHaveText("Sequence frame 0");
+  await expect(transport.getByText("00:00:00:00 0 fr", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  expect(await edits()).toEqual([]);
+});
+
+test("the sequence playhead readout shows hours and minutes on a long sequence", async ({
+  page,
+}) => {
+  const { timeline, edits } = await openSequence(page, 223_384);
+  const transport = page.getByRole("group", { name: "Sequence transport" });
+  await timeline.getByRole("slider", { name: "Sequence playhead", exact: true }).press("End");
+  await expect(transport.getByText("01:02:03:04 223384 fr", { exact: true })).toBeVisible();
+  expect(await edits()).toEqual([]);
+});
+
 test("clicking the ruler seeks to a whole sequence frame without clearing selection or editing", async ({
   page,
 }) => {
@@ -41,7 +87,7 @@ test("clicking the ruler seeks to a whole sequence frame without clearing select
   const box = await ruler.boundingBox();
   if (!box) throw new Error("Expected a visible sequence ruler");
   // 34% of the authored 360-frame sequence is 122.4 frames, in its uncovered gap.
-  await page.mouse.click(box.x + box.width * 0.34, box.y + box.height / 2);
+  await ruler.click({ position: { x: box.width * 0.34, y: box.height / 2 } });
 
   await expect(frameReadout).toHaveText("Sequence frame 122");
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
@@ -83,7 +129,7 @@ test("grabbing the playhead pauses immediately, even if the pointer never moves"
   const { timeline, frameReadout, edits } = await openSequence(page);
   await page.clock.install({ time: new Date("2025-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2025-01-01T00:00:01Z"));
-  await page.getByRole("button", { name: "Play forward" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.clock.runFor(800);
   const grabbedFrame = await readPlaybackFrame(frameReadout, 48, 47);
 
@@ -111,7 +157,7 @@ test("forward playback crosses the gap without media; pause and ruler-seek hold 
   if (!box) throw new Error("Expected a visible sequence ruler");
   await page.mouse.click(box.x + box.width / 4, box.y + box.height / 2);
   await expect(frameReadout).toHaveText("Sequence frame 90");
-  await page.getByRole("button", { name: "Play forward" }).click({ timeout: 5_000 });
+  await page.getByRole("button", { name: "Play", exact: true }).click({ timeout: 5_000 });
   await page.clock.runFor(800);
   // At 60 sequence frames per second, 800 ms advances 48 frames into the gap.
   const pausedFrame = await readPlaybackFrame(frameReadout, 138, 137);
@@ -119,12 +165,40 @@ test("forward playback crosses the gap without media; pause and ruler-seek hold 
   await page.clock.runFor(800);
   await expect(frameReadout).toHaveText(`Sequence frame ${pausedFrame}`);
 
-  await page.getByRole("button", { name: "Play forward" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.clock.runFor(800);
   await readPlaybackFrame(frameReadout, pausedFrame + 48, pausedFrame + 47);
-  await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+  await ruler.click({ position: { x: box.width * 0.75, y: box.height / 2 } });
   await page.clock.runFor(800);
   await expect(frameReadout).toHaveText("Sequence frame 270", { timeout: 2_000 });
+  expect(await edits()).toEqual([]);
+});
+
+test("Space pauses reverse playback while Play reverse has focus", async ({ page }) => {
+  const { frameReadout, edits } = await openSequence(page);
+  const transport = page.getByRole("group", { name: "Sequence transport" });
+  const forward = transport.getByRole("button", { name: "Forward", exact: true });
+  const reverse = transport.getByRole("button", { name: "Play reverse", exact: true });
+  await forward.click();
+  await forward.click();
+  await expect(frameReadout).toHaveText("Sequence frame 120");
+  await page.clock.install({ time: new Date("2025-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2025-01-01T00:00:01Z"));
+
+  await reverse.focus();
+  await page.keyboard.press("Space");
+  await page.clock.runFor(800);
+  const frame = await readPlaybackFrame(frameReadout, 72, 73);
+  await expect(reverse).toBeFocused();
+  await expect(reverse).toHaveAttribute("aria-pressed", "true");
+
+  await page.keyboard.down("Space");
+  await page.keyboard.down("Space"); // A held key must not restart playback.
+  await page.keyboard.up("Space");
+  await expect(transport.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await expect(reverse).toHaveAttribute("aria-pressed", "false");
+  await page.clock.runFor(800);
+  await expect(frameReadout).toHaveText(`Sequence frame ${frame}`);
   expect(await edits()).toEqual([]);
 });
 
@@ -139,25 +213,28 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
 
   await page.clock.install({ time: new Date("2025-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2025-01-01T00:00:01Z"));
-  const forward = page.getByRole("button", { name: "Play forward" });
-  const reverse = page.getByRole("button", { name: "Play reverse" });
-  const pause = page.getByRole("button", { name: "Pause", exact: true });
+  const transport = page.getByRole("group", { name: "Sequence transport" });
+  const forward = transport.getByRole("button", { name: "Play", exact: true });
+  const reverse = transport.getByRole("button", { name: "Play reverse", exact: true });
+  await expect(reverse).toHaveAttribute("title", "Play reverse");
+  await expect(reverse).toBeDisabled();
 
   const box = await ruler.boundingBox();
   if (!box) throw new Error("Expected a visible sequence ruler");
-  await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+  await ruler.click({ position: { x: box.width * 0.75, y: box.height / 2 } });
   await expect(frameReadout).toHaveText("Sequence frame 270");
   await forward.click();
   await page.clock.runFor(2_000);
   await expect(frameReadout).toHaveText("Sequence frame 360");
-  await expect(pause).toBeDisabled();
+  await expect(forward).toBeVisible();
 
   await reverse.click({ timeout: 5_000 });
   await page.clock.runFor(800);
   await readPlaybackFrame(frameReadout, 312, 313);
   await page.clock.runFor(6_000);
   await expect(frameReadout).toHaveText("Sequence frame 0");
-  await expect(pause).toBeDisabled();
+  await expect(forward).toBeVisible();
+  await expect(reverse).toBeDisabled();
   expect(await edits()).toEqual(trimEdits);
 });
 

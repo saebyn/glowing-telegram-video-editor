@@ -30,3 +30,73 @@
 .gtve-sequence-empty {
   top: var(--gtve-ruler-height);
 }
+
+.gtve-sequence-transport {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #1e293b;
+}
+
+.gtve-sequence-transport .timeline-transport-bar {
+  height: auto;
+  padding: 0;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.gtve-sequence-transport .gtve-play-reverse {
+  flex: none;
+}
+
+.gtve-sequence-transport .gtve-play-reverse:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.gtve-sequence-transport .timeline-transport-btn {
+  color: #cbd5e1;
+}
+
+.gtve-sequence-transport .gtve-play-reverse[aria-pressed="true"] {
+  border-color: #7dd3fc;
+  background: #075985;
+  color: #f0f9ff;
+}
+
+.gtve-sequence-transport .timeline-transport-time {
+  align-self: center;
+  min-width: 0;
+}
+
+.gtve-sequence-transport .timeline-transport-time-value {
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.gtve-sequence-transport .timeline-transport-time-value::first-line {
+  font-size: 16px;
+}
+
+.gtve-sequence-transport .timeline-transport-btn:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+/* The timecode and frame count replace Keplar's "Time" heading. */
+.gtve-sequence-transport .timeline-transport-time-label,
+.gtve-sequence-transport .timeline-transport-rate {
+  display: none;
+}

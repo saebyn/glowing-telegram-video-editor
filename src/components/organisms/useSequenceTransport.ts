@@ -35,6 +35,7 @@ export function useSequenceTransport(durationFrames: number, frameRate: FrameRat
   return {
     playheadFrame,
     isPlaying: playback !== null,
+    isReversing: playback?.direction === -1,
     seek(frame: number) {
       setPlayback(null);
       setFrame(snapFrame(frame, durationFrames));
