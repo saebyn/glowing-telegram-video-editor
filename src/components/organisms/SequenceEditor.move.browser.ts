@@ -164,8 +164,8 @@ test("moving a placement to an upper track covers the lower track at the matchin
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true }).last();
   const harbor = timeline.getByText("Harbor", { exact: true });
-  const cutaways = timeline.getByText("Cutaways", { exact: true });
-  const alternate = timeline.getByText("Alternate", { exact: true });
+  const cutaways = timeline.getByRole("group", { name: "Track: Cutaways", exact: true });
+  const alternate = timeline.getByRole("group", { name: "Track: Alternate", exact: true });
   await expect(lighthouse).toBeVisible({ timeout: 15_000 });
   const [source, middle, top, bottom] = await Promise.all([
     lighthouse.boundingBox(),

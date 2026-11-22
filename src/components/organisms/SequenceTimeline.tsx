@@ -34,7 +34,7 @@ import {
 import { getTrimmableSourceRange, type PlacementTrimEdge } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
-import { RemoveSequenceTrack } from "./SequenceTrackActions";
+import SequenceTrackHeaders from "./SequenceTrackHeaders";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -599,23 +599,12 @@ export default function SequenceTimeline({
         </span>
       </div>
       <div className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-md bg-slate-800 text-slate-100">
-        <div className="text-sm">
-          <div className="flex items-center px-3 font-semibold" style={{ height: RULER_HEIGHT }}>
-            Tracks
-          </div>
-          {tracks.map((track) => (
-            <div
-              key={track.id}
-              className="relative flex items-center border-t border-slate-600 px-3 has-[button]:pb-6"
-              style={{ height: ROW_HEIGHT }}
-            >
-              {track.label}
-              {onTrackEdit && (
-                <RemoveSequenceTrack sequence={sequence} track={track} onCommit={onTrackEdit} />
-              )}
-            </div>
-          ))}
-        </div>
+        <SequenceTrackHeaders
+          sequence={sequence}
+          rulerHeight={RULER_HEIGHT}
+          rowHeight={ROW_HEIGHT}
+          onCommit={onTrackEdit}
+        />
         <div
           ref={surface}
           className="gtve-sequence-timeline relative overflow-hidden"

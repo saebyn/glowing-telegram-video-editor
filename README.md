@@ -112,6 +112,7 @@ Use **Sequence endpoint** to remove uncovered time at the end without cutting an
 **Rename track** edits a track’s display name without changing its placements or order.
 **Add track** creates an empty top track. Remove is offered only for an empty track
 when another track remains. A sequence can start with no tracks.
+Drag a track's reorder grip to change its output priority.
 Drag a clip from the pool to preview where it would land. Drop it onto an existing track
 to fill a gap or extend the sequence.
 

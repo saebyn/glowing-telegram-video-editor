@@ -19,3 +19,17 @@ export function removeSequenceTrack(sequence: Sequence, trackId: string): Sequen
   if (!track || !canRemoveSequenceTrack(sequence, track)) return null;
   return { ...sequence, tracks: sequence.tracks.filter(({ id }) => id !== trackId) };
 }
+
+/** Move a whole track to its final index in the top-first track list. */
+export function reorderSequenceTrack(
+  sequence: Sequence,
+  trackId: string,
+  destinationIndex: number,
+): Sequence | null {
+  const origin = sequence.tracks.findIndex(({ id }) => id === trackId);
+  if (origin < 0 || origin === destinationIndex || !sequence.tracks[destinationIndex]) return null;
+  const tracks = [...sequence.tracks];
+  const [track] = tracks.splice(origin, 1);
+  tracks.splice(destinationIndex, 0, track);
+  return { ...sequence, tracks };
+}

@@ -34,7 +34,7 @@ async function openDropStory(page: Page, story: Parameters<typeof openWorkflow>[
 
 async function trackGeometry(timeline: Locator, label: string, duration: number) {
   const [row, timelineBox] = await Promise.all([
-    timeline.getByText(label, { exact: true }).boundingBox(),
+    timeline.getByRole("group", { name: `Track: ${label}`, exact: true }).boundingBox(),
     timeline.boundingBox(),
   ]);
   if (!row || !timelineBox) throw new Error(`Expected the ${label} track`);

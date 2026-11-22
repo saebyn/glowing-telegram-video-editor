@@ -6,6 +6,7 @@ export const roughCutStoryId = "organisms-sequenceeditor--assemble-a-rough-cut";
 export const layeredEditStoryId = "organisms-sequenceeditor--rearrange-a-layered-edit";
 type Workflow = typeof roughCutStoryId | typeof layeredEditStoryId;
 type SequenceArgs = Record<`sequence.${string}`, string | number | undefined> & {
+  acceptEdits?: string;
   readOnly?: string;
   startWithoutTracks?: string;
 };
