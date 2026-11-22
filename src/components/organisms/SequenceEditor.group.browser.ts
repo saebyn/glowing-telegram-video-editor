@@ -25,6 +25,8 @@ async function openGroupStory(page: Page) {
 }
 
 async function groupGeometry(stationary: Locator, harbor: Locator, alternate: Locator) {
+  // The open Inspector can push the lowest track below the viewport.
+  await alternate.scrollIntoViewIfNeeded();
   const [top, middle, bottom] = await Promise.all([
     stationary.boundingBox(),
     harbor.boundingBox(),
@@ -55,7 +57,7 @@ test("click, Shift-click, and empty track space change only the placement select
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(inspector).toContainText("2 placements selected");
   await expect(inspector).toContainText("Main, Alternate");
-  await expect(inspector.getByRole("spinbutton")).toHaveCount(0);
+  await expect(sourceOut).toHaveValue("354");
 
   await alternate.click({ modifiers: ["Shift"] });
   await expect(alternate).toHaveAttribute("aria-pressed", "false");
@@ -193,8 +195,11 @@ test("an edge-touching group previews at the old scale and commits one extending
   };
 
   const { timeline, harbor, stationary, alternate, emissions } = await openGroupStory(page);
-  await harbor.click();
-  await alternate.click({ modifiers: ["Shift"] });
+  await alternate.click();
+  await harbor.click({ modifiers: ["Shift"] });
+  const target = page.getByRole("combobox", { name: "Inspect placement", exact: true });
+  await target.selectOption({ label: "Harbor — Main, sequence frame 0" });
+  // Drag the other selected placement, not the one being inspected.
   const { top, middle, bottom, pixelsPerFrame } = await groupGeometry(
     stationary,
     harbor,
@@ -242,6 +247,9 @@ test("an edge-touching group previews at the old scale and commits one extending
   await expect(stationary).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("region", { name: "Inspector", exact: true })).toContainText(
     "Cutaways, Main",
+  );
+  await expect(target.getByRole("option", { selected: true })).toHaveText(
+    "Harbor — Cutaways, sequence frame 60",
   );
 });
 

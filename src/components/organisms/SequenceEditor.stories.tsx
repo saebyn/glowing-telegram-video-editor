@@ -94,7 +94,7 @@ export const RearrangeALayeredEdit: Story = {
     docs: {
       description: {
         story:
-          "Select Harbor on Main and Shift-click Lighthouse on Alternate. Press ] to move the selection one sequence frame later and extend the sequence. Press [ to move it back without shortening the sequence. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Escape cancels a move. Try Undo and Redo after an accepted edit, Rename track to change a display name, or Delete to remove the selection without closing the gaps.",
+          "Select Harbor on Main and Shift-click Lighthouse on Alternate. Use Inspect placement to switch whose ranges and trim controls the Inspector shows without clearing the selection. Press ] to move the selection one sequence frame later and extend the sequence. Press [ to move it back without shortening the sequence. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Escape cancels a move. Try Undo and Redo after an accepted edit, Rename track to change a display name, or Delete to remove the selection without closing the gaps.",
       },
     },
   },

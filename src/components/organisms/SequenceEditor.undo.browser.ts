@@ -86,6 +86,7 @@ test("one Undo restores both placements and the old duration after an extending 
   await alternate.click({ modifiers: ["Shift"] });
   await expect(undo).toBeDisabled();
 
+  await alternate.scrollIntoViewIfNeeded();
   const [main, bottom] = await Promise.all([harbor.boundingBox(), alternate.boundingBox()]);
   if (!main || !bottom) throw new Error("Expected placements on Main and Alternate");
   const grabX = bottom.x + 12;

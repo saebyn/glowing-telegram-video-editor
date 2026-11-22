@@ -1,9 +1,12 @@
 import { expect, test } from "@playwright/test";
+import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
+  layeredEditStoryId,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
   roughCutStoryId,
+  straightCutArgs,
 } from "./SequenceEditor.browserHarness";
 
 test("the Inspector shows the selected placement's effective source in and out frames", async ({
@@ -48,4 +51,184 @@ test("the Inspector shows sequence start and end on the project frame grid", asy
       exact: true,
     }),
   ).toBeVisible();
+});
+
+test("the Inspector can switch between placements of the same clip without editing or changing the selection", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, {
+    "sequence.tracks[0].label": "Cutaways",
+    "sequence.tracks[2].label": "Cutaways",
+    "sequence.tracks[2].placements[0].sequenceStartFrame": 0,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouses = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const inspector = page.getByRole("region", { name: "Inspector", exact: true });
+
+  await lighthouses.first().click();
+  await lighthouses.last().click({ modifiers: ["Shift"] });
+  await expect(inspector.getByText("2 placements selected")).toBeVisible();
+  const target = inspector.getByRole("combobox", { name: "Inspect placement", exact: true });
+  await expect(target.getByRole("option")).toHaveText([
+    "Lighthouse — Cutaways (track 1), sequence frame 0",
+    "Lighthouse — Cutaways (track 3), sequence frame 0",
+  ]);
+  await expect(
+    inspector.getByText("Source in/out (source frames): 501 inclusive – 561 exclusive"),
+  ).toBeVisible();
+
+  await target.selectOption({ label: "Lighthouse — Cutaways (track 3), sequence frame 0" });
+  await expect(
+    inspector.getByText("Source in/out (source frames): 507 inclusive – 615 exclusive"),
+  ).toBeVisible();
+  await expect(
+    inspector.getByText("Sequence start/end (sequence frames): 0 inclusive – 108 exclusive"),
+  ).toBeVisible();
+  await expect(inspector.getByText("2 placements selected")).toBeVisible();
+  await expect(lighthouses.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouses.last()).toHaveAttribute("aria-pressed", "true");
+  await expect(timeline.getByRole("button", { name: "Harbor", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("removing the Inspector target falls back to a selected placement without reviving the old target on re-add", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouses = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const inspector = page.getByRole("region", { name: "Inspector", exact: true });
+  const target = inspector.getByRole("combobox", { name: "Inspect placement", exact: true });
+  const currentOption = target.getByRole("option", { selected: true });
+  const alternateLabel = "Lighthouse — Alternate, sequence frame 120";
+  const cutawaysLabel = "Lighthouse — Cutaways, sequence frame 0";
+
+  await lighthouses.first().click();
+  await harbor.click({ modifiers: ["Shift"] });
+  await lighthouses.last().click({ modifiers: ["Shift"] });
+  await target.selectOption({ label: alternateLabel });
+  const alternateRange = inspector.getByText(
+    "Source in/out (source frames): 507 inclusive – 615 exclusive",
+  );
+  await expect(alternateRange).toBeVisible();
+
+  await lighthouses.last().click({ modifiers: ["Shift"] });
+  await expect(inspector.getByText("2 placements selected")).toBeVisible();
+  await expect(target.getByRole("option", { name: alternateLabel })).toHaveCount(0);
+  await expect(currentOption).toHaveText(cutawaysLabel);
+  await expect(alternateRange).toHaveCount(0);
+  await expect(
+    inspector.getByText("Source in/out (source frames): 501 inclusive – 561 exclusive"),
+  ).toBeVisible();
+
+  await lighthouses.last().click({ modifiers: ["Shift"] });
+  await expect(inspector.getByText("3 placements selected")).toBeVisible();
+  await expect(currentOption).toHaveText(cutawaysLabel);
+  await expect(alternateRange).toHaveCount(0);
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("Inspector trims and fades apply only to the inspected placement in the selection", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, straightCutArgs);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const inspector = page.getByRole("region", { name: "Inspector", exact: true });
+  const target = inspector.getByRole("combobox", { name: "Inspect placement", exact: true });
+  const sourceOut = inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" });
+  const entryFade = inspector.getByRole("spinbutton", {
+    name: "Entry fade duration (sequence frames)",
+  });
+
+  await harbor.click();
+  await lighthouse.click({ modifiers: ["Shift"] });
+  // A draft for Harbor must not carry over to Lighthouse.
+  await entryFade.fill("15");
+  await target.selectOption({ label: "Lighthouse — Main, sequence frame 120" });
+  await expect(sourceOut).toHaveValue("621");
+  await expect(entryFade).toHaveValue("");
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await sourceOut.fill("631");
+  await inspector.getByRole("button", { name: "Trim placement", exact: true }).click();
+  await expect(
+    inspector.getByText("Sequence start/end (sequence frames): 120 inclusive – 250 exclusive"),
+  ).toBeVisible();
+  await entryFade.fill("30");
+  await inspector.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  const transition = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  await expect(transition).toBeVisible();
+
+  const trimmed = {
+    durationFrames: 250,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+          {
+            id: "lighthouse-next",
+            clipId: "lighthouse",
+            sequenceStartFrame: 120,
+            sourceOutOffsetFrames: 10,
+          },
+        ],
+      },
+    ],
+  };
+  const cut: CutList = {
+    version: "1.0.0",
+    inputMedia: [
+      {
+        s3Location: "s3://sequence-fixtures/harbor.mp4",
+        sections: [{ startFrame: 114, endFrame: 234 }],
+      },
+      {
+        s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+        sections: [{ startFrame: 501, endFrame: 631 }],
+      },
+    ],
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0 },
+    ],
+  };
+  const faded = structuredClone(trimmed);
+  Object.assign(faded.tracks[0].placements[1], {
+    entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
+  });
+  const cutWithFade: CutList = {
+    ...cut,
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 30 } },
+    ],
+  };
+  const expectedEmissions = {
+    sequences: [trimmed, faded],
+    cutLists: [cut, cutWithFade],
+  };
+  await expect.poll(emissions).toStrictEqual(expectedEmissions);
+  await expect(harbor).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+
+  await transition.click();
+  await expect(transition).toHaveAttribute("aria-pressed", "true");
+  await expect(inspector.getByText("Owner: Lighthouse — Main, sequence frame 120")).toBeVisible();
+  await expect(target).toHaveCount(0);
+  await expect(sourceOut).toHaveCount(0);
+  await expect(harbor).toHaveAttribute("aria-pressed", "false");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
+  expect(await emissions()).toStrictEqual(expectedEmissions);
 });

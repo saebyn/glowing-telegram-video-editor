@@ -17,7 +17,7 @@ SequenceEditor                         controlled by the host
 ├─ Workspace
 │  ├─ ProjectClipPool                  reuse the existing clip browser
 │  ├─ PreviewPane                      placeholder, no player
-│  └─ SelectionInspector               placement properties or selection summary
+│  └─ SelectionInspector               selection summary and inspected placement or transition
 └─ SequenceTimeline                    our component; speaks sequence frames
    └─ Timeline                         @keplar-404/react-timeline-editor
       ├─ Shared ruler and playhead
@@ -198,11 +198,15 @@ of normal editor integration. The editor handles compilation for its edits.
 - Delete removes the selected placements together in one edit. It does not
   close gaps, shorten the sequence, remove tracks, or remove reusable clips
   from the clip pool. Delete is unavailable without a placement selection.
-- The Inspector shows editable trim and transition properties for one
-  placement. For multiple placements, it shows the selection count and tracks,
-  not bulk editing fields. Use placement edges for direct timeline trimming
-  and separate handles for adjusting entry and reveal transitions. Timeline
-  gestures and Inspector controls use the same edit rules.
+- The Inspector shows the source and sequence ranges and applicable trim and
+  fade controls for one selected placement. For multiple selected placements,
+  it shows the count and tracks and lets the editor choose which placement to
+  inspect without changing membership or emitting an edit. If that placement
+  leaves the selection, inspect another selected placement, if any. Group
+  edits still use the whole selection. Use placement
+  edges for direct timeline trimming and separate handles for adjusting entry
+  and reveal transitions. Timeline gestures and Inspector controls use the
+  same edit rules.
 - A move proposes the IDs of the placements being moved and the grabbed placement's
   destination track and sequence frame. Every placement gets the same signed
   sequence-frame offset and the same shift in track order. Source ranges and

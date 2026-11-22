@@ -111,8 +111,10 @@ time at the end without cutting any placement. **Undo** and **Redo** navigate ac
 Drag a clip from the pool to preview where it would land. Drop it onto an existing track
 to fill a gap or extend the sequence.
 
-For one selected placement, the **Inspector** shows the effective source in/out and
-the sequence start/end on their respective frame grids. At matching frame rates, drag
+The **Inspector** shows one selected placement’s effective source in/out and
+sequence start/end on their respective frame grids. With multiple placements selected,
+use **Inspect placement** to switch which placement the fields show and edit without
+changing the selection. At matching frame rates, drag
 either placement edge to trim it in place, or enter a precise trailing trim in the
 Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, even if the

@@ -49,8 +49,11 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
 
   await harbor.click();
   await alternate.click({ modifiers: ["Shift"] });
+  const target = page.getByRole("combobox", { name: "Inspect placement", exact: true });
+  await target.selectOption({ label: "Lighthouse — Alternate, sequence frame 120" });
+  expect(await emissions()).toStrictEqual(noEdits);
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
-  await expect(alternate).toBeFocused();
+  await alternate.focus();
 
   // Harbor originally fills [0, 240), with Lighthouse covering the first 60 frames.
   await page.keyboard.press("]");

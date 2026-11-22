@@ -80,6 +80,7 @@ export default function SequenceEditor({
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
   const [selection, setSelection] = useState<readonly string[]>([]);
+  const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
@@ -97,14 +98,23 @@ export default function SequenceEditor({
     const placements = track.placements.filter(({ id }) => selection.includes(id));
     return placements.length > 0 ? [{ track, placements }] : [];
   });
-  const selectedIds = selectedTracks.flatMap(({ placements }) => placements.map(({ id }) => id));
+  const selectedPlacements = selectedTracks.flatMap(({ track, placements }) =>
+    placements.map((placement) => ({ track, placement })),
+  );
+  const selectedIds = selectedPlacements.map(({ placement }) => placement.id);
   const splitTargets = sequence.tracks.flatMap(({ placements }) => placements.map(({ id }) => id));
   const splitArgs = [sequence, clips, frameRate, splitTargets, transport.playheadFrame] as const;
   const canSplit = !!onSequenceChange && canSplitPlacementsAtPlayhead(...splitArgs);
-  const selectedTrack = selectedIds.length === 1 ? selectedTracks[0].track : undefined;
-  const selectedPlacement = selectedIds.length === 1 ? selectedTracks[0].placements[0] : undefined;
+  const inspectorTarget =
+    selectedPlacements.find(({ placement }) => placement.id === inspectorPlacementId) ??
+    selectedPlacements[0];
+  const inspectedPlacement = inspectorTarget?.placement;
+  // Keep a valid target as membership or host-supplied placements change.
+  if (inspectorPlacementId !== inspectedPlacement?.id) {
+    setInspectorPlacementId(inspectedPlacement?.id);
+  }
   const selectedTransition = findTransition(sequence, transitionId);
-  const fadeOwner: ClipPlacement | undefined = selectedTransition?.placement ?? selectedPlacement;
+  const fadeOwner: ClipPlacement | undefined = selectedTransition?.placement ?? inspectedPlacement;
   const fadeClip = clips.find(({ id }) => id === fadeOwner?.clipId);
   const fadeSourceExtension =
     selectedTransition && fadeClip
@@ -116,21 +126,26 @@ export default function SequenceEditor({
           sequence.durationFrames,
         )
       : null;
-  const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
-  const selectedSourceRange =
-    selectedClip && selectedPlacement
-      ? getPlacementSourceRange(selectedClip, selectedPlacement)
+  const inspectedClip = clips.find(({ id }) => id === inspectedPlacement?.clipId);
+  const inspectedSourceRange =
+    inspectedClip && inspectedPlacement
+      ? getPlacementSourceRange(inspectedClip, inspectedPlacement)
       : null;
-  const selectedFrameCount = selectedSourceRange
-    ? getProjectFrameCount(selectedSourceRange, frameRate)
+  const inspectedFrameCount = inspectedSourceRange
+    ? getProjectFrameCount(inspectedSourceRange, frameRate)
     : null;
   const fadeBounds =
     onSequenceChange && fadeOwner && fadeClip
       ? getFadeBounds(getProjectFrameCount(getPlacementSourceRange(fadeClip, fadeOwner), frameRate))
       : null;
   const trimBounds =
-    onSequenceChange && selectedTrack && selectedPlacement && selectedClip
-      ? getTrailingTrimBounds(selectedPlacement, selectedTrack, selectedClip, frameRate)
+    onSequenceChange && inspectorTarget && inspectedClip
+      ? getTrailingTrimBounds(
+          inspectorTarget.placement,
+          inspectorTarget.track,
+          inspectedClip,
+          frameRate,
+        )
       : null;
   const shortcutsHintId = useId();
 
@@ -207,8 +222,8 @@ export default function SequenceEditor({
   }
 
   function trimPlacement(sourceOutFrame: number) {
-    if (!onSequenceChange || !selectedPlacement) return;
-    const next = proposeTrim(selectedPlacement.id, "trailing", sourceOutFrame);
+    if (!onSequenceChange || !inspectedPlacement) return;
+    const next = proposeTrim(inspectedPlacement.id, "trailing", sourceOutFrame);
     if (next) commitEdit(next);
   }
 
@@ -382,32 +397,53 @@ export default function SequenceEditor({
               </div>
             )}
             {selectedIds.length > 1 && (
-              <p className="text-sm">
-                {selectedIds.length} placements selected
-                <br />
-                {selectedTracks.map(({ track }) => track.label).join(", ")}
-              </p>
+              <div className="mb-2 space-y-2 text-sm">
+                <p>
+                  {selectedIds.length} placements selected
+                  <br />
+                  {selectedTracks.map(({ track }) => track.label).join(", ")}
+                </p>
+                <label className="block space-y-1">
+                  <span>Inspect placement</span>
+                  <select
+                    className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                    value={inspectedPlacement?.id}
+                    onChange={(event) => setInspectorPlacementId(event.currentTarget.value)}
+                  >
+                    {selectedPlacements.map(({ track, placement }) => (
+                      <option key={placement.id} value={placement.id}>
+                        {titles[placement.clipId] ?? `Clip ${placement.clipId}`} — {track.label}
+                        {selectedTracks.some(
+                          ({ track: other }) => other !== track && other.label === track.label,
+                        ) && ` (track ${sequence.tracks.indexOf(track) + 1})`}
+                        , sequence frame {placement.sequenceStartFrame}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             )}
-            {selectedClip && (
+            {selectedIds.length === 1 && inspectedClip && (
               <p className="mb-2 text-sm font-medium">
-                {titles[selectedClip.id] ?? `Clip ${selectedClip.id}`}
+                {titles[inspectedClip.id] ?? `Clip ${inspectedClip.id}`}
               </p>
             )}
-            {selectedSourceRange && selectedPlacement && selectedFrameCount !== null && (
+            {inspectedSourceRange && inspectedPlacement && inspectedFrameCount !== null && (
               <div className="mb-3 space-y-1 text-sm tabular-nums">
                 <p>
-                  Source in/out (source frames): {selectedSourceRange.sourceInFrame} inclusive –{" "}
-                  {selectedSourceRange.sourceOutFrame} exclusive
+                  Source in/out (source frames): {inspectedSourceRange.sourceInFrame} inclusive –{" "}
+                  {inspectedSourceRange.sourceOutFrame} exclusive
                 </p>
                 <p>
-                  Sequence start/end (sequence frames): {selectedPlacement.sequenceStartFrame}{" "}
-                  inclusive – {selectedPlacement.sequenceStartFrame + selectedFrameCount} exclusive
+                  Sequence start/end (sequence frames): {inspectedPlacement.sequenceStartFrame}{" "}
+                  inclusive – {inspectedPlacement.sequenceStartFrame + inspectedFrameCount}{" "}
+                  exclusive
                 </p>
               </div>
             )}
             {trimBounds && (
               <form
-                key={`${selectedPlacement?.id}:${trimBounds.sourceOutFrame}`}
+                key={`${inspectedPlacement?.id}:${trimBounds.sourceOutFrame}`}
                 className="mb-3 space-y-2"
                 onSubmit={(event) => {
                   event.preventDefault();

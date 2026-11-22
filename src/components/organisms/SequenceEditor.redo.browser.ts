@@ -95,6 +95,7 @@ test("Redo restores both placements and the duration of an accepted group move",
   await expect(redo).toBeDisabled();
   await harbor.click();
   await lighthouse.click({ modifiers: ["Shift"] });
+  await lighthouse.scrollIntoViewIfNeeded();
   const [main, alternate] = await Promise.all([harbor.boundingBox(), lighthouse.boundingBox()]);
   if (!main || !alternate) throw new Error("Expected placements on Main and Alternate");
   const x = alternate.x + 12;

@@ -130,6 +130,8 @@ test("Delete removes the selection across tracks in one edit and leaves uncovere
   await expect(page.getByRole("region", { name: "Inspector", exact: true })).toContainText(
     "2 placements selected",
   );
+  const target = page.getByRole("combobox", { name: "Inspect placement", exact: true });
+  await target.selectOption({ label: "Harbor — Main, sequence frame 0" });
   expect(await emissions()).toStrictEqual(noEdits);
   await expect(deleteButton).toBeEnabled();
   await deleteButton.click();
@@ -165,4 +167,6 @@ test("Delete removes the selection across tracks in one edit and leaves uncovere
   await expect(harbor).toHaveCount(0);
   await expect(timeline).toContainText("Duration: 00:04");
   await expect(deleteButton).toBeDisabled();
+  await expect(target).toHaveCount(0);
+  await expect(page.getByText("Select a placement to edit it.")).toBeVisible();
 });
