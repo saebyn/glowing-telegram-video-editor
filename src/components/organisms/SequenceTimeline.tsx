@@ -80,6 +80,7 @@ type SequenceTimelineProps = {
   onPlacementTrim?: (next: Sequence) => void;
   selectedPlacementIds: readonly string[];
   onPlacementSelect?: (id: string | null, toggle: boolean) => void;
+  onPlacementSplit?: (id: string, sequenceFrame: number) => void;
   selectedTransitionId?: string;
   dissolveDetails: ReturnType<typeof getSequenceDissolves>;
   onTransitionSelect: (id: string) => void;
@@ -134,6 +135,7 @@ export default function SequenceTimeline({
   onPlacementTrim,
   selectedPlacementIds,
   onPlacementSelect,
+  onPlacementSplit,
   selectedTransitionId,
   dissolveDetails,
   onTransitionSelect,
@@ -144,6 +146,7 @@ export default function SequenceTimeline({
   const timeline = useRef<TimelineState>(null);
   const drag = useRef<PlacementDrag | null>(null);
   const moved = useRef(false);
+  const splitPointerOrigin = useRef<PointerPosition | null>(null);
   const pointer = useRef<PointerPosition | null>(null);
   const scrollLeft = useRef(0);
   const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
@@ -405,6 +408,16 @@ export default function SequenceTimeline({
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const splitOrigin = splitPointerOrigin.current;
+    if (
+      onPlacementSplit &&
+      splitOrigin &&
+      event.isPrimary &&
+      Math.hypot(event.clientX - splitOrigin.clientX, event.clientY - splitOrigin.clientY) >=
+        DRAG_THRESHOLD
+    ) {
+      moved.current = true;
+    }
     const activeTrim = trimDrag.current;
     if (activeTrim?.pointerId === event.pointerId) {
       pointer.current = { clientX: event.clientX, clientY: event.clientY };
@@ -430,11 +443,13 @@ export default function SequenceTimeline({
   }
 
   function cancelPlacementDrag(event: PointerEvent<HTMLDivElement>) {
+    splitPointerOrigin.current = null;
     if (trimDrag.current?.pointerId === event.pointerId) clearTrim();
     if (drag.current?.pointerId === event.pointerId) clearMove();
   }
 
   function finishPlacementDrag(event: PointerEvent<HTMLDivElement>) {
+    splitPointerOrigin.current = null;
     const activeTrim = trimDrag.current;
     if (activeTrim?.pointerId === event.pointerId) {
       const next = proposedTrim(event.clientX, activeTrim);
@@ -678,6 +693,7 @@ export default function SequenceTimeline({
             rowHeight={ROW_HEIGHT}
             onClickRow={(event) => {
               if (
+                !onPlacementSplit &&
                 !moved.current &&
                 event.detail !== 0 &&
                 !(event.target as Element).closest("button")
@@ -752,6 +768,7 @@ export default function SequenceTimeline({
                     : "items-center"
               }`;
               const trimGrips =
+                !onPlacementSplit &&
                 evaluateTrim &&
                 onPlacementTrim &&
                 trimRange &&
@@ -807,6 +824,13 @@ export default function SequenceTimeline({
                         aria-pressed={selectedPlacementIds.includes(id)}
                         onPointerDown={(event) => {
                           if (!event.isPrimary || event.button !== 0) return;
+                          if (onPlacementSplit) {
+                            splitPointerOrigin.current = {
+                              clientX: event.clientX,
+                              clientY: event.clientY,
+                            };
+                            return;
+                          }
                           if (!onPlacementMove) return;
                           const { left, width } = surface.current!.getBoundingClientRect();
                           event.currentTarget.setPointerCapture(event.pointerId);
@@ -823,10 +847,19 @@ export default function SequenceTimeline({
                           };
                         }}
                         onClick={(event) => {
+                          if (onPlacementSplit) {
+                            if (event.detail === 0 || moved.current || !surface.current) return;
+                            const node = surface.current;
+                            const left =
+                              node.querySelector(EDIT_GRID)?.scrollLeft ?? scrollLeft.current;
+                            const x = event.clientX - node.getBoundingClientRect().left + left;
+                            onPlacementSplit(id, snapFrame(x / pixelsPerFrame, durationFrames));
+                            return;
+                          }
                           if (event.detail === 0 || !moved.current)
                             onPlacementSelect(id, event.shiftKey);
                         }}
-                        className={`${classes} ${onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                        className={`${classes} ${onPlacementSplit ? "cursor-crosshair select-none" : onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
                       >
                         {content}
                       </button>
@@ -849,10 +882,15 @@ export default function SequenceTimeline({
                           pixelsPerFrame={pixelsPerFrame}
                           selected={!!transition && transition.id === selectedTransitionId}
                           onSelect={
-                            transition ? () => onTransitionSelect(transition.id) : undefined
+                            transition && !onPlacementSplit
+                              ? () => onTransitionSelect(transition.id)
+                              : undefined
                           }
                           edit={
-                            evaluateFade && onPlacementFade && getFadeBounds(item.duration)
+                            !onPlacementSplit &&
+                            evaluateFade &&
+                            onPlacementFade &&
+                            getFadeBounds(item.duration)
                               ? {
                                   evaluate: (frames, onConflict) =>
                                     evaluateFade(id, field, frames, onConflict),
@@ -902,7 +940,8 @@ export default function SequenceTimeline({
                     `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
                     ...extensions,
                   ].join("\n")}
-                  className="absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white"
+                  disabled={!!onPlacementSplit}
+                  className={`absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white ${onPlacementSplit ? "pointer-events-none" : ""}`}
                   style={{
                     left: isEmptyWindow ? Math.min(left, Math.max(0, width - 4)) : left,
                     top: RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + 4,

@@ -1,6 +1,7 @@
 # 36 — Split a placement where you click
 
 Status: ready-for-agent
+Resolution: implemented and verified with Storybook pointer gestures
 Depends on: [35](35-split-all-placements-at-the-playhead.md)
 
 Add a separate Split mode for cutting on the sequence timeline without
@@ -29,3 +30,13 @@ first placing the playhead or selecting a placement.
   splits placements across tracks at the playhead.
 - Design review: click-to-split is a persistent tool mode, not a seek or
   selection gesture.
+- Red → green: the toggle was missing; the first implementation also
+  lost keyboard Escape after Undo disabled the focused button. Split
+  mode now persists after a cut and exits with Escape. Tests verify one
+  clicked placement, unchanged selection/playhead, Undo, inert drags, gaps
+  and placement edges, and the correct frame after zooming and panning.
+- The full static Storybook run passed 220/220 across light and dark.
+  Stryker killed 27/61 mutants, with 34 surviving and no timeouts. Some
+  survivors alter click fallback, drag threshold, and scroll fallbacks
+  not distinguished by the two gestures. Report:
+  `/tmp/opencode/gtve-ready-mutation.5Yxjq3/ticket36-split-mode/reports/mutation/mutation.json`.

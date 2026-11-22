@@ -97,6 +97,7 @@ export default function SequenceEditor({
   const [selection, setSelection] = useState<readonly string[]>([]);
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
+  const [splitMode, setSplitMode] = useState(false);
   const [dissolveConflict, setDissolveConflict] = useState(false);
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
@@ -110,6 +111,16 @@ export default function SequenceEditor({
     window.addEventListener("dragend", endPoolDrag, true);
     return () => window.removeEventListener("dragend", endPoolDrag, true);
   }, []);
+  useEffect(() => {
+    if (!splitMode) return;
+    const dismissSplitMode = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      setSplitMode(false);
+    };
+    window.addEventListener("keydown", dismissSplitMode);
+    return () => window.removeEventListener("keydown", dismissSplitMode);
+  }, [splitMode]);
   const selectedTracks = sequence.tracks.flatMap((track) => {
     const placements = track.placements.filter(({ id }) => selection.includes(id));
     return placements.length > 0 ? [{ track, placements }] : [];
@@ -201,6 +212,13 @@ export default function SequenceEditor({
 
   function splitAtPlayhead() {
     const next = splitPlacementsAtPlayhead(...splitArgs, () => crypto.randomUUID());
+    if (next) commitEdit(next);
+  }
+
+  function splitAtPointer(placementId: string, frame: number) {
+    const next = splitPlacementsAtPlayhead(sequence, clips, frameRate, [placementId], frame, () =>
+      crypto.randomUUID(),
+    );
     if (next) commitEdit(next);
   }
 
@@ -356,6 +374,16 @@ export default function SequenceEditor({
         >
           Split
         </button>
+        {onSequenceChange && (
+          <button
+            type="button"
+            aria-pressed={splitMode}
+            className="rounded border px-3 py-1 text-sm aria-pressed:bg-amber-200 aria-pressed:text-amber-950"
+            onClick={() => setSplitMode((active) => !active)}
+          >
+            Split mode
+          </button>
+        )}
         <button
           type="button"
           disabled={!onSequenceChange || !undo}
@@ -568,7 +596,10 @@ export default function SequenceEditor({
                       onSubmit={(event) => {
                         event.preventDefault();
                         const duration = Number(new FormData(event.currentTarget).get("duration"));
-                        const next = proposePlacementFade(fadeOwner.id, field, duration);
+                        setDissolveConflict(false);
+                        const next = proposePlacementFade(fadeOwner.id, field, duration, () =>
+                          setDissolveConflict(true),
+                        );
                         if (next) commitEdit(next);
                       }}
                     >
@@ -695,6 +726,7 @@ export default function SequenceEditor({
           onPlacementTrim={onSequenceChange ? commitEdit : undefined}
           selectedPlacementIds={selectedIds}
           onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
+          onPlacementSplit={onSequenceChange && splitMode ? splitAtPointer : undefined}
           selectedTransitionId={selectedTransition?.transition.id}
           dissolveDetails={sequenceDissolves}
           onTransitionSelect={selectTransition}

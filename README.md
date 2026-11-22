@@ -105,8 +105,10 @@ destination is blocked. A valid move can grow the sequence but never shortens it
 Use **Delete** to remove the selected placements in one edit. It leaves gaps in place
 without shortening the sequence or removing tracks or reusable clips from the pool.
 Use **Split** to divide all placements that strictly span the playhead when
-their source and project rates match. Use **Sequence endpoint** to remove uncovered
-time at the end without cutting any placement. **Undo** and **Redo** navigate accepted edits.
+their source and project rates match. Use **Split mode** to cut only the placement
+under the pointer without seeking or changing the selection. Escape exits the mode.
+Use **Sequence endpoint** to remove uncovered time at the end without cutting any placement.
+**Undo** and **Redo** navigate accepted edits.
 **Rename track** edits a track’s display name without changing its placements or order.
 Drag a clip from the pool to preview where it would land. Drop it onto an existing track
 to fill a gap or extend the sequence.
