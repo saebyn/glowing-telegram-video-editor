@@ -23,11 +23,13 @@ SequenceEditor                         controlled by the host
 ```
 
 Use **one widget instance** for the whole sequence, so tracks share a time scale,
-scroll position, and playhead. `SequenceTimeline` projects tracks and timed
-items onto widget rows and actions, supplying the item visuals through
-`getActionRender`. A transition may use a separate visual row for clarity
-without creating an authored track. Convert sequence frames to widget seconds
-and convert events such as seeking back to frames at this boundary.
+scroll position, and playhead. `SequenceTimeline` projects authored tracks
+onto widget rows and placements onto actions, supplying the item visuals
+through `getActionRender`. Like the seam markers in `ProjectClipTimeline`,
+transition indicators are anchored at clip edges. Draw them within the
+placement, spanning their authored duration, without a separate row.
+Convert sequence frames to widget seconds and convert events such as seeking
+back to frames at this boundary.
 
 Reuse the patterns in [`SourceTimeline`](../src/components/organisms/SourceTimeline.tsx)
 for multiple rows and in [`ProjectClipTimeline`](../src/components/organisms/ProjectClipTimeline.tsx)

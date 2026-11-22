@@ -15,7 +15,6 @@ const ROW_HEIGHT = 40;
 const TICK_COUNT = 4;
 const EFFECTS = {
   placement: { id: "placement", name: "Placement" },
-  transition: { id: "transition", name: "Transition" },
 };
 
 type SequenceTimelineProps = {
@@ -50,64 +49,33 @@ export default function SequenceTimeline({
     return () => observer.disconnect();
   }, []);
 
-  const rows: TimelineEditor["editorData"] = [];
-  const rowLabels: string[] = [];
-  const itemLabels = new Map<string, string>();
-
-  function action(id: string, effectId: string, start: number, duration: number, label: string) {
-    itemLabels.set(id, label);
-    return {
-      id,
-      effectId,
-      start: framesToSeconds(start, frameRate),
-      end: framesToSeconds(start + duration, frameRate),
-      movable: false,
-      flexible: false,
-    };
-  }
-
-  for (const track of tracks) {
-    const entryTransitions = track.placements.flatMap((placement) =>
-      placement.entryTransitionFrames
-        ? [
-            action(
-              `${placement.id}:entry`,
-              "transition",
-              placement.sequenceStartFrame,
-              placement.entryTransitionFrames,
-              "Fade in",
-            ),
-          ]
-        : [],
-    );
-    if (entryTransitions.length) {
-      rows.push({ id: `${track.id}:transitions`, actions: entryTransitions });
-      rowLabels.push("Transitions");
-    }
-
-    rows.push({
-      id: track.id,
-      actions: track.placements.flatMap((placement) => {
-        const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip) return [];
-        const range = getPlacementSourceRange(clip, placement);
-        return action(
-          placement.id,
-          "placement",
-          placement.sequenceStartFrame,
-          getProjectFrameCount(range, frameRate),
-          titles[clip.id] ?? `Clip ${clip.id}`,
-        );
-      }),
-    });
-    rowLabels.push(track.label);
-  }
+  const items = new Map<string, { label: string; entryFadePercent: number }>();
+  const rows: TimelineEditor["editorData"] = tracks.map((track) => ({
+    id: track.id,
+    actions: track.placements.flatMap((placement) => {
+      const clip = clips.find(({ id }) => id === placement.clipId);
+      if (!clip) return [];
+      const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
+      if (duration <= 0) return [];
+      items.set(placement.id, {
+        label: titles[clip.id] ?? `Clip ${clip.id}`,
+        entryFadePercent: (100 * (placement.entryTransitionFrames ?? 0)) / duration,
+      });
+      return {
+        id: placement.id,
+        effectId: "placement",
+        start: framesToSeconds(placement.sequenceStartFrame, frameRate),
+        end: framesToSeconds(placement.sequenceStartFrame + duration, frameRate),
+        movable: false,
+        flexible: false,
+      };
+    }),
+  }));
 
   function isOverTrack(event: DragEvent<HTMLDivElement>) {
     const y = event.clientY - event.currentTarget.getBoundingClientRect().top;
-    // Drop is enabled only for one authored track. Its transition row isn't a target.
-    const trackBottom = RULER_HEIGHT + rows.length * ROW_HEIGHT;
-    return onClipDrop && y >= trackBottom - ROW_HEIGHT && y < trackBottom;
+    // Drop is enabled only for one authored track.
+    return onClipDrop && y >= RULER_HEIGHT && y < RULER_HEIGHT + ROW_HEIGHT;
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -139,13 +107,13 @@ export default function SequenceTimeline({
           <div className="flex items-center px-3 font-semibold" style={{ height: RULER_HEIGHT }}>
             Tracks
           </div>
-          {rows.map(({ id }, index) => (
+          {tracks.map(({ id, label }) => (
             <div
               key={id}
               className="flex items-center border-t border-slate-600 px-3"
               style={{ height: ROW_HEIGHT }}
             >
-              {rowLabels[index]}
+              {label}
             </div>
           ))}
         </div>
@@ -185,27 +153,40 @@ export default function SequenceTimeline({
             disableDrag
             autoReRender={false}
             onClickTimeArea={() => false}
-            getActionRender={({ id, effectId }) => {
-              const label = itemLabels.get(id);
-              const classes = `absolute inset-x-px inset-y-1 flex items-center overflow-hidden whitespace-nowrap rounded border px-2 text-xs font-medium ${
-                effectId === "transition"
-                  ? "border-amber-300 bg-amber-950 text-amber-100"
-                  : "border-sky-400 bg-sky-950 text-sky-100"
+            getActionRender={({ id }) => {
+              const item = items.get(id);
+              if (!item) return null;
+              const { label, entryFadePercent } = item;
+              const hasEntryFade = entryFadePercent > 0;
+              const classes = `absolute inset-x-px inset-y-1 flex overflow-hidden whitespace-nowrap rounded border border-sky-400 bg-sky-950 px-2 text-xs font-medium text-sky-100 ${
+                hasEntryFade ? "items-end pb-0.5" : "items-center"
               }`;
-              return effectId === "placement" && onPlacementSelect ? (
-                <button
-                  type="button"
-                  title={label}
-                  aria-pressed={selectedPlacementId === id}
-                  onClick={() => onPlacementSelect(id)}
-                  className={`${classes} cursor-pointer aria-pressed:bg-sky-800`}
-                >
-                  {label}
-                </button>
-              ) : (
-                <div title={label} className={classes}>
-                  {label}
-                </div>
+              return (
+                <>
+                  {onPlacementSelect ? (
+                    <button
+                      type="button"
+                      title={label}
+                      aria-pressed={selectedPlacementId === id}
+                      onClick={() => onPlacementSelect(id)}
+                      className={`${classes} cursor-pointer aria-pressed:bg-sky-800`}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <div title={label} className={classes}>
+                      {label}
+                    </div>
+                  )}
+                  {hasEntryFade && (
+                    <span
+                      className="pointer-events-none absolute top-1 left-0 h-3 overflow-hidden rounded rounded-l-none bg-amber-300 indent-1 text-[9px]/3 font-semibold whitespace-nowrap text-amber-950"
+                      style={{ width: `${Math.min(100, entryFadePercent)}%` }}
+                    >
+                      Fade in
+                    </span>
+                  )}
+                </>
               );
             }}
           />

@@ -147,6 +147,17 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
   await page.getByRole("button", { name: "Apply", exact: true }).click();
 
   await expect(indicator).toBeVisible();
+  await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);
+  const [placementBox, fadeBox] = await Promise.all([
+    lighthouse.boundingBox(),
+    indicator.boundingBox(),
+  ]);
+  if (!placementBox || !fadeBox) throw new Error("Expected a visible placement and fade marker");
+  expect(fadeBox.y).toBeGreaterThanOrEqual(placementBox.y);
+  expect(fadeBox.y + fadeBox.height).toBeLessThanOrEqual(placementBox.y + placementBox.height);
+  expect(Math.abs(fadeBox.x - placementBox.x)).toBeLessThan(2);
+  // The 30-frame fade spans one quarter of the 120-frame placement.
+  expect(Math.abs(fadeBox.width - placementBox.width / 4)).toBeLessThan(2);
   expect(await emissions()).toStrictEqual({
     sequences: [expectedSequence],
     cutLists: [expectedCutList],
