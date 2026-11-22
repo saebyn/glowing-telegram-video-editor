@@ -134,8 +134,9 @@ represent. An empty sequence has no `CutList`.
 2. **First edit end to end.** Drag a clip from `ProjectClipPool` and drop it
    into an existing gap on a single track without changing sequence duration.
    The story acts as the host: it feeds the updated sequence back into the
-   editor and shows the emitted `CutList` JSON. Assert independently expected
-   source ranges and ordered section references through the top-level callback.
+   editor and logs the emitted `CutList` in Storybook’s Actions panel. Assert
+   independently expected source ranges and ordered section references through
+   the top-level callback.
 3. **Ordinary overlap.** Add the straight-cut compiler test above to prove
    track priority and source alignment when an upper placement ends.
 4. **Transitions.** Wire an inspector control and assert the emitted fade

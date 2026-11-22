@@ -31,6 +31,10 @@ The browser test starts its own Storybook on port 6007. Install Chromium with
 to a compatible local Chromium executable (for example on NixOS). The
 `SequenceEditor` gap story uses local fixtures and makes no media service requests.
 
+Prefer Storybook args and Controls for fixture state and Actions for callback payloads.
+Use story `play` functions for interactions they can exercise faithfully; keep real
+browser-pointer tests for native gestures such as dragging a clip from the pool.
+
 ## Source layout
 
 [`src/index.ts`](../src/index.ts) is the public entry point. [`src/components/`](../src/components) is organized into atoms, molecules, organisms, and pages; stories live alongside components. Shared types are in [`src/types.ts`](../src/types.ts), React providers in [`src/context/`](../src/context), and utility functions in [`src/utils/`](../src/utils). The local harness, [`src/app.tsx`](../src/app.tsx), renders `VideoSelectionPage` with [`src/data.json`](../src/data.json).

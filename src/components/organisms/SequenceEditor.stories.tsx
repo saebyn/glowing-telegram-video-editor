@@ -1,6 +1,6 @@
-import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useArgs } from "storybook/preview-api";
+import { fn } from "storybook/test";
 import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
 import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
@@ -87,8 +87,10 @@ export const GapFixture: Story = {
   args: {
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },
+    onSequenceChange: fn(),
+    onCutListChange: fn(),
   },
-  render: (args) => <EditingHost {...args} />,
+  render: renderEditingHost,
 };
 
 export const EntryFadeFixture: Story = {
@@ -106,38 +108,27 @@ export const EntryFadeFixture: Story = {
         },
       ],
     },
+    onSequenceChange: fn(),
+    onCutListChange: fn(),
   },
-  render: (args) => <EditingHost {...args} />,
+  render: renderEditingHost,
 };
 
-function EditingHost(args: SequenceEditorProps) {
-  const [sequence, setSequence] = useState(args.sequence);
-  const [cutList, setCutList] = useState<CutList | null | undefined>();
+function renderEditingHost(args: SequenceEditorProps) {
+  const [, updateArgs] = useArgs<SequenceEditorProps>();
 
   return (
-    <>
-      <SequenceEditor
-        {...args}
-        sequence={sequence}
-        onSequenceChange={(next) => {
-          setSequence(next);
-          window.dispatchEvent(
-            new CustomEvent("sequence-editor:sequence-change", { detail: next }),
-          );
-        }}
-        onCutListChange={(next) => {
-          setCutList(next);
-          window.dispatchEvent(
-            new CustomEvent("sequence-editor:cut-list-change", { detail: next }),
-          );
-        }}
-      />
-      <section className="bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        <h2 className="text-lg font-semibold">Emitted CutList</h2>
-        <pre className="overflow-x-auto">
-          {cutList === undefined ? "No edits yet." : JSON.stringify(cutList, null, 2)}
-        </pre>
-      </section>
-    </>
+    <SequenceEditor
+      {...args}
+      onSequenceChange={(next) => {
+        args.onSequenceChange?.(next);
+        updateArgs({ sequence: next });
+        window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
+      }}
+      onCutListChange={(next) => {
+        args.onCutListChange?.(next);
+        window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-change", { detail: next }));
+      }}
+    />
   );
 }
