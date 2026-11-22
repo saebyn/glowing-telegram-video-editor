@@ -848,9 +848,7 @@ export default function SequenceTimeline({
                             transition ? () => onTransitionSelect(transition.id) : undefined
                           }
                           edit={
-                            evaluateFade &&
-                            onPlacementFade &&
-                            getFadeBounds(sequence, item.duration)
+                            evaluateFade && onPlacementFade && getFadeBounds(item.duration)
                               ? {
                                   evaluate: (frames) => evaluateFade(id, field, frames),
                                   commit: onPlacementFade,

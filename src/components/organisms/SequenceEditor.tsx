@@ -1,5 +1,5 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import { type KeyboardEvent, useEffect, useId, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useMemo, useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
 import {
@@ -11,6 +11,7 @@ import { getProjectFrameCount } from "@/utils/frames";
 import {
   compileCutList,
   evaluatePlacementMove,
+  getFadeOutputIssue,
   getPlacementSourceRange,
   placeClipInGap,
 } from "@/utils/sequence";
@@ -78,6 +79,10 @@ export default function SequenceEditor({
   const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
+  const fadeOutputIssue = useMemo(
+    () => getFadeOutputIssue(sequence, clips, sources, frameRate),
+    [sequence, clips, sources, frameRate],
+  );
   useEffect(() => {
     const endPoolDrag = () => setPoolClipId(undefined);
     window.addEventListener("dragend", endPoolDrag, true);
@@ -106,10 +111,7 @@ export default function SequenceEditor({
     : null;
   const fadeBounds =
     onSequenceChange && fadeOwner && fadeClip
-      ? getFadeBounds(
-          sequence,
-          getProjectFrameCount(getPlacementSourceRange(fadeClip, fadeOwner), frameRate),
-        )
+      ? getFadeBounds(getProjectFrameCount(getPlacementSourceRange(fadeClip, fadeOwner), frameRate))
       : null;
   const trimBounds =
     onSequenceChange && selectedTrack && selectedPlacement && selectedClip
@@ -322,6 +324,13 @@ export default function SequenceEditor({
           {onSequenceChange && " [ and ]: nudge selection earlier or later."}
         </p>
       </header>
+      {fadeOutputIssue && (
+        <p role="status" className="text-sm text-amber-900 dark:text-amber-200">
+          {fadeOutputIssue === "overlap"
+            ? "CutList unavailable: authored fades overlap."
+            : "CutList unavailable: an authored fade crosses a visible cut."}
+        </p>
+      )}
       <SequenceWorkspace
         hiddenPanes={hiddenPanes}
         clipPool={

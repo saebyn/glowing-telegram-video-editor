@@ -160,14 +160,122 @@ test("a timeline reveal grip edits a placement on a track between empty tracks",
   await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
 });
 
-test("sequences with multiple occupied tracks do not expose fade controls", async ({ page }) => {
+test("the Inspector authors a reveal to the lower track in a layered edit", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
-  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
   const inspector = page.getByRole("region", { name: "Inspector" });
-  await expect(inspector).toContainText("Harbor");
-  await expect(inspector.getByLabel("Entry fade duration (sequence frames)")).toHaveCount(0);
-  await expect(timeline.getByRole("button", { name: "Adjust reveal fade: Harbor" })).toHaveCount(0);
+  const reveal = inspector.getByLabel("Reveal fade duration (sequence frames)");
+  await expect(reveal).toBeVisible();
+  await reveal.fill("12");
+  await inspector.getByRole("button", { name: "Apply reveal fade" }).click();
+  const cutList: CutList = {
+    version: "1.0.0",
+    inputMedia: [
+      {
+        s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+        sections: [{ startFrame: 501, endFrame: 561 }],
+      },
+      {
+        s3Location: "s3://sequence-fixtures/harbor.mp4",
+        sections: [{ startFrame: 174, endFrame: 354 }],
+      },
+    ],
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 12 } },
+      { mediaIndex: 1, sectionIndex: 0 },
+    ],
+  };
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      expect.objectContaining({
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "cutaways",
+            label: "Cutaways",
+            placements: [
+              {
+                id: "lighthouse-open",
+                clipId: "lighthouse",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: -60,
+                revealTransition: {
+                  id: expect.stringMatching(/\S/),
+                  kind: "fade",
+                  durationFrames: 12,
+                },
+              },
+            ],
+          },
+          expect.objectContaining({ id: "main" }),
+          expect.objectContaining({ id: "alternate" }),
+        ],
+      }),
+    ],
+    cutLists: [cutList],
+  });
+});
+
+test("a layered timeline fade commits but explains a window interrupted by another visible placement", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, {
+    "sequence.durationFrames": 260, // An unrelated trailing gap must not hide transition feedback.
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const width = (await harbor.boundingBox())!.width;
+  await dragFade(page, timeline.getByLabel("Adjust entry fade: Harbor"), width / 3);
+  expect(await emissions()).toStrictEqual(noEdits);
+  await page.mouse.up();
+
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      expect.objectContaining({
+        tracks: [
+          expect.objectContaining({ id: "cutaways" }),
+          expect.objectContaining({
+            id: "main",
+            placements: [
+              expect.objectContaining({
+                id: "harbor-bed",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: 120,
+                entryTransition: {
+                  id: expect.stringMatching(/\S/),
+                  kind: "fade",
+                  durationFrames: 80,
+                },
+              }),
+            ],
+          }),
+          expect.objectContaining({ id: "alternate" }),
+        ],
+      }),
+    ],
+    cutLists: [null],
+  });
+  await expect(
+    page.getByText("CutList unavailable: an authored fade crosses a visible cut."),
+  ).toBeVisible();
+});
+
+test("a gap elsewhere does not block a locally representable layered fade", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, { "sequence.durationFrames": 260 });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true }).first();
+  const width = (await lighthouse.boundingBox())!.width;
+  await dragFade(page, timeline.getByLabel("Adjust reveal fade: Lighthouse").first(), -width / 5);
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0].revealTransition)
+    .toEqual({ id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 12 });
+  expect((await emissions()).cutLists).toEqual([null]);
+  await expect(page.getByText("CutList unavailable:")).toHaveCount(0);
 });
 
 test("dragging Lighthouse's entry handle previews 30 frames and commits once without moving the cut", async ({

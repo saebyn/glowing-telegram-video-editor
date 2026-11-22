@@ -221,6 +221,12 @@ type VisibleSpan = {
   transitionOut?: CutList["outputTrack"][number]["transitionOut"];
 };
 
+type ResolvedFade = {
+  placement: ResolvedPlacement;
+  edge: "entry" | "reveal";
+  duration: number;
+};
+
 function firstSpanEndingAfter(spans: readonly VisibleSpan[], frame: number) {
   let low = 0;
   let high = spans.length;
@@ -232,23 +238,14 @@ function firstSpanEndingAfter(spans: readonly VisibleSpan[], frame: number) {
   return low;
 }
 
-export function hasMultipleOccupiedTracks(sequence: Sequence) {
-  return sequence.tracks.filter(({ placements }) => placements.length > 0).length > 1;
-}
-
-/** Compile fully covered edits at matching rates. */
-export function compileCutList(
+function resolveVisibleSequence(
   sequence: Sequence,
   clips: readonly VideoClip[],
   sources: readonly SequenceSource[],
   frameRate: FrameRate,
-): CutList | null {
+) {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
-  const fades: {
-    placement: ResolvedPlacement;
-    edge: "entry" | "reveal";
-    duration: number;
-  }[] = [];
+  const fades: ResolvedFade[] = [];
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
     for (const placement of inSequenceOrder(track.placements)) {
@@ -306,6 +303,7 @@ export function compileCutList(
   const active: (ResolvedPlacement | undefined)[] = sequence.tracks.map(() => undefined);
   let visible: ResolvedPlacement | undefined;
   let cutStartFrame = 0;
+  let hasGap = false;
   const spans: VisibleSpan[] = [];
   for (const [index, { frame, trackIndex, placement }] of boundaries.entries()) {
     active[trackIndex] = placement;
@@ -315,12 +313,18 @@ export function compileCutList(
     if (nextVisible === visible) continue;
 
     if (visible) spans.push({ start: cutStartFrame, end: frame, placement: visible });
-    else if (frame > cutStartFrame) return null;
+    else if (frame > cutStartFrame) hasGap = true;
     visible = nextVisible;
     cutStartFrame = frame;
   }
-  if (!spans.length || cutStartFrame !== sequence.durationFrames) return null;
+  return { spans, fades, hasGap: hasGap || cutStartFrame !== sequence.durationFrames };
+}
 
+function applyVisibleFades(
+  spans: readonly VisibleSpan[],
+  fades: readonly ResolvedFade[],
+  durationFrames: number,
+) {
   for (const { placement, edge, duration } of fades) {
     const entry = edge === "entry";
     const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
@@ -338,15 +342,57 @@ export function compileCutList(
         (first.transitionIn?.duration ?? 0) + (first.transitionOut?.duration ?? 0) >
         first.end - first.start
       ) {
-        return null;
+        return "overlap";
       }
     } else {
       // A hidden edge is harmless only when higher tracks obscure the entire window.
-      for (let i = index; i < spans.length && spans[i].start < end; i++) {
-        if (spans[i].placement.trackIndex >= placement.trackIndex) return null;
+      let coveredTo = Math.max(0, start);
+      const visibleEnd = Math.min(durationFrames, end);
+      for (let i = index; i < spans.length && spans[i].start < visibleEnd; i++) {
+        const span = spans[i];
+        if (span.start > coveredTo || span.placement.trackIndex >= placement.trackIndex) {
+          return "interrupted";
+        }
+        coveredTo = span.end;
       }
+      if (coveredTo < visibleEnd) return "interrupted";
     }
   }
+  return null;
+}
+
+/** Fade-specific output feedback, independent of gaps elsewhere in the sequence. */
+export function getFadeOutputIssue(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: readonly SequenceSource[],
+  frameRate: FrameRate,
+) {
+  if (
+    !sequence.tracks.some(({ placements }) =>
+      placements.some(
+        ({ entryTransition, revealTransition }) => entryTransition || revealTransition,
+      ),
+    )
+  )
+    return null;
+  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  return resolved
+    ? applyVisibleFades(resolved.spans, resolved.fades, sequence.durationFrames)
+    : null;
+}
+
+/** Compile fully covered edits at matching rates. */
+export function compileCutList(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: readonly SequenceSource[],
+  frameRate: FrameRate,
+): CutList | null {
+  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  if (!resolved || !resolved.spans.length || resolved.hasGap) return null;
+  const { spans, fades } = resolved;
+  if (applyVisibleFades(spans, fades, sequence.durationFrames)) return null;
 
   const inputMedia: CutList["inputMedia"] = [];
   const output = spans.map(({ start, end, placement, transitionIn, transitionOut }) => {

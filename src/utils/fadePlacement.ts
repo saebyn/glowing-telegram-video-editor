@@ -1,13 +1,11 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
 import { getProjectFrameCount } from "./frames";
-import { getPlacementSourceRange, hasMultipleOccupiedTracks } from "./sequence";
+import { getPlacementSourceRange } from "./sequence";
 
 export type PlacementFadeField = keyof Pick<ClipPlacement, "entryTransition" | "revealTransition">;
 
-export function getFadeBounds(sequence: Sequence, placementFrames: number) {
-  return !hasMultipleOccupiedTracks(sequence) && placementFrames > 0
-    ? { min: 1, max: placementFrames }
-    : null;
+export function getFadeBounds(placementFrames: number) {
+  return placementFrames > 0 ? { min: 1, max: placementFrames } : null;
 }
 
 /** Evaluate an authored fade independently of whether the sequence can compile. */
@@ -20,13 +18,14 @@ export function evaluatePlacementFade(
   duration: number,
   allocateTransitionId = () => crypto.randomUUID(),
 ): Sequence | null {
-  const track = sequence.tracks.find(({ placements }) => placements.length > 0);
+  const track = sequence.tracks.find(({ placements }) =>
+    placements.some(({ id }) => id === placementId),
+  );
   if (!track) return null;
   const placement = track.placements.find(({ id }) => id === placementId);
   const clip = clips.find(({ id }) => id === placement?.clipId);
   if (!placement || !clip) return null;
   const bounds = getFadeBounds(
-    sequence,
     getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate),
   );
   if (

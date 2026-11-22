@@ -117,10 +117,10 @@ either placement edge to trim it in place, or enter a precise trailing trim in t
 Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, and a trim that
 would make them overlap is blocked. A valid trailing trim can grow the sequence but never
-shortens it. With one occupied track, adjust entry and reveal fades using their separate
-timeline handles or the Inspector; empty tracks do not disable these controls. The compiler flattens
-fully covered straight cuts across tracks, giving the upper active placement precedence.
-Intersecting entry and reveal fades on the same placement cannot compile.
+shortens it. Adjust entry and reveal fades on any track using their timeline
+handles or the Inspector. The compiler gives the upper active placement precedence.
+If an authored fade crosses a visible cut or overlaps another visible fade on
+its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
 Click a fade indicator to select it and see which placement owns it. Hosts store
 each fade as `entryTransition` or `revealTransition` on the placement, with
 `{ id, kind: "fade", durationFrames }`. Split preserves the ID and duration at
