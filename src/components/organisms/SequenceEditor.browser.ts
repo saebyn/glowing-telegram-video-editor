@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
+import type { Sequence } from "@/types";
 
 test("dropping a pool clip in the existing gap emits the exact CutList", async ({ page }) => {
   const expected: CutList = {
@@ -72,4 +73,82 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
   await expect.poll(() => emissions).toStrictEqual([expected]);
   await expect(timeline.getByText("Lighthouse", { exact: true })).toBeVisible();
   await expect(timeline).toContainText("Duration: 00:06");
+});
+
+test("applying an entry fade emits the edited placement and its exact CutList edge", async ({
+  page,
+}) => {
+  const expectedSequence: Sequence = {
+    durationFrames: 240,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+          {
+            id: "lighthouse-next",
+            clipId: "lighthouse",
+            sequenceStartFrame: 120,
+            entryTransitionFrames: 30,
+          },
+        ],
+      },
+    ],
+  };
+  const expectedCutList: CutList = {
+    version: "1.0.0",
+    inputMedia: [
+      {
+        s3Location: "s3://sequence-fixtures/harbor.mp4",
+        sections: [{ startFrame: 114, endFrame: 234 }],
+      },
+      {
+        s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+        sections: [{ startFrame: 501, endFrame: 621 }],
+      },
+    ],
+    outputTrack: [
+      { mediaIndex: 0, sectionIndex: 0 },
+      { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 30 } },
+    ],
+  };
+
+  type Emissions = { sequences: Sequence[]; cutLists: (CutList | null)[] };
+  type RecordingWindow = Window & { sequenceEditorEmissions?: Emissions };
+  await page.addInitScript(() => {
+    const emissions: Emissions = { sequences: [], cutLists: [] };
+    (window as RecordingWindow).sequenceEditorEmissions = emissions;
+    window.addEventListener("sequence-editor:sequence-change", (event) => {
+      emissions.sequences.push((event as CustomEvent<Sequence>).detail);
+    });
+    window.addEventListener("sequence-editor:cut-list-change", (event) => {
+      emissions.cutLists.push((event as CustomEvent<CutList | null>).detail);
+    });
+  });
+  const emissions = () => page.evaluate(() => (window as RecordingWindow).sequenceEditorEmissions);
+  const noEdits = { sequences: [], cutLists: [] };
+
+  await page.goto("/iframe.html?id=organisms-sequenceeditor--entry-fade-fixture&viewMode=story");
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  await expect(timeline).toBeVisible();
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await lighthouse.click({ timeout: 3_000 });
+  const duration = page.getByLabel("Entry fade duration (sequence frames)");
+  await expect(duration).toBeVisible();
+  expect(await emissions()).toStrictEqual(noEdits);
+
+  await duration.fill("30");
+  expect(await emissions()).toStrictEqual(noEdits);
+  const indicator = timeline.getByText("Fade in", { exact: true });
+  await expect(indicator).toHaveCount(0);
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+
+  await expect(indicator).toBeVisible();
+  expect(await emissions()).toStrictEqual({
+    sequences: [expectedSequence],
+    cutLists: [expectedCutList],
+  });
 });

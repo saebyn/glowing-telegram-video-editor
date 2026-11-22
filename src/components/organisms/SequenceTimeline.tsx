@@ -23,6 +23,8 @@ type SequenceTimelineProps = {
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   onClipDrop?: (clipId: string, sequenceFrame: number) => void;
+  selectedPlacementId?: string;
+  onPlacementSelect?: (id: string) => void;
 };
 
 export default function SequenceTimeline({
@@ -30,6 +32,8 @@ export default function SequenceTimeline({
   clips,
   titles,
   onClipDrop,
+  selectedPlacementId,
+  onPlacementSelect,
 }: SequenceTimelineProps) {
   const frameRate = useProjectFrameRate();
   const surface = useRef<HTMLDivElement>(null);
@@ -181,18 +185,29 @@ export default function SequenceTimeline({
             disableDrag
             autoReRender={false}
             onClickTimeArea={() => false}
-            getActionRender={({ id, effectId }) => (
-              <div
-                title={itemLabels.get(id)}
-                className={`absolute inset-x-px inset-y-1 flex items-center overflow-hidden whitespace-nowrap rounded border px-2 text-xs font-medium ${
-                  effectId === "transition"
-                    ? "border-amber-300 bg-amber-950 text-amber-100"
-                    : "border-sky-400 bg-sky-950 text-sky-100"
-                }`}
-              >
-                {itemLabels.get(id)}
-              </div>
-            )}
+            getActionRender={({ id, effectId }) => {
+              const label = itemLabels.get(id);
+              const classes = `absolute inset-x-px inset-y-1 flex items-center overflow-hidden whitespace-nowrap rounded border px-2 text-xs font-medium ${
+                effectId === "transition"
+                  ? "border-amber-300 bg-amber-950 text-amber-100"
+                  : "border-sky-400 bg-sky-950 text-sky-100"
+              }`;
+              return effectId === "placement" && onPlacementSelect ? (
+                <button
+                  type="button"
+                  title={label}
+                  aria-pressed={selectedPlacementId === id}
+                  onClick={() => onPlacementSelect(id)}
+                  className={`${classes} cursor-pointer aria-pressed:bg-sky-800`}
+                >
+                  {label}
+                </button>
+              ) : (
+                <div title={label} className={classes}>
+                  {label}
+                </div>
+              );
+            }}
           />
         </div>
       </div>

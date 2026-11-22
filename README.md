@@ -95,10 +95,11 @@ compiled result of the same edit, or `null` if the edit cannot be represented. L
 sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence, clips, sources, frameRate)`
 directly.
 
-The first editing action drops a single clip into an existing gap on one track without
-changing the sequence duration. The compiler flattens fully covered straight cuts across tracks
-at matching source and project rates. The upper active placement takes precedence. The preview
-and inspector are placeholders.
+On a single track, drop a clip into an existing gap or select a placement and apply an entry
+fade in the inspector. Neither edit changes the sequence duration. At matching source and
+project rates, the compiler flattens fully covered straight cuts across tracks, giving the
+upper active placement precedence. It compiles entry fades only on single-track sequences.
+The preview is a placeholder.
 
 ### VideoSelectionPage
 

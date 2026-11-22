@@ -88,10 +88,29 @@ export const GapFixture: Story = {
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },
   },
-  render: (args) => <GapHost {...args} />,
+  render: (args) => <EditingHost {...args} />,
 };
 
-function GapHost(args: SequenceEditorProps) {
+export const EntryFadeFixture: Story = {
+  args: {
+    sequence: {
+      durationFrames: 240,
+      tracks: [
+        {
+          id: "main",
+          label: "Main",
+          placements: [
+            { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+            { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
+          ],
+        },
+      ],
+    },
+  },
+  render: (args) => <EditingHost {...args} />,
+};
+
+function EditingHost(args: SequenceEditorProps) {
   const [sequence, setSequence] = useState(args.sequence);
   const [cutList, setCutList] = useState<CutList | null | undefined>();
 
@@ -100,7 +119,12 @@ function GapHost(args: SequenceEditorProps) {
       <SequenceEditor
         {...args}
         sequence={sequence}
-        onSequenceChange={setSequence}
+        onSequenceChange={(next) => {
+          setSequence(next);
+          window.dispatchEvent(
+            new CustomEvent("sequence-editor:sequence-change", { detail: next }),
+          );
+        }}
         onCutListChange={(next) => {
           setCutList(next);
           window.dispatchEvent(

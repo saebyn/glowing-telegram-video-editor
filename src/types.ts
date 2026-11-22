@@ -139,7 +139,7 @@ export interface ClipPlacement {
   /** Signed offsets from the clip's native source in and out points. */
   sourceInOffsetFrames?: number;
   sourceOutOffsetFrames?: number;
-  /** Entry fade duration in sequence frames, visual only in the first slice. */
+  /** Entry fade duration in whole sequence frames inside the placement, when present. */
   entryTransitionFrames?: number;
 }
 

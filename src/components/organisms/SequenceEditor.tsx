@@ -1,7 +1,9 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
+import { useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
-import { compileCutList, placeClipInGap } from "@/utils/sequence";
+import { getProjectFrameCount } from "@/utils/frames";
+import { compileCutList, getPlacementSourceRange, placeClipInGap } from "@/utils/sequence";
 import ProjectClipPool from "./ProjectClipPool";
 import SequenceTimeline from "./SequenceTimeline";
 
@@ -29,12 +31,50 @@ export default function SequenceEditor({
   onCutListChange,
 }: SequenceEditorProps) {
   const frameRate = useProjectFrameRate();
+  const [selectedPlacementId, selectPlacement] = useState<string>();
+  const editableTrack =
+    onSequenceChange && sequence.tracks.length === 1 ? sequence.tracks[0] : null;
+  const selectedPlacement = editableTrack?.placements.find(({ id }) => id === selectedPlacementId);
+  const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
+  const maxEntryFrames =
+    selectedPlacement && selectedClip
+      ? getProjectFrameCount(getPlacementSourceRange(selectedClip, selectedPlacement), frameRate)
+      : 0;
+
+  function commitEdit(next: Sequence) {
+    onSequenceChange?.(next);
+    onCutListChange?.(compileCutList(next, clips, sources, frameRate));
+  }
 
   function dropClip(clipId: string, sequenceFrame: number) {
     const next = placeClipInGap(sequence, clips, frameRate, clipId, sequenceFrame);
-    if (!next) return;
-    onSequenceChange?.(next);
-    onCutListChange?.(compileCutList(next, clips, sources, frameRate));
+    if (next) commitEdit(next);
+  }
+
+  function applyEntryFade(duration: number) {
+    if (
+      !editableTrack ||
+      !selectedPlacement ||
+      !Number.isSafeInteger(duration) ||
+      duration < 1 ||
+      duration > maxEntryFrames ||
+      duration === selectedPlacement.entryTransitionFrames
+    ) {
+      return;
+    }
+    commitEdit({
+      ...sequence,
+      tracks: [
+        {
+          ...editableTrack,
+          placements: editableTrack.placements.map((placement) =>
+            placement.id === selectedPlacement.id
+              ? { ...placement, entryTransitionFrames: duration }
+              : placement,
+          ),
+        },
+      ],
+    });
   }
 
   return (
@@ -70,16 +110,54 @@ export default function SequenceEditor({
         </section>
         <section className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
           <h2 className="mb-2 text-lg font-semibold">Selection inspector</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Placement and transition fields will appear here.
-          </p>
+          {selectedPlacement && selectedClip && maxEntryFrames > 0 ? (
+            <form
+              key={`${selectedPlacement.id}:${selectedPlacement.entryTransitionFrames}`}
+              className="space-y-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                applyEntryFade(Number(new FormData(event.currentTarget).get("duration")));
+              }}
+            >
+              <p className="text-sm font-medium">
+                {titles[selectedClip.id] ?? `Clip ${selectedClip.id}`}
+              </p>
+              <label className="block space-y-1 text-sm">
+                <span>Entry fade duration (sequence frames)</span>
+                <input
+                  name="duration"
+                  type="number"
+                  required
+                  min={1}
+                  max={maxEntryFrames}
+                  step={1}
+                  defaultValue={selectedPlacement.entryTransitionFrames}
+                  className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+              >
+                Apply
+              </button>
+            </form>
+          ) : (
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {editableTrack
+                ? "Select a placement to edit its entry fade."
+                : "Placement and transition fields will appear here."}
+            </p>
+          )}
         </section>
       </div>
       <SequenceTimeline
         sequence={sequence}
         clips={clips}
         titles={titles}
-        onClipDrop={onSequenceChange && sequence.tracks.length === 1 ? dropClip : undefined}
+        onClipDrop={editableTrack ? dropClip : undefined}
+        selectedPlacementId={selectedPlacement?.id}
+        onPlacementSelect={editableTrack ? selectPlacement : undefined}
       />
     </section>
   );

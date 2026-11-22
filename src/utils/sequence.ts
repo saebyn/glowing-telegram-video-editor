@@ -57,9 +57,10 @@ type ResolvedPlacement = {
   sequenceStartFrame: number;
   sourceInFrame: number;
   s3Location: string;
+  entryTransitionFrames?: number;
 };
 
-/** Compile fully covered, straight cuts at matching source and project rates. */
+/** Compile fully covered edits at matching rates. Entry fades require one authored track. */
 export function compileCutList(
   sequence: Sequence,
   clips: readonly VideoClip[],
@@ -70,8 +71,8 @@ export function compileCutList(
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
     for (const placement of inSequenceOrder(track.placements)) {
-      const { sequenceStartFrame } = placement;
-      if (sequenceStartFrame < trackEndFrame || placement.entryTransitionFrames) return null;
+      const { sequenceStartFrame, entryTransitionFrames } = placement;
+      if (sequenceStartFrame < trackEndFrame) return null;
       const clip = clips.find(({ id }) => id === placement.clipId);
       if (!clip) return null;
       const source = sources.find(({ id }) => id === clip.sourceId);
@@ -79,7 +80,8 @@ export function compileCutList(
         clip,
         placement,
       );
-      const sequenceEndFrame = sequenceStartFrame + (sourceOutFrame - sourceInFrame);
+      const frameCount = sourceOutFrame - sourceInFrame;
+      const sequenceEndFrame = sequenceStartFrame + frameCount;
       if (
         !source ||
         BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
@@ -91,12 +93,27 @@ export function compileCutList(
       ) {
         return null;
       }
+      // Reject unsupported fades here, before track priority can hide them.
+      if (
+        entryTransitionFrames !== undefined &&
+        (sequence.tracks.length !== 1 ||
+          !Number.isSafeInteger(entryTransitionFrames) ||
+          entryTransitionFrames < 1 ||
+          entryTransitionFrames > frameCount)
+      ) {
+        return null;
+      }
 
       boundaries.push(
         {
           frame: sequenceStartFrame,
           trackIndex,
-          placement: { sequenceStartFrame, sourceInFrame, s3Location: source.s3Location },
+          placement: {
+            sequenceStartFrame,
+            sourceInFrame,
+            s3Location: source.s3Location,
+            entryTransitionFrames,
+          },
         },
         { frame: sequenceEndFrame, trackIndex },
       );
@@ -119,14 +136,18 @@ export function compileCutList(
     if (nextVisible === visible) continue;
 
     if (visible) {
-      const { s3Location, sourceInFrame, sequenceStartFrame } = visible;
+      const { s3Location, sourceInFrame, sequenceStartFrame, entryTransitionFrames } = visible;
       let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
       if (mediaIndex === -1) {
         mediaIndex = inputMedia.length;
         inputMedia.push({ s3Location, sections: [] });
       }
       const { sections } = inputMedia[mediaIndex];
-      output.push({ mediaIndex, sectionIndex: sections.length });
+      const section: CutList["outputTrack"][number] = { mediaIndex, sectionIndex: sections.length };
+      if (entryTransitionFrames !== undefined) {
+        section.transitionIn = { type: "fade", duration: entryTransitionFrames };
+      }
+      output.push(section);
       sections.push({
         startFrame: sourceInFrame + (cutStartFrame - sequenceStartFrame),
         endFrame: sourceInFrame + (frame - sequenceStartFrame),
