@@ -29,11 +29,7 @@ import {
   getPlacementSourceRange,
   type PlacementMoveResult,
 } from "@/utils/sequence";
-import {
-  getMinimumTrimLength,
-  getTrimmableSourceRange,
-  type PlacementTrimEdge,
-} from "@/utils/trimPlacement";
+import { getTrimmableSourceRange, type PlacementTrimEdge } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
 import { mediaKindLabels } from "./mediaKindLabels";
@@ -286,7 +282,6 @@ export default function SequenceTimeline({
         duration: number;
         trackIndex: number;
         trimRange: ReturnType<typeof getTrimmableSourceRange>;
-        minimumTrimLength: number;
         mediaKind: MediaKind | undefined;
         thumbnails: SequenceSource["keyframes"];
       }
@@ -309,7 +304,6 @@ export default function SequenceTimeline({
           duration,
           trackIndex,
           trimRange: getTrimmableSourceRange(placement, clip, frameRate),
-          minimumTrimLength: getMinimumTrimLength(placement),
           mediaKind: source?.mediaKind,
           thumbnails:
             source?.mediaKind === "audio-only"
@@ -918,10 +912,7 @@ export default function SequenceTimeline({
         {activeTrimPreview && trimDraft && trimItem && (
           <output className="mt-1 block">
             {trimItem.label} · Sequence frame {trimDraft.edge === "leading" ? trimStart : trimEnd}
-            {trimBlocked &&
-              (trimItem.minimumTrimLength > 1 && trimEnd - trimStart < trimItem.minimumTrimLength
-                ? ` · Blocked: The fades need at least ${trimItem.minimumTrimLength} sequence frames`
-                : " · Blocked: Cannot trim to this edge")}
+            {trimBlocked && " · Blocked: Cannot trim to this edge"}
           </output>
         )}
         {draft && draftItem && (

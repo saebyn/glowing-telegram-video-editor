@@ -82,7 +82,7 @@ test("resubmitting the current source out point produces no edit", () => {
   expect(applyTrailingTrim(sequence, [clip], frameRate, "open", 140)).toBeNull();
 });
 
-test("a trailing trim can leave touching fades but cannot make them overlap", () => {
+test("a trailing trim can shorten a placement below its fade without changing either transition", () => {
   const faded = {
     ...placement,
     entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
@@ -95,7 +95,10 @@ test("a trailing trim can leave touching fades but cannot make them overlap", ()
     durationFrames: 60,
     tracks: [{ ...track, placements: [{ ...faded, sourceOutOffsetFrames: -25 }] }],
   });
-  expect(applyTrailingTrim(withFades, [clip], frameRate, "open", 114)).toBeNull();
+  expect(applyTrailingTrim(withFades, [clip], frameRate, "open", 109)).toStrictEqual({
+    durationFrames: 60,
+    tracks: [{ ...track, placements: [{ ...faded, sourceOutOffsetFrames: -31 }] }],
+  });
 });
 
 test("a trailing trim is blocked when the source and project frame rates differ", () => {
@@ -201,7 +204,7 @@ test("a leading trim shifts the sequence start and source in without moving the 
   });
 });
 
-test("a leading trim keeps both fade durations and stops where the fades touch", () => {
+test("a leading trim keeps both transition IDs and durations even when they overlap", () => {
   const faded = {
     ...placement,
     entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
@@ -219,7 +222,15 @@ test("a leading trim keeps both fade durations and stops where the fades touch",
       },
     ],
   });
-  expect(applyLeadingTrim(withFades, [clip], frameRate, "open", 126)).toBeNull();
+  expect(applyLeadingTrim(withFades, [clip], frameRate, "open", 126)).toStrictEqual({
+    durationFrames: 60,
+    tracks: [
+      {
+        ...track,
+        placements: [{ ...faded, sequenceStartFrame: 46, sourceInOffsetFrames: 26 }],
+      },
+    ],
+  });
   expect(applyLeadingTrim(withFades, [clip], frameRate, "open", 100)).toBeNull();
 });
 

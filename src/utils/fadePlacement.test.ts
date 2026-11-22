@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { FrameRate, Sequence, VideoClip } from "@/types";
-import { evaluatePlacementFade } from "./fadePlacement";
+import { evaluatePlacementFade, getFadeSourceExtension } from "./fadePlacement";
 
 const frameRate: FrameRate = { numerator: 24, denominator: 1 };
 const harbor: VideoClip = {
@@ -48,4 +48,23 @@ test("resubmitting the authored entry fade duration produces no edit", () => {
   expect(
     evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransition", 8),
   ).toBeNull();
+});
+
+test("an entry extension stops at the source endpoint and a reveal at sequence frame zero", () => {
+  const shortened = {
+    ...placement,
+    sequenceStartFrame: 3,
+    sourceInOffsetFrames: 36,
+    sourceOutOffsetFrames: -8,
+    entryTransition: { id: "entry", kind: "fade", durationFrames: 20 },
+    revealTransition: { id: "reveal", kind: "fade", durationFrames: 20 },
+  } as const;
+  expect(getFadeSourceExtension(shortened, "entryTransition", harbor, frameRate, 60)).toStrictEqual({
+    startFrame: 140,
+    endFrame: 148,
+  });
+  expect(getFadeSourceExtension(shortened, "revealTransition", harbor, frameRate, 60)).toStrictEqual({
+    startFrame: 133,
+    endFrame: 136,
+  });
 });

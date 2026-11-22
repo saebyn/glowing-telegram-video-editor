@@ -115,9 +115,9 @@ For one selected placement, the **Inspector** shows the effective source in/out 
 the sequence start/end on their respective frame grids. At matching frame rates, drag
 either placement edge to trim it in place, or enter a precise trailing trim in the
 Inspector’s **Source out** field. Trim handles remain available after
-adding fades: fades stay attached to their edges at the same duration, and a trim that
-would make them overlap is blocked. A valid trailing trim can grow the sequence but never
-shortens it. Adjust entry and reveal fades on any track using their timeline
+adding fades: fades stay attached to their edges at the same duration, even if the
+trim makes them overlap or leaves a placement shorter than its fade. A valid trailing
+trim can grow the sequence but never shortens it. Adjust entry and reveal fades on any track using their timeline
 handles or the Inspector. The compiler gives the upper active placement precedence.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.

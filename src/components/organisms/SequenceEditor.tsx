@@ -5,6 +5,7 @@ import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types
 import {
   evaluatePlacementFade,
   getFadeBounds,
+  getFadeSourceExtension,
   type PlacementFadeField,
 } from "@/utils/fadePlacement";
 import { getProjectFrameCount } from "@/utils/frames";
@@ -19,7 +20,6 @@ import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils
 import {
   applyLeadingTrim,
   applyTrailingTrim,
-  getMinimumTrimLength,
   getTrailingTrimBounds,
   type PlacementTrimEdge,
 } from "@/utils/trimPlacement";
@@ -49,6 +49,11 @@ const fadeFields = [
   { field: "entryTransition", label: "Entry fade", button: "Apply entry fade" },
   { field: "revealTransition", label: "Reveal fade", button: "Apply reveal fade" },
 ] as const;
+const fadeOutputMessages = {
+  overlap: "CutList unavailable: authored fades overlap.",
+  interrupted: "CutList unavailable: an authored fade crosses a visible cut.",
+  gap: "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
+} as const;
 
 function findTransition(sequence: Sequence, id: string | undefined) {
   if (id === undefined) return undefined;
@@ -101,6 +106,16 @@ export default function SequenceEditor({
   const selectedTransition = findTransition(sequence, transitionId);
   const fadeOwner: ClipPlacement | undefined = selectedTransition?.placement ?? selectedPlacement;
   const fadeClip = clips.find(({ id }) => id === fadeOwner?.clipId);
+  const fadeSourceExtension =
+    selectedTransition && fadeClip
+      ? getFadeSourceExtension(
+          selectedTransition.placement,
+          selectedTransition.field,
+          fadeClip,
+          frameRate,
+          sequence.durationFrames,
+        )
+      : null;
   const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
   const selectedSourceRange =
     selectedClip && selectedPlacement
@@ -117,8 +132,6 @@ export default function SequenceEditor({
     onSequenceChange && selectedTrack && selectedPlacement && selectedClip
       ? getTrailingTrimBounds(selectedPlacement, selectedTrack, selectedClip, frameRate)
       : null;
-  const minimumTrimLength = selectedPlacement ? getMinimumTrimLength(selectedPlacement) : 1;
-  const trimHintId = useId();
   const shortcutsHintId = useId();
 
   function selectPlacement(id: string | null, toggle: boolean) {
@@ -326,9 +339,7 @@ export default function SequenceEditor({
       </header>
       {fadeOutputIssue && (
         <p role="status" className="text-sm text-amber-900 dark:text-amber-200">
-          {fadeOutputIssue === "overlap"
-            ? "CutList unavailable: authored fades overlap."
-            : "CutList unavailable: an authored fade crosses a visible cut."}
+          {fadeOutputMessages[fadeOutputIssue]}
         </p>
       )}
       <SequenceWorkspace
@@ -362,6 +373,12 @@ export default function SequenceEditor({
                   {selectedTransition.placement.sequenceStartFrame}
                 </p>
                 <p>{selectedTransition.transition.durationFrames} sequence frames</p>
+                {fadeSourceExtension && (
+                  <p>
+                    Transition source extension: {fadeSourceExtension.startFrame} inclusive –{" "}
+                    {fadeSourceExtension.endFrame} exclusive (source frames)
+                  </p>
+                )}
               </div>
             )}
             {selectedIds.length > 1 && (
@@ -407,15 +424,9 @@ export default function SequenceEditor({
                     max={trimBounds.max}
                     step={1}
                     defaultValue={trimBounds.sourceOutFrame}
-                    aria-describedby={minimumTrimLength > 1 ? trimHintId : undefined}
                     className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
                   />
                 </label>
-                {minimumTrimLength > 1 && (
-                  <p id={trimHintId} className="text-sm">
-                    Keep at least {minimumTrimLength} sequence frames for the fades.
-                  </p>
-                )}
                 <button
                   type="submit"
                   className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"

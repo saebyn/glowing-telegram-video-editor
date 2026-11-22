@@ -278,6 +278,51 @@ test("a gap elsewhere does not block a locally representable layered fade", asyn
   await expect(page.getByText("CutList unavailable:")).toHaveCount(0);
 });
 
+test("opening a gap preserves both adjoining fades and reports their missing contribution", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-reveal",
+    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
+    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 24,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
+  await page.keyboard.press("]");
+
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        durationFrames: 241,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                ...straightCut.tracks[0].placements[0],
+                revealTransition: { id: "harbor-reveal", kind: "fade", durationFrames: 12 },
+              },
+              {
+                ...straightCut.tracks[0].placements[1],
+                sequenceStartFrame: 121,
+                entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 24 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutLists: [null],
+  });
+  await expect(page.getByText("CutList unavailable: an authored fade meets a gap.")).toBeVisible();
+});
+
 test("dragging Lighthouse's entry handle previews 30 frames and commits once without moving the cut", async ({
   page,
 }) => {
@@ -431,9 +476,7 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
   expect(placement.x + placement.width).toBeCloseTo(before.x + before.width, 0);
 });
 
-test("a trim that would overlap the fades explains why and commits neither callback", async ({
-  page,
-}) => {
+test("a trim preserves both fades and reports unsupported overlapping output", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -450,14 +493,52 @@ test("a trim that would overlap the fades explains why and commits neither callb
   const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
   await leading.scrollIntoViewIfNeeded();
   await dragFade(page, leading, (71 * width) / 120);
-  await expect(timeline.getByRole("status")).toHaveText(
-    "Lighthouse · Sequence frame 191 · Blocked: The fades need at least 50 sequence frames",
-  );
-  await page.mouse.up();
+  await expect(timeline.getByRole("status")).toHaveText("Lighthouse · Sequence frame 191");
   expect(await emissions()).toStrictEqual(initial);
-  await expect(page.getByLabel("Source out (exclusive frame)")).toHaveAccessibleDescription(
-    "Keep at least 50 sequence frames for the fades.",
-  );
+  await page.mouse.up();
+  const { entryTransition, revealTransition } = initial.sequences[1].tracks[0].placements[1];
+  const next = structuredClone(straightCut);
+  Object.assign(next.tracks[0].placements[1], {
+    sequenceStartFrame: 191,
+    sourceInOffsetFrames: 71,
+    entryTransition,
+    revealTransition,
+  });
+  await expect.poll(emissions).toStrictEqual({
+    sequences: [...initial.sequences, next],
+    cutLists: [...initial.cutLists, null],
+  });
+  await expect(page.getByText("CutList unavailable: authored fades overlap.")).toBeVisible();
+});
+
+test("an entry fade keeps the recorded source extension after a trailing trim", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[0].entryTransition.id": "harbor-entry",
+    "sequence.tracks[0].placements[0].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[0].entryTransition.durationFrames": 20,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  await page.getByLabel("Source out (exclusive frame)").fill("125");
+  await page.getByRole("button", { name: "Trim placement", exact: true }).click();
+  await expect
+    .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0])
+    .toEqual({
+      id: "harbor-open",
+      clipId: "harbor",
+      sequenceStartFrame: 0,
+      sourceOutOffsetFrames: -109,
+      entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 20 },
+    });
+  expect((await emissions()).cutLists).toEqual([null]);
+  await timeline.getByRole("button", { name: "Select entry fade: Harbor" }).click();
+  await expect(
+    page.getByText("Transition source extension: 125 inclusive – 134 exclusive"),
+  ).toBeVisible();
 });
 
 test("adjacent fade regions leave both handles usable, and a valid fade still commits when it cannot compile", async ({

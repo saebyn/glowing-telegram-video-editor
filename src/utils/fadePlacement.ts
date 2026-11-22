@@ -1,11 +1,43 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
 import { getProjectFrameCount } from "./frames";
 import { getPlacementSourceRange } from "./sequence";
+import { getTrimmableSourceRange } from "./trimPlacement";
 
 export type PlacementFadeField = keyof Pick<ClipPlacement, "entryTransition" | "revealTransition">;
 
 export function getFadeBounds(placementFrames: number) {
   return placementFrames > 0 ? { min: 1, max: placementFrames } : null;
+}
+
+/** Find recorded owner footage used beyond the trim by an overlong anchored fade. */
+export function getFadeSourceExtension(
+  placement: ClipPlacement,
+  field: PlacementFadeField,
+  clip: VideoClip,
+  projectRate: FrameRate,
+  sequenceDuration: number,
+) {
+  const transition = placement[field];
+  const range = getTrimmableSourceRange(placement, clip, projectRate);
+  if (!transition || !range) return null;
+
+  const { sourceInFrame, sourceOutFrame } = range;
+  const placementFrames = sourceOutFrame - sourceInFrame;
+  const extra = transition.durationFrames - placementFrames;
+  if (extra <= 0) return null;
+
+  if (field === "entryTransition") {
+    const knownSourceEnd =
+      clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame);
+    const endFrame = Math.min(
+      sourceOutFrame + extra,
+      knownSourceEnd,
+      sourceInFrame + sequenceDuration - placement.sequenceStartFrame,
+    );
+    return endFrame > sourceOutFrame ? { startFrame: sourceOutFrame, endFrame } : null;
+  }
+  const startFrame = Math.max(0, sourceInFrame - Math.min(extra, placement.sequenceStartFrame));
+  return startFrame < sourceInFrame ? { startFrame, endFrame: sourceInFrame } : null;
 }
 
 /** Evaluate an authored fade independently of whether the sequence can compile. */

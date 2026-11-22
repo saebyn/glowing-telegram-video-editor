@@ -4,14 +4,6 @@ import { getPlacementSourceRange } from "./sequence";
 
 export type PlacementTrimEdge = "leading" | "trailing";
 
-export function getMinimumTrimLength(placement: ClipPlacement) {
-  return Math.max(
-    1,
-    (placement.entryTransition?.durationFrames ?? 0) +
-      (placement.revealTransition?.durationFrames ?? 0),
-  );
-}
-
 /** Trimming requires matching source and project frame rates. */
 export function getTrimmableSourceRange(
   placement: ClipPlacement,
@@ -47,7 +39,7 @@ export function getTrailingTrimBounds(
         : end,
     Number.MAX_SAFE_INTEGER,
   );
-  const min = sourceInFrame + getMinimumTrimLength(placement);
+  const min = sourceInFrame + 1;
   const sourceEnd = clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame);
   const max = Math.min(sourceEnd, sourceInFrame + (maxSequenceEnd - placement.sequenceStartFrame));
   return sourceInFrame < max ? { min, max, sourceInFrame, sourceOutFrame } : null;
@@ -115,7 +107,7 @@ export function applyLeadingTrim(
     !range ||
     !Number.isSafeInteger(sourceInFrame) ||
     sourceInFrame < 0 ||
-    sourceInFrame > range.sourceOutFrame - getMinimumTrimLength(placement) ||
+    sourceInFrame >= range.sourceOutFrame ||
     sourceInFrame === range.sourceInFrame
   ) {
     return null;

@@ -325,6 +325,7 @@ function applyVisibleFades(
   fades: readonly ResolvedFade[],
   durationFrames: number,
 ) {
+  let missingNeighbor = false;
   for (const { placement, edge, duration } of fades) {
     const entry = edge === "entry";
     const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
@@ -336,6 +337,14 @@ function applyVisibleFades(
       first.end >= end &&
       (entry ? first.start === start : first.end === end)
     ) {
+      const neighbor = spans[index + (entry ? -1 : 1)];
+      if (
+        entry
+          ? start > 0 && neighbor?.end !== start
+          : end < durationFrames && neighbor?.start !== end
+      ) {
+        missingNeighbor = true;
+      }
       if (entry) first.transitionIn = { type: "fade", duration };
       else first.transitionOut = { type: "fade", duration };
       if (
@@ -358,7 +367,7 @@ function applyVisibleFades(
       if (coveredTo < visibleEnd) return "interrupted";
     }
   }
-  return null;
+  return missingNeighbor ? "gap" : null;
 }
 
 /** Fade-specific output feedback, independent of gaps elsewhere in the sequence. */
