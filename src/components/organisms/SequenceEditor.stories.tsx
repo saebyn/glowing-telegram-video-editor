@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useArgs } from "storybook/preview-api";
+import { useArgs, useMemo } from "storybook/preview-api";
 import { fn } from "storybook/test";
 import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
 import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
@@ -7,7 +7,11 @@ import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import type { SequenceTrack } from "@/types";
 import SequenceEditor, { type SequenceEditorProps } from "./SequenceEditor";
 
-type EditingHostArgs = SequenceEditorProps & { acceptEdits?: boolean };
+type EditingHostArgs = SequenceEditorProps & {
+  acceptEdits?: boolean;
+  readOnly?: boolean;
+  startWithoutTracks?: boolean;
+};
 
 const meta = {
   title: "Organisms/SequenceEditor",
@@ -19,6 +23,8 @@ const meta = {
     sequence: { control: "object", type: { name: "object", value: {} } },
     sources: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
     acceptEdits: { control: "boolean", name: "Accept edits" },
+    readOnly: { control: "boolean", name: "Read-only" },
+    startWithoutTracks: { control: "boolean", name: "Start without tracks" },
   },
   args: {
     acceptEdits: true,
@@ -75,7 +81,7 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media. With focus in the editor, press Left or Right Arrow to step the playhead by one sequence frame.",
+          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media. With focus in the editor, press Left or Right Arrow to step the playhead by one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
       },
     },
   },
@@ -147,17 +153,31 @@ export const RearrangeALayeredEdit: Story = {
   render: renderEditingHost,
 };
 
-function renderEditingHost({ acceptEdits = true, ...args }: EditingHostArgs) {
+function renderEditingHost({
+  acceptEdits = true,
+  readOnly = false,
+  startWithoutTracks = false,
+  ...args
+}: EditingHostArgs) {
   const [, updateArgs] = useArgs<EditingHostArgs>();
+  const durationFrames = args.sequence.durationFrames;
+  const empty = useMemo(() => ({ durationFrames, tracks: [] }), [durationFrames]);
 
   return (
     <SequenceEditor
       {...args}
-      onSequenceChange={(next) => {
-        args.onSequenceChange?.(next);
-        if (acceptEdits) updateArgs({ sequence: next });
-        window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
-      }}
+      sequence={startWithoutTracks ? empty : args.sequence}
+      onSequenceChange={
+        readOnly
+          ? undefined
+          : (next) => {
+              args.onSequenceChange?.(next);
+              if (acceptEdits) updateArgs({ sequence: next, startWithoutTracks: false });
+              window.dispatchEvent(
+                new CustomEvent("sequence-editor:sequence-change", { detail: next }),
+              );
+            }
+      }
       onCutListChange={(next) => {
         args.onCutListChange?.(next);
         window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-change", { detail: next }));

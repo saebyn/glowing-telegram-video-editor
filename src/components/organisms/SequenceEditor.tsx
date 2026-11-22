@@ -29,6 +29,7 @@ import {
 import ProjectClipPool from "./ProjectClipPool";
 import RenameSequenceTrack from "./RenameSequenceTrack";
 import SequenceTimeline from "./SequenceTimeline";
+import { AddSequenceTrack } from "./SequenceTrackActions";
 import SequenceWorkspace from "./SequenceWorkspace";
 import ShortenSequenceForm from "./ShortenSequenceForm";
 import { useSequenceHistory } from "./useSequenceHistory";
@@ -416,6 +417,7 @@ export default function SequenceEditor({
             onCommit={commitEdit}
           />
         )}
+        {onSequenceChange && <AddSequenceTrack sequence={sequence} onCommit={commitEdit} />}
         {onSequenceChange && <RenameSequenceTrack sequence={sequence} onCommit={commitEdit} />}
         <WorkspacePaneToggles hiddenPanes={hiddenPanes} onToggle={togglePane} />
         <p id={shortcutsHintId} className="basis-full text-sm text-slate-600 dark:text-slate-300">
@@ -717,6 +719,7 @@ export default function SequenceEditor({
           clips={clips}
           titles={titles}
           poolClipId={poolClipId}
+          onTrackEdit={onSequenceChange ? commitEdit : undefined}
           onClipDrop={onSequenceChange ? dropClip : undefined}
           evaluateMove={onSequenceChange ? proposePlacementMove : undefined}
           onPlacementMove={onSequenceChange ? commitEdit : undefined}

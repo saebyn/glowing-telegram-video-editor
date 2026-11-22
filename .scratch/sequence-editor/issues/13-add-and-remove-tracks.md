@@ -1,6 +1,7 @@
 # 13 — Add and remove tracks
 
 Status: ready-for-agent
+Resolution: implemented and verified with the controlled Storybook host
 
 ## Proposal
 
@@ -30,3 +31,12 @@ Undo of the first track addition restores the zero-track state.
 - Design review: keep Remove track and Undo distinct. Remove track
   cannot remove the last track; Undo can restore a host-supplied
   zero-track state.
+- Add inserts an empty top track without changing sequence duration. The
+  track header offers Remove only for an empty track when another track
+  remains. A zero-track sequence is shown without modification, and Undo
+  restores it after adding the first track.
+- Playwright red → green covered empty state, read-only behavior, add,
+  remove, and Undo. Vitest, TypeScript, and formatting passed; Stryker
+  killed 35/35 edit-rule mutants and the browser checks killed all four
+  targeted UI/history mutants. The broader dev run hit the intermittent
+  native pool-drop case; see `/tmp/opencode/ticket13-final-browser.log`.

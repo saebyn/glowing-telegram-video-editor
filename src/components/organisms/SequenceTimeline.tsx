@@ -34,6 +34,7 @@ import {
 import { getTrimmableSourceRange, type PlacementTrimEdge } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
+import { RemoveSequenceTrack } from "./SequenceTrackActions";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -60,6 +61,7 @@ type SequenceTimelineProps = {
   sources: readonly SequenceSource[];
   clips: readonly VideoClip[];
   titles: Record<string, string>;
+  onTrackEdit?: (next: Sequence) => void;
   poolClipId?: string;
   onClipDrop?: (clipId: string, trackId: string, sequenceFrame: number) => void;
   evaluateMove?: (
@@ -125,6 +127,7 @@ export default function SequenceTimeline({
   sources,
   clips,
   titles,
+  onTrackEdit,
   poolClipId,
   onClipDrop,
   evaluateMove,
@@ -600,13 +603,16 @@ export default function SequenceTimeline({
           <div className="flex items-center px-3 font-semibold" style={{ height: RULER_HEIGHT }}>
             Tracks
           </div>
-          {tracks.map(({ id, label }) => (
+          {tracks.map((track) => (
             <div
-              key={id}
-              className="flex items-center border-t border-slate-600 px-3"
+              key={track.id}
+              className="relative flex items-center border-t border-slate-600 px-3 has-[button]:pb-6"
               style={{ height: ROW_HEIGHT }}
             >
-              {label}
+              {track.label}
+              {onTrackEdit && (
+                <RemoveSequenceTrack sequence={sequence} track={track} onCommit={onTrackEdit} />
+              )}
             </div>
           ))}
         </div>
@@ -1004,6 +1010,11 @@ export default function SequenceTimeline({
               poolDrop.kind === "blocked",
             )}
         </div>
+        {tracks.length === 0 && (
+          <p className="col-span-full border-t border-slate-600 px-3 py-6 text-sm">
+            Add your first track to begin
+          </p>
+        )}
       </div>
       {/* Draft feedback must not add a page scrollbar and resize the timeline during a gesture. */}
       <div className="h-20 overflow-y-auto text-sm wrap-anywhere tabular-nums">

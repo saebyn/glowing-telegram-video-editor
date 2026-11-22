@@ -5,7 +5,10 @@ import type { Sequence } from "@/types";
 export const roughCutStoryId = "organisms-sequenceeditor--assemble-a-rough-cut";
 export const layeredEditStoryId = "organisms-sequenceeditor--rearrange-a-layered-edit";
 type Workflow = typeof roughCutStoryId | typeof layeredEditStoryId;
-type SequenceArgs = Record<`sequence.${string}`, string | number | undefined>;
+type SequenceArgs = Record<`sequence.${string}`, string | number | undefined> & {
+  readOnly?: string;
+  startWithoutTracks?: string;
+};
 
 export async function openWorkflow(page: Page, story: Workflow, sequenceArgs: SequenceArgs = {}) {
   const query = new URLSearchParams({ id: story, viewMode: "story" });
