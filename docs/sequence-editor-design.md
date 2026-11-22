@@ -6,15 +6,18 @@ Storybook, then wire and test one editing action at a time. The host application
 owns persistent state. The library provides the model, editing UI, and compiler;
 it does not save projects or render video in this first phase.
 
+This document describes the intended behavior, not a checklist of what the
+current Storybook stories already support.
+
 ## Component tree
 
 ```text
 SequenceEditor                         controlled by the host
-├─ EditToolbar                         split, undo (stub initially)
+├─ EditToolbar                         playhead transport; split and undo later
 ├─ Workspace
 │  ├─ ProjectClipPool                  reuse the existing clip browser
 │  ├─ PreviewPane                      placeholder, no player
-│  └─ SelectionInspector               placement or transition fields
+│  └─ SelectionInspector               placement properties or selection summary
 └─ SequenceTimeline                    our component; speaks sequence frames
    └─ Timeline                         @keplar-404/react-timeline-editor
       ├─ Shared ruler and playhead
@@ -26,7 +29,7 @@ Use **one widget instance** for the whole sequence, so tracks share a time scale
 scroll position, and playhead. `SequenceTimeline` projects authored tracks
 onto widget rows and placements onto actions, supplying the item visuals
 through `getActionRender`. Like the seam markers in `ProjectClipTimeline`,
-transition indicators are anchored at clip edges. Draw them within the
+transition indicators are anchored at placement edges. Draw them within the
 placement, spanning their authored duration, without a separate row.
 Convert sequence frames to widget seconds and convert events such as seeking
 back to frames at this boundary.
@@ -50,11 +53,13 @@ and reports interaction input; its rows are not editor state or compiler input.
   placements' offsets to preserve their effective source ranges. New
   placements start at the new clip bounds.
 - **Sequence duration:** The sequence has its own duration at the project
-  frame rate. Moving the last placement earlier can leave a trailing gap;
-  the sequence endpoint does not move with it. Moving a placement beyond
-  the endpoint requires a separate duration change first. A group move
-  preserves the placements' relative positions; if any destination overlaps
-  an unselected placement on the same track, none of the group moves.
+  frame rate. A valid move (single or group), trailing placement trim, or
+  drop from the clip pool onto a track extends the duration just enough to
+  fit the resulting placements. The placement change and any duration
+  increase commit as one edit. Moving or trimming a placement earlier can
+  leave a trailing gap; these edits never shorten the sequence. Duration
+  growth does not bypass same-track collision checks or source bounds for
+  trims.
 - **Track overlap:** Ordinary audiovisual placements can overlap across
   tracks, not within a track. Where they overlap, the upper active placement
   supplies picture and sound. When it ends, the placement underneath resumes
@@ -69,6 +74,9 @@ and reports interaction input; its rows are not editor state or compiler input.
   its trailing edge. Neither changes sequence duration or moves a cut. The
   surrounding sequence determines what the placement transitions from or
   reveals; neither transition stores the identity of another placement.
+  At matching frame rates, placement trims keep both fade durations fixed
+  and anchored to their respective edges. A trim must leave enough frames
+  for both fades without overlapping; the two fade regions may touch.
 - **Time:** Source in/out points are zero-based whole frames on the native
   source grid, inclusive in and exclusive out. Sequence positions use the
   project frame rate. Keep both distinct from physical-media timestamps. See
@@ -86,18 +94,68 @@ Timeline or inspector → edit intent → apply edit → next sequence
 ```
 
 The top-level callbacks are `onSequenceChange(nextSequence)` and
-`onCutListChange(cutList: CutList | null)`. For example, a move proposes a
-placement ID, destination track, and sequence frame. The editing operation
-computes the next sequence; the host receives it and feeds it back as a prop.
-The compiler is independent of React and takes that same next sequence, not
-the widget data. An edit still reaches the host when it cannot be compiled;
-emit `null` so the host does not mistake the previous `CutList` for the
-current one. Selecting, seeking, or dragging without committing an edit
-emits neither callback. Loading or replacing the sequence through props
-does not emit `onCutListChange`.
+`onCutListChange(cutList: CutList | null)`. Each committed edit emits one next
+sequence and one `CutList` result. The host feeds the next sequence back as a
+prop. The compiler is independent of React and takes that same next sequence,
+not the widget data. An edit still reaches the host when it cannot be
+compiled; emit `null` so the host does not mistake the previous `CutList`
+for the current one. Selection, playhead changes, drag previews, and
+blocked, cancelled, or unchanged drops emit neither callback. Loading or
+replacing the sequence through props does not emit `onCutListChange`.
 
 Expose the compiler as a utility, but do not require hosts to call it as part
 of normal editor integration. The editor handles compilation for its edits.
+
+## Selection and atomic moves
+
+- Click a placement to select only that placement. Shift-click toggles
+  individual placements across tracks. Click empty track space to clear the
+  selection; click the ruler to seek instead. Drag a selected placement to
+  move the selection, or drag an unselected placement to move only that
+  placement. Marquee selection is a follow-up.
+- The Inspector shows editable trim and transition properties for one
+  placement. For multiple placements, it shows the selection count and tracks,
+  not bulk editing fields. Use placement edges for direct timeline trimming
+  and separate handles for adjusting entry and reveal transitions. Timeline
+  gestures and Inspector controls use the same edit rules.
+- A move proposes the IDs of the placements being moved and the grabbed placement's
+  destination track and sequence frame. Every placement gets the same signed
+  sequence-frame offset and the same shift in track order. Source ranges and
+  entry and reveal transitions stay unchanged.
+- Check the final layout with all moving placements' old positions vacated.
+  Block the whole move if any placement would start before sequence frame
+  zero, land outside the existing tracks, or overlap a stationary placement
+  on its destination track. Touching edges and overlap across tracks are allowed.
+
+Use one move evaluator for both the drag preview and the edit on release,
+rather than applying a series of single-placement moves. Show each proposed
+placement on its destination track at its exact position, with a sequence
+position readout for the grabbed placement. If blocked, show why the whole
+drop is invalid. Keep the scale steady during the drag and make space to the
+right to preview a move past the current endpoint without changing authored
+duration before a valid drop.
+
+Hovering a clip from the pool over an existing track previews the fitted
+placement using the same rules as release. In a bounded gap the placement
+can start before the pointer to fit; the preview shows that actual start.
+Invalid drops show a blocked preview and do not change the sequence.
+
+For example, if a group move would extend a 160-frame sequence to 190 frames
+but would also cause a same-track collision, neither the placements nor the
+duration change. Once the collision clears, a valid drop commits the placements
+and any duration increase together. When Undo is added, it treats that as one
+action.
+
+Start with destinations on whole sequence frames. Future optional snap targets
+can include placement edges, the playhead, and the ruler grid. Snapping adjusts
+the group offset, not individual placements.
+
+## Playhead without a media preview
+
+Click the ruler or drag the playhead to seek. Play forward, play in reverse,
+and pause the sequence playhead even while the preview pane is disconnected.
+The playhead position is session state in sequence frames and will provide
+the position for a future split.
 
 ## `CutList` boundary
 
@@ -128,30 +186,30 @@ reveal regions intersect within one placement, or any placement has a fade
 in a multi-track sequence, compilation returns `null` rather than dropping
 either fade. Uncovered gaps and empty sequences also produce no `CutList`.
 
-## Storybook-first sequence
+## Storybook editing setups
 
-1. **Visual shell.** Use the real timeline widget with drag disabled and local
-   fixture data: multiple tracks, two uses of one clip, and a visible
-   transition region. Reuse the clip pool and clip cards. Stub the preview,
-   inspector, and unfinished toolbar actions.
-2. **First edit end to end.** Drag a clip from `ProjectClipPool` and drop it
-   into an existing gap on a single track without changing sequence duration.
-   The story acts as the host: it feeds the updated sequence back into the
-   editor and logs the emitted `CutList` in Storybook’s Actions panel. Assert
-   independently expected source ranges and ordered section references through
-   the top-level callback.
-3. **Ordinary overlap.** Add the straight-cut compiler test above to prove
-   track priority and source alignment when an upper placement ends.
-4. **Transitions.** Wire an inspector control and assert the emitted fade
-   type and duration at the corresponding output section edge before investing
-   in the full set of timeline gestures.
+Use a small number of editable stories set up for workflows, not one story
+per gesture. Both should offer the same interactions wherever they apply,
+including playhead controls.
+
+| Setup | What to explore |
+| --- | --- |
+| **Assemble a rough cut** | Fill an existing gap on a single track, extend the sequence with a drop from the clip pool or a trailing trim, and adjust trims and entry/reveal transitions from both the timeline and the Inspector. |
+| **Rearrange a layered edit** | Use several tracks with room to move and a placement that can block a drop. Select placements across tracks, preserve their spacing, see an invalid drop, then move the group past the sequence endpoint. |
+
+The stories act as the host: they feed accepted sequences back to the editor
+and expose the callbacks in Storybook’s Actions panel. Check that a proposed
+move previews the final destination without emitting edits, a blocked drop
+changes nothing, and a valid extending drop emits one sequence change and one
+`CutList` result. Keep focused compiler tests for source ranges, ordered
+sections, track priority and source alignment, and fade type and duration
+without creating a separate story for each case.
 
 The existing source review and range export workflow stays separate. The
 existing [`VideoPreview`](../VideoPreview.md) plays a host-rendered HLS stream
 and is not part of this tree. A future live preview will render from source HLS
-streams in a different component. The first stories verify authoring and
+streams in a different component. These stories verify authoring and
 callback output, not decoded picture or sound.
 
-Follow-up design can settle mixed-rate cuts, what happens when a trim makes
-the transition regions intersect, and the details of split and undo. None of
-these is required for the visual shell or the first drag-and-drop test.
+Follow-up design can settle mixed-rate cuts and the remaining details of
+split and undo.

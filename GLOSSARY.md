@@ -31,7 +31,8 @@ An edit assembled from clip placements across one or more tracks.
 _Avoid_: “Timeline” for the edit itself.
 
 **Sequence duration**:
-The full length of the edit in sequence frames, including any uncovered frames. It is independent of where the last placement ends.
+The full length of the edit in sequence frames, including any uncovered frames. It can extend beyond the last placement.
+_Avoid_: “Timeline duration” for the length of the edit.
 
 **`CutList`**:
 A render description derived from a sequence. It is distinct from the editable sequence and the rendered media.
@@ -44,12 +45,18 @@ _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 One use of a clip on a specific track at a specific sequence position. Its effective source range can extend beyond the clip’s in or out point, within the same source.
 _Avoid_: Unqualified “clip” when referring to a particular placement rather than the reusable source selection.
 
+**Placement selection**:
+The clip placements currently selected in the editor, which may span tracks. It is not a saved group in the sequence.
+
+**Group move**:
+An edit that moves all placements in a selection together, preserving their relative sequence positions and track spacing. Either every selected placement moves or none does.
+
 **Track overlap**:
 Two or more placements on different tracks cover the same sequence frames. Overlap describes their positions, not whether they are combined in the output.
 _Avoid_: “Playing simultaneously” when only placement positions are known.
 
 **Clip trim** and **placement trim**:
-A clip trim changes the reusable range for new placements without changing what existing placements play. A placement trim changes only the effective source range of that use.
+A clip trim changes the reusable range for new placements without changing what existing placements play. A placement trim changes the effective source range of one placement without changing the reusable clip or other placements.
 
 **Timeline**:
 A time-based view of a source or sequence.
