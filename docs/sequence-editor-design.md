@@ -29,8 +29,9 @@ Use **one widget instance** for the whole sequence, so tracks share a time scale
 scroll position, and playhead. `SequenceTimeline` projects authored tracks
 onto widget rows and placements onto actions, supplying the item visuals
 through `getActionRender`. Like the seam markers in `ProjectClipTimeline`,
-transition indicators are anchored at placement edges. Draw them within the
-placement, spanning their authored duration, without a separate row.
+transition indicators are anchored at placement edges. Draw the existing
+entry and reveal fade indicators within the placement, spanning their
+authored duration, without a separate row.
 Convert sequence frames to widget seconds and convert events such as seeking
 back to frames at this boundary.
 
@@ -52,6 +53,27 @@ and reports interaction input; its rows are not editor state or compiler input.
   the clip's range within the same source. Re-trimming a clip adjusts existing
   placements' offsets to preserve their effective source ranges. New
   placements start at the new clip bounds.
+- **Track management:** Add an empty track at the top. Remove only empty
+  tracks, and do not offer Remove track for the last track. The host may
+  supply a sequence with no tracks; show a track empty state with a prompt
+  to add the first track rather than creating one on load. Undo can
+  restore a zero-track sequence after the first track is added.
+  Drag to reorder tracks, changing priority without moving or trimming
+  placements. Preserve the authored reorder and transitions even if the
+  resulting output cannot be compiled.
+- **Track locks:** Store the lock on the track in the host-owned
+  sequence. Lock and Unlock use the existing sequence edit flow and
+  each take one Undo step when accepted. A lock
+  prevents placement edits, including moves into or out of the track,
+  clip-pool drops, trims, splits, deletes, and transition edits.
+  A blocked explicit group edit makes no changes. Split at the playhead
+  skips locked tracks; Split mode cannot cut a locked placement.
+  Selection, inspection, and playback still work. Renaming, reordering,
+  and removing an empty track still follow the usual rules. Undo and Redo
+  restore accepted states, including their locks, without being blocked
+  by the current locks. If Undo restores a removed locked track, it comes
+  back locked. Another track can still cover a locked placement; toggling
+  a lock does not change the `CutList` result.
 - **Sequence duration:** The sequence has its own duration at the project
   frame rate. A valid move (single or group), trailing placement trim, or
   drop from the clip pool onto a track extends the duration just enough to
@@ -68,15 +90,64 @@ and reports interaction input; its rows are not editor state or compiler input.
   picture or sound from lower to higher tracks. Explicit overlay tracks are
   a possible follow-up, not part of the first pass; more flexible compositing
   would need a future `CutList` format.
-- **Transitions:** Entry and reveal transitions belong to a placement's
-  leading and trailing edges and move with that placement. Both regions fit
-  inside the placement: entry starts at its leading edge and reveal ends at
-  its trailing edge. Neither changes sequence duration or moves a cut. The
-  surrounding sequence determines what the placement transitions from or
-  reveals; neither transition stores the identity of another placement.
-  At matching frame rates, placement trims keep both fade durations fixed
-  and anchored to their respective edges. A trim must leave enough frames
-  for both fades without overlapping; the two fade regions may touch.
+- **Transition objects (design direction):** A transition has its own
+  identity and can be selected separately. It is anchored to one edge of one
+  placement. Start with at most one transition per placement edge. The
+  surrounding visible sequence determines what it transitions from or to;
+  the transition is not pinned to a particular counterpart. Creating or
+  resizing a transition does not change placement positions, placement
+  trims, or sequence duration. Hard cuts stay implicit. First represent
+  existing entry and reveal fades as objects, preserving the way their
+  windows are anchored. A cut-spanning dissolve is a separate feature.
+  Replace the old fade fields directly and update the Storybook stories
+  and test fixtures. There is no legacy sequence load path.
+  Splitting a placement keeps each transition on the split piece that
+  retains its original edge, with the same identity and duration. The new
+  split does not create a transition. Deleting a placement removes its
+  transitions in the same undoable edit. A transition on a surviving
+  placement stays even if its counterpart was deleted.
+- **Covered transitions:** A fully covered transition stays authored
+  and selectable, but does not affect playback or prevent export.
+  This applies to entry fades, reveal fades, and dissolves.
+- **Cut-spanning dissolve:** Center the transition on the cut. It can be
+  attached to either the trailing edge of the outgoing placement or the
+  leading edge of the incoming placement, but not to both. Add it from the
+  edge that should own it, and show the owner when the dissolve is selected.
+  An odd duration puts the extra frame after the cut, regardless of
+  which edge owns it. Use a linear picture blend and linear audio
+  crossfade over the same window, with no curve controls.
+  At the sequence boundary, use only the part of the window inside the
+  sequence without shortening or retiming the authored blend. Dissolve
+  authoring can ship before faithful `CutList` export is available.
+  Separate audio effects, audio controls, and routing are follow-up work.
+- **Transition contributions:** A cut-spanning dissolve can use recorded
+  material beyond either placement trim. Show these transition source
+  extensions in the transition indicator, without changing the trims. The
+  other side can come from a different track if it is visible at the cut.
+  If a higher track hides the cut, the dissolve stays authored and
+  selectable but does not affect output. If a different visible cut
+  interrupts the blend window, the first version preserves the object
+  and reports the arrangement as unsupported. A split that preserves
+  continuous playback of the same source does not interrupt the blend.
+  Where a side has no picture, it contributes black; where an audio
+  transition has no audio on a side, that side contributes silence. A gap
+  behaves the same whether it was already there when the transition was
+  added or was opened by a move or trim. Do not shorten or remove a
+  transition just because one of its contributions is absent.
+- **Transition conflicts:** Explain and reject a new or resized
+  transition that competes with another at the same cut or over the same
+  visible frames. If a placement move or trim causes a conflict, keep both
+  transitions and report the result as unsupported rather than choosing
+  one silently.
+- **Media load failures:** If source media is expected but fails to load,
+  keep the edit intact and display a distinct “No media” placeholder
+  in preview instead of treating the failure as a gap. Final export
+  reports a media error rather than baking in the placeholder.
+- **Entry and reveal fade windows:** Entry starts at the placement's
+  leading edge; reveal ends at its trailing edge. If a trim makes the
+  placement shorter than its fade, keep the anchored duration and use
+  available footage beyond the trim. Report a visible cut that interrupts
+  the window rather than shortening the fade or hiding the cut.
 - **Time:** Source in/out points are zero-based whole frames on the native
   source grid, inclusive in and exclusive out. Sequence positions use the
   project frame rate. Keep both distinct from physical-media timestamps. See
@@ -102,6 +173,12 @@ compiled; emit `null` so the host does not mistake the previous `CutList`
 for the current one. Selection, playhead changes, drag previews, and
 blocked, cancelled, or unchanged drops emit neither callback. Loading or
 replacing the sequence through props does not emit `onCutListChange`.
+
+Toolbar controls, drag gestures, and future keybindings call the same
+editor action for the same operation. Keep validation, availability, and
+undo behavior with that action rather than in each input handler. Start
+with an internal interface; a public command interface and configurable
+keybindings are out of scope.
 
 Undo and Redo step through host-accepted sequences. Feeding back the exact
 proposed sequence object acknowledges the edit. Replacing it with a
@@ -161,8 +238,16 @@ the group offset, not individual placements.
 
 Click the ruler or drag the playhead to seek. Play forward, play in reverse,
 and pause the sequence playhead even while the preview pane is disconnected.
-The playhead position is session state in sequence frames. Split uses the
-current playhead to split eligible selected placements.
+The playhead position is session state in sequence frames. Today Split
+acts on eligible selected placements. The planned default is to split
+all eligible placements at the playhead, regardless of selection.
+Split mode is separate: clicking a placement splits only that placement
+at the pointer's sequence frame, without requiring selection. It does
+not seek or change the placement selection. Split mode stays active
+after a cut until toggled off or dismissed with Escape.
+While active, it takes over placement gestures so they cannot start a
+move or trim. Ruler seeking, playhead dragging, pan, and zoom remain
+available. An empty-track click does nothing.
 
 ## `CutList` boundary
 
@@ -192,6 +277,12 @@ are outside this project's scope.
 The compiler requires matching source and project rates; it does not round
 mixed-rate cuts. Intersecting entry and reveal regions within a placement,
 uncovered gaps, and empty sequences produce no `CutList`.
+The transition model's black fallback is a desired output behavior, not a
+capability of the current compiler. If the format cannot represent an
+active dissolve, keep the authored edit, report export as unavailable,
+and emit `null` instead of approximating. See the
+[CutList change requests](cutlist-change-requests.md) for format needs to
+verify and discuss with downstream maintainers.
 
 Resolve fade neighbors while flattening the authored tracks into the existing
 ordered `outputTrack`; do not copy the authored tracks to the `CutList`.
@@ -200,9 +291,11 @@ then the section from the uppermost placement active at the outgoing
 placement's exclusive end. In the A → B → A example, B's `transitionOut`
 is followed by the resumed section of A, which starts at source frame 160
 at sequence frame 60. Entry fades use the preceding section in flattened
-order. Empty tracks do not affect
-this ordering. The compiler returns `null` if an obscured edge or fade
-window cannot be represented without changing the authored fade.
+order. Empty tracks do not affect this ordering. Today, obscuring a fade
+edge or region can make the compiler return `null`. In the transition
+object model, omit a fully covered fade from the compiled output without
+removing it from the sequence. A visible fade the format cannot represent
+still produces `null`.
 
 ## Storybook editing setups
 

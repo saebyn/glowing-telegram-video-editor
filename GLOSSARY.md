@@ -30,12 +30,15 @@ _Avoid_: “Highlight” as a synonym. A highlight can suggest a clip, but it is
 The collection of clips available to place in a sequence.
 
 **Sequence**:
-An edit assembled from clip placements across one or more tracks.
+An edit that arranges clip placements on ordered tracks. An empty sequence may have no tracks.
 _Avoid_: “Timeline” for the edit itself.
 
 **Sequence duration**:
 The full length of the edit in sequence frames, including any uncovered frames. It can extend beyond the last placement.
 _Avoid_: “Timeline duration” for the length of the edit.
+
+**Sequence gap**:
+A span of sequence frames covered by no clip placement on any track. A sequence can contain gaps.
 
 **`CutList`**:
 A render description derived from a sequence. It is distinct from the editable sequence and the rendered media.
@@ -43,6 +46,9 @@ A render description derived from a sequence. It is distinct from the editable s
 **Track**:
 A layer of a sequence that spans its full duration and may be empty or contain non-overlapping clip placements.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
+
+**Track lock**:
+Protection against editing the placements on a track, not a change to what the track contributes to output.
 
 **Clip placement**:
 One use of a clip on a specific track at a specific sequence position. Its effective source range can extend beyond the clip’s in or out point, within the same source.
@@ -71,7 +77,19 @@ A view of the positions and ranges within one source for review and clip selecti
 A view of a sequence’s tracks showing each clip placement’s position and duration in sequence time.
 
 **Transition**:
-A change from one presentation of picture or sound to another over a span of the sequence. A **transition indicator** marks it in the timeline; it is not the change itself.
+An authored change from one presentation of picture or sound to another over a span of sequence frames, anchored to one edge of a clip placement. A hard cut is not an authored transition.
+
+**Transition indicator**:
+The timeline representation of a transition, not the change in picture or sound itself.
+
+**Transition source extension**:
+Recorded material used by a transition before a placement’s in point or after its out point. It is not part of the placement trim.
+
+**Cut-spanning dissolve**:
+A transition that blends the outgoing and incoming picture and sound over a span centered on a cut. It can belong to either placement at the cut.
+
+**No media placeholder**:
+A visible stand-in for source media that failed to load, distinct from black picture contributed by a sequence gap or absent footage.
 
 **Entry transition**:
 A transition toward a placement’s picture or sound, attached to its leading edge.
@@ -91,6 +109,9 @@ _Avoid_: “Timeline frame”; a timeline can show either a source or a sequence
 
 **Playhead**:
 The current position in a source or sequence. Qualify it as a **source playhead** or **sequence playhead** when both are in use.
+
+**Split mode**:
+A sequence timeline mode that splits only the clicked placement at the sequence frame under the pointer.
 
 **Frame count**:
 A duration in frames at a specified rate. A **frame offset** is a signed displacement, not a position.

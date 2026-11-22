@@ -3,8 +3,22 @@
 Use this page for follow-up scope. The [original PRD](PRD.md) records the
 first batch. Tickets **01–08** shipped in `dc35b6b`; the expanded batch
 shipped in `2077dd8`. A completed `Resolution:` line closes a ticket
-without introducing another triage status. No unresolved tickets are
-currently ready for implementation.
+without introducing another triage status.
+
+## Ready for an agent
+
+Start with the first unblocked ticket in this order:
+
+1. [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md)
+2. [33 — Inspect one placement within a selection](issues/33-inspect-one-placement-without-clearing-the-selection.md)
+3. [35 — Split all placements at the playhead](issues/35-split-all-placements-at-the-playhead.md)
+4. [30 — Author layered fades](issues/30-author-entry-and-reveal-fades-on-layered-edits.md), after 37
+5. [31 — Preserve transitions through placement edits](issues/31-protect-fades-during-moves-and-trims.md), after 37
+6. [32 — Author centered dissolves](issues/32-show-cut-spanning-dissolves-and-source-extensions.md), after 37 and 31; faithful `CutList` support is not a prerequisite
+7. [13 — Add and remove tracks](issues/13-add-and-remove-tracks.md)
+8. [25 — Reorder tracks](issues/25-reorder-tracks.md)
+9. [36 — Click-to-split mode](issues/36-split-a-placement-where-you-click.md), after 35
+10. [38 — Lock tracks](issues/38-lock-tracks.md), after track management, both Split actions, and transition objects
 
 ## Completed follow-up batch
 
@@ -46,10 +60,10 @@ This was the suggested implementation order.
 
 | Ticket | Decision still needed |
 | --- | --- |
-| [13 — Add/remove tracks](issues/13-add-and-remove-tracks.md) | Where to insert a new track and whether the last empty track may be removed. Empty-only removal is settled. |
 | [21 — Snapping](issues/21-snap-placement-moves.md) | Initial snap targets, defaults, and how to choose between equally close targets. |
 | [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and destination track selection. |
-| [25 — Reorder/lock tracks](issues/25-reorder-and-lock-tracks.md) | Which actions locks block and whether locks persist. Reorder can be separated. |
 | [26 — Markers and playback ranges](issues/26-add-sequence-markers-and-playback-ranges.md) | Persistence and behavior when the sequence endpoint changes. |
+| [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md) | Whether to add general diagnostics beyond transition-specific feedback, and where to surface them. Gaps are valid. |
+| [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an accepted edit with a different object. Saved/dirty state and save failures stay with the host. |
 
 Close-gap and ripple-delete behavior are not in scope.

@@ -1,6 +1,6 @@
 # 13 — Add and remove tracks
 
-Status: needs-info
+Status: ready-for-agent
 
 ## Proposal
 
@@ -9,12 +9,14 @@ empty track must not shift any placement in sequence time. Preserve the
 relative order of surviving tracks and keep sequence duration unchanged.
 Track reordering is a separate feature.
 
-Only empty tracks can be removed. Do not offer removal for an occupied track
-or delete or move placements implicitly.
+Add each new track at the top, regardless of selection. Only empty tracks
+can be removed. Do not offer removal for an occupied track or the last
+track, or delete or move placements implicitly.
 
-Still to decide: where new tracks are inserted and whether the last track can
-be removed. Suggested first pass: add new tracks at the top and keep at least
-one track available for dropping clips.
+A host can supply a sequence with zero tracks. Show an empty track view
+with an “Add your first track to begin” prompt and offer Add track when
+editable. Loading that sequence does not create a track or emit an edit.
+Undo of the first track addition restores the zero-track state.
 
 ## Comments
 
@@ -25,4 +27,6 @@ one track available for dropping clips.
   Align on insertion position and whether zero tracks is a valid editor
   state before starting this ticket.
 - Batch check: empty-track neutrality is implemented separately by 28.
-  Track insertion and zero-track policy still need decisions.
+- Design review: keep Remove track and Undo distinct. Remove track
+  cannot remove the last track; Undo can restore a host-supplied
+  zero-track state.
