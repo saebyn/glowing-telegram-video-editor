@@ -49,7 +49,10 @@ export default function SequenceTimeline({
     return () => observer.disconnect();
   }, []);
 
-  const items = new Map<string, { label: string; entryFadePercent: number }>();
+  const items = new Map<
+    string,
+    { label: string; entryFadePercent: number; revealFadePercent: number }
+  >();
   const rows: TimelineEditor["editorData"] = tracks.map((track) => ({
     id: track.id,
     actions: track.placements.flatMap((placement) => {
@@ -60,6 +63,7 @@ export default function SequenceTimeline({
       items.set(placement.id, {
         label: titles[clip.id] ?? `Clip ${clip.id}`,
         entryFadePercent: (100 * (placement.entryTransitionFrames ?? 0)) / duration,
+        revealFadePercent: (100 * (placement.revealTransitionFrames ?? 0)) / duration,
       });
       return {
         id: placement.id,
@@ -156,13 +160,14 @@ export default function SequenceTimeline({
             getActionRender={({ id }) => {
               const item = items.get(id);
               if (!item) return null;
-              const { label, entryFadePercent } = item;
-              const hasEntryFade = entryFadePercent > 0;
-              const classes = `absolute inset-x-px inset-y-1 flex overflow-hidden whitespace-nowrap rounded border border-sky-400 bg-sky-950 px-2 text-xs font-medium text-sky-100 ${
-                hasEntryFade ? "items-end pb-0.5" : "items-center"
+              const { label, entryFadePercent, revealFadePercent } = item;
+              const classes = `absolute inset-0 flex overflow-hidden rounded border border-sky-400 bg-sky-950 px-2 text-xs font-medium whitespace-nowrap text-sky-100 ${
+                entryFadePercent > 0 || revealFadePercent > 0 ? "items-end pb-0.5" : "items-center"
               }`;
+              const fadeClasses =
+                "pointer-events-none absolute top-0 h-3 overflow-hidden bg-amber-300 indent-1 text-[9px]/3 font-semibold whitespace-nowrap text-amber-950";
               return (
-                <>
+                <div className="absolute inset-x-px inset-y-1 overflow-hidden rounded">
                   {onPlacementSelect ? (
                     <button
                       type="button"
@@ -178,15 +183,23 @@ export default function SequenceTimeline({
                       {label}
                     </div>
                   )}
-                  {hasEntryFade && (
+                  {entryFadePercent > 0 && (
                     <span
-                      className="pointer-events-none absolute top-1 left-0 h-3 overflow-hidden rounded rounded-l-none bg-amber-300 indent-1 text-[9px]/3 font-semibold whitespace-nowrap text-amber-950"
+                      className={`${fadeClasses} left-0 rounded-r`}
                       style={{ width: `${Math.min(100, entryFadePercent)}%` }}
                     >
                       Fade in
                     </span>
                   )}
-                </>
+                  {revealFadePercent > 0 && (
+                    <span
+                      className={`${fadeClasses} right-0 rounded-l`}
+                      style={{ width: `${Math.min(100, revealFadePercent)}%` }}
+                    >
+                      Fade out
+                    </span>
+                  )}
+                </div>
               );
             }}
           />

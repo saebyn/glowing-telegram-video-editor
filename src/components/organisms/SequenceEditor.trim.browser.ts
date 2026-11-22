@@ -87,7 +87,7 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
 
 test("a trailing trim cannot overlap the next placement but can leave a gap", async ({ page }) => {
   const { sequences, cutLists } = await recordEdits(page);
-  await page.goto("/iframe.html?id=organisms-sequenceeditor--entry-fade-fixture&viewMode=story");
+  await page.goto("/iframe.html?id=organisms-sequenceeditor--straight-cut-fixture&viewMode=story");
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
   const outFrame = page.getByLabel("Source out (exclusive frame)");

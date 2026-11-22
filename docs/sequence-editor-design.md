@@ -122,10 +122,11 @@ Express authored entry and reveal fades using `transitionIn` and
 when the schema can carry them. Verifying how a downstream renderer
 interprets those fields is out of scope.
 
-The first compiler slice requires matching source and project rates; it does
-not round mixed-rate cuts.
-Do not silently remove uncovered gaps or other edits the compiler cannot
-represent. An empty sequence has no `CutList`.
+The compiler requires matching source and project rates; it does not round
+mixed-rate cuts. Authored fades compile only on a single track. If entry and
+reveal regions intersect within one placement, or any placement has a fade
+in a multi-track sequence, compilation returns `null` rather than dropping
+either fade. Uncovered gaps and empty sequences also produce no `CutList`.
 
 ## Storybook-first sequence
 

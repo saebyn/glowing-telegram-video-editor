@@ -131,7 +131,7 @@ export const GapFixture: Story = {
   render: renderEditingHost,
 };
 
-export const EntryFadeFixture: Story = {
+export const StraightCutFixture: Story = {
   args: {
     sequence: {
       durationFrames: 240,

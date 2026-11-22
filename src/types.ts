@@ -141,6 +141,8 @@ export interface ClipPlacement {
   sourceOutOffsetFrames?: number;
   /** Entry fade duration in whole sequence frames inside the placement, when present. */
   entryTransitionFrames?: number;
+  /** Reveal fade duration in whole sequence frames inside the placement, when present. */
+  revealTransitionFrames?: number;
 }
 
 export interface SequenceTrack {

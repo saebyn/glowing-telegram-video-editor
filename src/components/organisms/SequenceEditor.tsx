@@ -21,6 +21,11 @@ export interface SequenceEditorProps {
   onCutListChange?: (cutList: CutList | null) => void;
 }
 
+const fadeFields = [
+  { field: "entryTransitionFrames", label: "Entry fade", button: "Apply entry fade" },
+  { field: "revealTransitionFrames", label: "Reveal fade", button: "Apply reveal fade" },
+] as const;
+
 export default function SequenceEditor({
   sequence,
   clips,
@@ -40,7 +45,7 @@ export default function SequenceEditor({
   );
   const selectedPlacement = selectedTrack?.placements.find(({ id }) => id === selectedPlacementId);
   const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
-  const maxEntryFrames =
+  const maxFadeFrames =
     selectedPlacement && selectedClip
       ? getProjectFrameCount(getPlacementSourceRange(selectedClip, selectedPlacement), frameRate)
       : 0;
@@ -65,14 +70,14 @@ export default function SequenceEditor({
     if (next) commitEdit(next);
   }
 
-  function applyEntryFade(duration: number) {
+  function applyFade(field: (typeof fadeFields)[number]["field"], duration: number) {
     if (
       !editableTrack ||
       !selectedPlacement ||
       !Number.isSafeInteger(duration) ||
       duration < 1 ||
-      duration > maxEntryFrames ||
-      duration === selectedPlacement.entryTransitionFrames
+      duration > maxFadeFrames ||
+      duration === selectedPlacement[field]
     ) {
       return;
     }
@@ -82,9 +87,7 @@ export default function SequenceEditor({
         {
           ...editableTrack,
           placements: editableTrack.placements.map((placement) =>
-            placement.id === selectedPlacement.id
-              ? { ...placement, entryTransitionFrames: duration }
-              : placement,
+            placement.id === selectedPlacement.id ? { ...placement, [field]: duration } : placement,
           ),
         },
       ],
@@ -192,35 +195,39 @@ export default function SequenceEditor({
               </button>
             </form>
           )}
-          {editableTrack && selectedPlacement && selectedClip && maxEntryFrames > 0 ? (
-            <form
-              key={`${selectedPlacement.id}:${selectedPlacement.entryTransitionFrames}`}
-              className="space-y-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                applyEntryFade(Number(new FormData(event.currentTarget).get("duration")));
-              }}
-            >
-              <label className="block space-y-1 text-sm">
-                <span>Entry fade duration (sequence frames)</span>
-                <input
-                  name="duration"
-                  type="number"
-                  required
-                  min={1}
-                  max={maxEntryFrames}
-                  step={1}
-                  defaultValue={selectedPlacement.entryTransitionFrames}
-                  className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
-                />
-              </label>
-              <button
-                type="submit"
-                className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
-              >
-                Apply
-              </button>
-            </form>
+          {editableTrack && selectedPlacement && selectedClip && maxFadeFrames > 0 ? (
+            <div className="space-y-3">
+              {fadeFields.map(({ field, label, button }) => (
+                <form
+                  key={`${selectedPlacement.id}:${field}:${selectedPlacement[field]}`}
+                  className="space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    applyFade(field, Number(new FormData(event.currentTarget).get("duration")));
+                  }}
+                >
+                  <label className="block space-y-1 text-sm">
+                    <span>{label} duration (sequence frames)</span>
+                    <input
+                      name="duration"
+                      type="number"
+                      required
+                      min={1}
+                      max={maxFadeFrames}
+                      step={1}
+                      defaultValue={selectedPlacement[field]}
+                      className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
+                  >
+                    {button}
+                  </button>
+                </form>
+              ))}
+            </div>
           ) : !selectedPlacement ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {onSequenceChange

@@ -12,6 +12,7 @@ export function getTrailingTrimBounds(
   const range = getPlacementSourceRange(clip, placement);
   if (
     placement.entryTransitionFrames !== undefined ||
+    placement.revealTransitionFrames !== undefined ||
     BigInt(range.sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
       BigInt(frameRate.numerator) * BigInt(range.sourceFrameRate.denominator)
   ) {
