@@ -22,7 +22,7 @@ type SequenceTimelineProps = {
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   onClipDrop?: (clipId: string, sequenceFrame: number) => void;
-  onPlacementMove?: (placementId: string, sequenceFrame: number) => void;
+  onPlacementMove?: (placementId: string, trackId: string, sequenceFrame: number) => void;
   selectedPlacementId?: string;
   onPlacementSelect?: (id: string) => void;
 };
@@ -38,6 +38,7 @@ export default function SequenceTimeline({
 }: SequenceTimelineProps) {
   const frameRate = useProjectFrameRate();
   const surface = useRef<HTMLDivElement>(null);
+  const releasedOverTrack = useRef(false);
   const [width, setWidth] = useState(0);
   const scale = framesToSeconds(Math.max(1, durationFrames), frameRate) / TICK_COUNT;
   const scaleWidth = Math.max(1, width / TICK_COUNT);
@@ -53,7 +54,13 @@ export default function SequenceTimeline({
 
   const items = new Map<
     string,
-    { label: string; entryFadePercent: number; revealFadePercent: number }
+    {
+      label: string;
+      entryFadePercent: number;
+      revealFadePercent: number;
+      trackId: string;
+      sequenceFrame: number;
+    }
   >();
   const rows: TimelineEditor["editorData"] = tracks.map((track) => ({
     id: track.id,
@@ -66,6 +73,8 @@ export default function SequenceTimeline({
         label: titles[clip.id] ?? `Clip ${clip.id}`,
         entryFadePercent: (100 * (placement.entryTransitionFrames ?? 0)) / duration,
         revealFadePercent: (100 * (placement.revealTransitionFrames ?? 0)) / duration,
+        trackId: track.id,
+        sequenceFrame: placement.sequenceStartFrame,
       });
       return {
         id: placement.id,
@@ -127,6 +136,19 @@ export default function SequenceTimeline({
           ref={surface}
           className="gtve-sequence-timeline"
           style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
+          onMouseDownCapture={() => {
+            releasedOverTrack.current = false;
+          }}
+          onMouseUpCapture={(event) => {
+            // The widget falls back to its last row when released outside the rows.
+            const { top, left, right } = event.currentTarget.getBoundingClientRect();
+            const y = event.clientY - top;
+            releasedOverTrack.current =
+              event.clientX >= left &&
+              event.clientX < right &&
+              y >= RULER_HEIGHT &&
+              y < RULER_HEIGHT + tracks.length * ROW_HEIGHT;
+          }}
           onDragOver={(event) => {
             if (isOverTrack(event) && event.dataTransfer.types.includes("application/json")) {
               event.preventDefault();
@@ -160,17 +182,23 @@ export default function SequenceTimeline({
             // Unlike the widget's horizontal-only drag, this mode proposes changes without
             // mutating the displayed rows, so rejected moves leave them where they started.
             enableCrossRowDrag={!!onPlacementMove}
-            onChange={([draft]) => {
-              if (onPlacementMove && draft) {
-                for (const { id, start } of draft.actions) {
+            onChange={(draft) => {
+              if (!onPlacementMove || !releasedOverTrack.current) return false;
+              let move: [placementId: string, trackId: string, sequenceFrame: number] | undefined;
+              for (const row of draft) {
+                for (const { id, start } of row.actions) {
+                  const placement = items.get(id);
                   const frame = secondsToFrame(start, frameRate);
-                  const placement = tracks[0].placements.find((item) => item.id === id);
-                  if (placement && placement.sequenceStartFrame !== frame) {
-                    onPlacementMove(id, frame);
-                    break;
+                  if (
+                    placement &&
+                    (placement.trackId !== row.id || placement.sequenceFrame !== frame)
+                  ) {
+                    if (move) return false;
+                    move = [id, row.id, frame];
                   }
                 }
               }
+              if (move) onPlacementMove(...move);
               return false;
             }}
             onClickActionOnly={(_, { action }) => onPlacementSelect?.(action.id)}

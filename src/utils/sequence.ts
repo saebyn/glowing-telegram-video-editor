@@ -59,15 +59,21 @@ export function movePlacement(
   clips: readonly VideoClip[],
   frameRate: FrameRate,
   placementId: string,
+  destinationTrackId: string,
   sequenceStartFrame: number,
 ): Sequence | null {
-  const [track] = sequence.tracks;
-  const placement = track?.placements.find(({ id }) => id === placementId);
+  const origin = sequence.tracks.find((track) =>
+    track.placements.some(({ id }) => id === placementId),
+  );
+  const destination = sequence.tracks.find(({ id }) => id === destinationTrackId);
+  const placement = origin?.placements.find(({ id }) => id === placementId);
   if (
+    !origin ||
+    !destination ||
     !placement ||
     !Number.isSafeInteger(sequenceStartFrame) ||
     sequenceStartFrame < 0 ||
-    sequenceStartFrame === placement.sequenceStartFrame
+    (origin === destination && sequenceStartFrame === placement.sequenceStartFrame)
   ) {
     return null;
   }
@@ -77,7 +83,7 @@ export function movePlacement(
   const endFrame = sequenceStartFrame + duration;
   if (duration <= 0 || endFrame > sequence.durationFrames) return null;
 
-  for (const other of track.placements) {
+  for (const other of destination.placements) {
     if (other === placement || other.sequenceStartFrame >= endFrame) continue;
     const otherClip = clips.find(({ id }) => id === other.clipId);
     if (!otherClip) return null;
@@ -87,16 +93,24 @@ export function movePlacement(
     );
     if (other.sequenceStartFrame + otherDuration > sequenceStartFrame) return null;
   }
+  const moved = { ...placement, sequenceStartFrame };
   return {
     ...sequence,
-    tracks: [
-      {
-        ...track,
-        placements: track.placements.map((item) =>
-          item === placement ? { ...placement, sequenceStartFrame } : item,
-        ),
-      },
-    ],
+    tracks: sequence.tracks.map((track) => {
+      if (track === origin && track === destination) {
+        return {
+          ...track,
+          placements: track.placements.map((item) => (item === placement ? moved : item)),
+        };
+      }
+      if (track === origin) {
+        return { ...track, placements: track.placements.filter((item) => item !== placement) };
+      }
+      if (track === destination) {
+        return { ...track, placements: [...track.placements, moved] };
+      }
+      return track;
+    }),
   };
 }
 

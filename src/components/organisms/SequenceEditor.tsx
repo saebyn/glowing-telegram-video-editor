@@ -75,8 +75,8 @@ export default function SequenceEditor({
     if (next) commitEdit(next);
   }
 
-  function commitPlacementMove(placementId: string, sequenceFrame: number) {
-    const next = movePlacement(sequence, clips, frameRate, placementId, sequenceFrame);
+  function commitPlacementMove(placementId: string, trackId: string, sequenceFrame: number) {
+    const next = movePlacement(sequence, clips, frameRate, placementId, trackId, sequenceFrame);
     if (next) commitEdit(next);
   }
 
@@ -252,7 +252,7 @@ export default function SequenceEditor({
         clips={clips}
         titles={titles}
         onClipDrop={editableTrack ? dropClip : undefined}
-        onPlacementMove={editableTrack ? commitPlacementMove : undefined}
+        onPlacementMove={onSequenceChange ? commitPlacementMove : undefined}
         selectedPlacementId={selectedPlacement?.id}
         onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
       />

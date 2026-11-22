@@ -180,6 +180,45 @@ export const PlacementMove: Story = {
   render: renderEditingHost,
 };
 
+export const CrossTrackMove: Story = {
+  args: {
+    sequence: {
+      durationFrames: 240,
+      tracks: [
+        { id: "cutaways", label: "Cutaways", placements: [] },
+        {
+          id: "main",
+          label: "Main",
+          placements: [
+            {
+              id: "harbor-bed",
+              clipId: "harbor",
+              sequenceStartFrame: 0,
+              sourceOutOffsetFrames: 120,
+            },
+          ],
+        },
+        {
+          id: "alternate",
+          label: "Alternate",
+          placements: [
+            {
+              id: "lighthouse-cutaway",
+              clipId: "lighthouse",
+              sequenceStartFrame: 120,
+              sourceInOffsetFrames: 6,
+              sourceOutOffsetFrames: 6,
+            },
+          ],
+        },
+      ],
+    },
+    onSequenceChange: fn(),
+    onCutListChange: fn(),
+  },
+  render: renderEditingHost,
+};
+
 function renderEditingHost(args: SequenceEditorProps) {
   const [, updateArgs] = useArgs<SequenceEditorProps>();
 

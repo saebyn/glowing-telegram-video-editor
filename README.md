@@ -96,11 +96,13 @@ sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence
 directly.
 
 On a single track, drop a clip into an existing gap or apply an entry or reveal fade in the
-inspector. For straight cuts at matching frame rates, edit **Source out** in the
-inspector to trim a placement’s trailing edge independently of other placements of the same
-clip. These edits preserve sequence duration. The compiler flattens fully covered straight
-cuts across tracks, giving the upper active placement precedence. It compiles fades only on
-single-track sequences, and only when the fades don't intersect. The preview is a placeholder.
+inspector. Drag a placement to move it on its track or to another track. A move cannot
+overlap another placement on the destination track or extend the sequence. For straight cuts
+at matching frame rates, edit **Source out** in the inspector to trim a placement’s trailing
+edge independently of other placements of the same clip. These edits preserve sequence
+duration. The compiler flattens fully covered straight cuts across tracks, giving the upper
+active placement precedence. It compiles fades only on single-track sequences, and only when
+the fades don't intersect. The preview is a placeholder.
 
 ### VideoSelectionPage
 
