@@ -96,10 +96,11 @@ sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence
 directly.
 
 On a single track, drop a clip into an existing gap or select a placement and apply an entry
-fade in the inspector. Neither edit changes the sequence duration. At matching source and
-project rates, the compiler flattens fully covered straight cuts across tracks, giving the
-upper active placement precedence. It compiles entry fades only on single-track sequences.
-The preview is a placeholder.
+fade in the inspector. For straight cuts at matching frame rates, edit **Source out** in the
+inspector to trim a placement’s trailing edge independently of other placements of the same
+clip. These edits preserve sequence duration. The compiler flattens fully covered straight
+cuts across tracks, giving the upper active placement precedence. It compiles entry fades only
+on single-track sequences. The preview is a placeholder.
 
 ### VideoSelectionPage
 
