@@ -152,6 +152,34 @@ export const StraightCutFixture: Story = {
   render: renderEditingHost,
 };
 
+export const PlacementMove: Story = {
+  args: {
+    sequence: {
+      durationFrames: 372,
+      tracks: [
+        {
+          id: "main",
+          label: "Main",
+          placements: [
+            { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+            {
+              id: "lighthouse-close",
+              clipId: "lighthouse",
+              sequenceStartFrame: 240,
+              sourceInOffsetFrames: -6,
+              sourceOutOffsetFrames: 6,
+              entryTransitionFrames: 30,
+            },
+          ],
+        },
+      ],
+    },
+    onSequenceChange: fn(),
+    onCutListChange: fn(),
+  },
+  render: renderEditingHost,
+};
+
 function renderEditingHost(args: SequenceEditorProps) {
   const [, updateArgs] = useArgs<SequenceEditorProps>();
 

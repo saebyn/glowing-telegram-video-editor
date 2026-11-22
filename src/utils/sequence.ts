@@ -53,6 +53,53 @@ export function placeClipInGap(
   return { ...sequence, tracks: [{ ...track, placements: [...track.placements, placement] }] };
 }
 
+/** Move one placement without changing its source range or extending the sequence. */
+export function movePlacement(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  frameRate: FrameRate,
+  placementId: string,
+  sequenceStartFrame: number,
+): Sequence | null {
+  const [track] = sequence.tracks;
+  const placement = track?.placements.find(({ id }) => id === placementId);
+  if (
+    !placement ||
+    !Number.isSafeInteger(sequenceStartFrame) ||
+    sequenceStartFrame < 0 ||
+    sequenceStartFrame === placement.sequenceStartFrame
+  ) {
+    return null;
+  }
+  const clip = clips.find(({ id }) => id === placement.clipId);
+  if (!clip) return null;
+  const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
+  const endFrame = sequenceStartFrame + duration;
+  if (duration <= 0 || endFrame > sequence.durationFrames) return null;
+
+  for (const other of track.placements) {
+    if (other === placement || other.sequenceStartFrame >= endFrame) continue;
+    const otherClip = clips.find(({ id }) => id === other.clipId);
+    if (!otherClip) return null;
+    const otherDuration = getProjectFrameCount(
+      getPlacementSourceRange(otherClip, other),
+      frameRate,
+    );
+    if (other.sequenceStartFrame + otherDuration > sequenceStartFrame) return null;
+  }
+  return {
+    ...sequence,
+    tracks: [
+      {
+        ...track,
+        placements: track.placements.map((item) =>
+          item === placement ? { ...placement, sequenceStartFrame } : item,
+        ),
+      },
+    ],
+  };
+}
+
 type ResolvedPlacement = {
   sequenceStartFrame: number;
   sourceInFrame: number;

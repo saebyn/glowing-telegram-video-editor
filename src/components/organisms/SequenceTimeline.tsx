@@ -22,6 +22,7 @@ type SequenceTimelineProps = {
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   onClipDrop?: (clipId: string, sequenceFrame: number) => void;
+  onPlacementMove?: (placementId: string, sequenceFrame: number) => void;
   selectedPlacementId?: string;
   onPlacementSelect?: (id: string) => void;
 };
@@ -31,6 +32,7 @@ export default function SequenceTimeline({
   clips,
   titles,
   onClipDrop,
+  onPlacementMove,
   selectedPlacementId,
   onPlacementSelect,
 }: SequenceTimelineProps) {
@@ -70,7 +72,7 @@ export default function SequenceTimeline({
         effectId: "placement",
         start: framesToSeconds(placement.sequenceStartFrame, frameRate),
         end: framesToSeconds(placement.sequenceStartFrame + duration, frameRate),
-        movable: false,
+        movable: !!onPlacementMove,
         flexible: false,
       };
     }),
@@ -154,7 +156,24 @@ export default function SequenceTimeline({
                 label
               );
             }}
-            disableDrag
+            disableDrag={!onPlacementMove}
+            // Unlike the widget's horizontal-only drag, this mode proposes changes without
+            // mutating the displayed rows, so rejected moves leave them where they started.
+            enableCrossRowDrag={!!onPlacementMove}
+            onChange={([draft]) => {
+              if (onPlacementMove && draft) {
+                for (const { id, start } of draft.actions) {
+                  const frame = secondsToFrame(start, frameRate);
+                  const placement = tracks[0].placements.find((item) => item.id === id);
+                  if (placement && placement.sequenceStartFrame !== frame) {
+                    onPlacementMove(id, frame);
+                    break;
+                  }
+                }
+              }
+              return false;
+            }}
+            onClickActionOnly={(_, { action }) => onPlacementSelect?.(action.id)}
             autoReRender={false}
             onClickTimeArea={() => false}
             getActionRender={({ id }) => {
@@ -173,8 +192,11 @@ export default function SequenceTimeline({
                       type="button"
                       title={label}
                       aria-pressed={selectedPlacementId === id}
-                      onClick={() => onPlacementSelect(id)}
-                      className={`${classes} cursor-pointer aria-pressed:bg-sky-800`}
+                      onClick={(event) => {
+                        // Pointer clicks go through the widget so drag releases do not select.
+                        if (event.detail === 0) onPlacementSelect(id);
+                      }}
+                      className={`${classes} ${onPlacementMove ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} aria-pressed:bg-sky-800`}
                     >
                       {label}
                     </button>

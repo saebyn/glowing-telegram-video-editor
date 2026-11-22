@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
 import { getProjectFrameCount } from "@/utils/frames";
-import { compileCutList, getPlacementSourceRange, placeClipInGap } from "@/utils/sequence";
+import {
+  compileCutList,
+  getPlacementSourceRange,
+  movePlacement,
+  placeClipInGap,
+} from "@/utils/sequence";
 import { getTrailingTrimBounds } from "@/utils/trimPlacement";
 import ProjectClipPool from "./ProjectClipPool";
 import SequenceTimeline from "./SequenceTimeline";
@@ -67,6 +72,11 @@ export default function SequenceEditor({
 
   function dropClip(clipId: string, sequenceFrame: number) {
     const next = placeClipInGap(sequence, clips, frameRate, clipId, sequenceFrame);
+    if (next) commitEdit(next);
+  }
+
+  function commitPlacementMove(placementId: string, sequenceFrame: number) {
+    const next = movePlacement(sequence, clips, frameRate, placementId, sequenceFrame);
     if (next) commitEdit(next);
   }
 
@@ -242,6 +252,7 @@ export default function SequenceEditor({
         clips={clips}
         titles={titles}
         onClipDrop={editableTrack ? dropClip : undefined}
+        onPlacementMove={editableTrack ? commitPlacementMove : undefined}
         selectedPlacementId={selectedPlacement?.id}
         onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
       />
