@@ -1,25 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
-
-const straightCutStory =
-  "/iframe.html?id=organisms-sequenceeditor--straight-cut-fixture&viewMode=story";
-
-async function recordEditorEmissions(page: Page) {
-  type Emissions = { sequences: Sequence[]; cutLists: (CutList | null)[] };
-  type RecordingWindow = Window & { sequenceEditorEmissions?: Emissions };
-  await page.addInitScript(() => {
-    const emissions: Emissions = { sequences: [], cutLists: [] };
-    (window as RecordingWindow).sequenceEditorEmissions = emissions;
-    window.addEventListener("sequence-editor:sequence-change", (event) => {
-      emissions.sequences.push((event as CustomEvent<Sequence>).detail);
-    });
-    window.addEventListener("sequence-editor:cut-list-change", (event) => {
-      emissions.cutLists.push((event as CustomEvent<CutList | null>).detail);
-    });
-  });
-  return () => page.evaluate(() => (window as RecordingWindow).sequenceEditorEmissions);
-}
+import {
+  noEdits,
+  openWorkflow,
+  recordEditorEmissions,
+  roughCutStoryId,
+  straightCutArgs,
+} from "./SequenceEditor.browserHarness";
 
 test("dropping a pool clip in the existing gap emits the exact CutList", async ({ page }) => {
   const expected: CutList = {
@@ -44,17 +32,8 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
     ],
   };
 
-  const emissions: (CutList | null)[] = [];
-  await page.exposeFunction("recordCutList", (cutList: CutList | null) => emissions.push(cutList));
-  await page.addInitScript(() => {
-    window.addEventListener("sequence-editor:cut-list-change", (event) => {
-      const hostWindow = window as Window & {
-        recordCutList?: (cutList: CutList | null) => Promise<void>;
-      };
-      void hostWindow.recordCutList?.((event as CustomEvent<CutList | null>).detail);
-    });
-  });
-  await page.goto("/iframe.html?id=organisms-sequenceeditor--gap-fixture&viewMode=story");
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId);
 
   const pool = page.getByRole("heading", { name: "Clip Pool" }).locator("..");
   const lighthouse = pool.locator('[draggable="true"]').filter({ hasText: "Lighthouse" });
@@ -89,7 +68,7 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
   await expect(timeline).not.toContainText("Lighthouse");
   await drag((left.x + left.width + right.x) / 2, rowY);
 
-  await expect.poll(() => emissions).toStrictEqual([expected]);
+  await expect.poll(async () => (await emissions()).cutLists).toStrictEqual([expected]);
   await expect(timeline.getByText("Lighthouse", { exact: true })).toBeVisible();
   await expect(timeline).toContainText("Duration: 00:06");
 });
@@ -134,9 +113,7 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
   };
 
   const emissions = await recordEditorEmissions(page);
-  const noEdits = { sequences: [], cutLists: [] };
-
-  await page.goto(straightCutStory);
+  await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   await expect(timeline).toBeVisible();
@@ -211,7 +188,7 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
   };
 
   const emissions = await recordEditorEmissions(page);
-  await page.goto(straightCutStory);
+  await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   await harbor.click();

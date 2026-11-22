@@ -1,17 +1,29 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
+import {
+  evaluatePlacementFade,
+  getFadeBounds,
+  type PlacementFadeField,
+} from "@/utils/fadePlacement";
 import { getProjectFrameCount } from "@/utils/frames";
 import {
   compileCutList,
+  evaluatePlacementMove,
   getPlacementSourceRange,
-  movePlacement,
   placeClipInGap,
 } from "@/utils/sequence";
-import { getTrailingTrimBounds } from "@/utils/trimPlacement";
+import {
+  applyLeadingTrim,
+  applyTrailingTrim,
+  getMinimumTrimLength,
+  getTrailingTrimBounds,
+  type PlacementTrimEdge,
+} from "@/utils/trimPlacement";
 import ProjectClipPool from "./ProjectClipPool";
 import SequenceTimeline from "./SequenceTimeline";
+import { useSequenceTransport } from "./useSequenceTransport";
 
 export interface SequenceEditorProps {
   sequence: Sequence;
@@ -42,99 +54,83 @@ export default function SequenceEditor({
   onCutListChange,
 }: SequenceEditorProps) {
   const frameRate = useProjectFrameRate();
-  const [selectedPlacementId, selectPlacement] = useState<string>();
-  const editableTrack =
-    onSequenceChange && sequence.tracks.length === 1 ? sequence.tracks[0] : null;
-  const selectedTrack = sequence.tracks.find(({ placements }) =>
-    placements.some(({ id }) => id === selectedPlacementId),
-  );
-  const selectedPlacement = selectedTrack?.placements.find(({ id }) => id === selectedPlacementId);
+  const transport = useSequenceTransport(sequence.durationFrames, frameRate);
+  const [selection, setSelection] = useState<readonly string[]>([]);
+  const [poolClipId, setPoolClipId] = useState<string>();
+  useEffect(() => {
+    const endPoolDrag = () => setPoolClipId(undefined);
+    window.addEventListener("dragend", endPoolDrag, true);
+    return () => window.removeEventListener("dragend", endPoolDrag, true);
+  }, []);
+  const selectedTracks = sequence.tracks.flatMap((track) => {
+    const placements = track.placements.filter(({ id }) => selection.includes(id));
+    return placements.length > 0 ? [{ track, placements }] : [];
+  });
+  const selectedIds = selectedTracks.flatMap(({ placements }) => placements.map(({ id }) => id));
+  const selectedTrack = selectedIds.length === 1 ? selectedTracks[0].track : undefined;
+  const selectedPlacement = selectedIds.length === 1 ? selectedTracks[0].placements[0] : undefined;
   const selectedClip = clips.find(({ id }) => id === selectedPlacement?.clipId);
-  const maxFadeFrames =
-    selectedPlacement && selectedClip
-      ? getProjectFrameCount(getPlacementSourceRange(selectedClip, selectedPlacement), frameRate)
-      : 0;
-  const trimBounds =
-    onSequenceChange && selectedTrack && selectedPlacement && selectedClip
-      ? getTrailingTrimBounds(
-          selectedPlacement,
-          selectedTrack,
-          selectedClip,
-          sequence.durationFrames,
-          frameRate,
+  const fadeBounds =
+    onSequenceChange && selectedPlacement && selectedClip
+      ? getFadeBounds(
+          sequence,
+          getProjectFrameCount(getPlacementSourceRange(selectedClip, selectedPlacement), frameRate),
         )
       : null;
+  const trimBounds =
+    onSequenceChange && selectedTrack && selectedPlacement && selectedClip
+      ? getTrailingTrimBounds(selectedPlacement, selectedTrack, selectedClip, frameRate)
+      : null;
+  const minimumTrimLength = selectedPlacement ? getMinimumTrimLength(selectedPlacement) : 1;
+  const trimHintId = useId();
+
+  function selectPlacement(id: string | null, toggle: boolean) {
+    if (id === null) setSelection([]);
+    else if (!toggle) setSelection([id]);
+    else if (selectedIds.includes(id)) setSelection(selectedIds.filter((other) => other !== id));
+    else setSelection([...selectedIds, id]);
+  }
 
   function commitEdit(next: Sequence) {
     onSequenceChange?.(next);
     onCutListChange?.(compileCutList(next, clips, sources, frameRate));
   }
 
-  function dropClip(clipId: string, sequenceFrame: number) {
-    const next = placeClipInGap(sequence, clips, frameRate, clipId, sequenceFrame);
+  function dropClip(clipId: string, trackId: string, sequenceFrame: number) {
+    const next = placeClipInGap(sequence, clips, frameRate, clipId, trackId, sequenceFrame);
     if (next) commitEdit(next);
   }
 
-  function commitPlacementMove(placementId: string, trackId: string, sequenceFrame: number) {
-    const next = movePlacement(sequence, clips, frameRate, placementId, trackId, sequenceFrame);
-    if (next) commitEdit(next);
+  function proposePlacementMove(
+    placementId: string,
+    trackIndex: number | null,
+    sequenceFrame: number,
+    placementIds: readonly string[],
+  ) {
+    return evaluatePlacementMove(
+      sequence,
+      clips,
+      frameRate,
+      placementId,
+      trackIndex,
+      sequenceFrame,
+      placementIds,
+    );
   }
 
-  function applyFade(field: (typeof fadeFields)[number]["field"], duration: number) {
-    if (
-      !editableTrack ||
-      !selectedPlacement ||
-      !Number.isSafeInteger(duration) ||
-      duration < 1 ||
-      duration > maxFadeFrames ||
-      duration === selectedPlacement[field]
-    ) {
-      return;
-    }
-    commitEdit({
-      ...sequence,
-      tracks: [
-        {
-          ...editableTrack,
-          placements: editableTrack.placements.map((placement) =>
-            placement.id === selectedPlacement.id ? { ...placement, [field]: duration } : placement,
-          ),
-        },
-      ],
-    });
+  function proposePlacementFade(placementId: string, field: PlacementFadeField, duration: number) {
+    return evaluatePlacementFade(sequence, clips, frameRate, placementId, field, duration);
+  }
+
+  function proposeTrim(placementId: string, edge: PlacementTrimEdge, sourceFrame: number) {
+    const applyTrim = edge === "leading" ? applyLeadingTrim : applyTrailingTrim;
+    return applyTrim(sequence, clips, frameRate, placementId, sourceFrame);
   }
 
   function trimPlacement(sourceOutFrame: number) {
-    if (
-      !trimBounds ||
-      !selectedTrack ||
-      !selectedPlacement ||
-      !selectedClip ||
-      !Number.isSafeInteger(sourceOutFrame) ||
-      sourceOutFrame < trimBounds.min ||
-      sourceOutFrame > trimBounds.max ||
-      sourceOutFrame === trimBounds.sourceOutFrame
-    ) {
-      return;
-    }
-    commitEdit({
-      ...sequence,
-      tracks: sequence.tracks.map((track) =>
-        track === selectedTrack
-          ? {
-              ...track,
-              placements: track.placements.map((placement) =>
-                placement === selectedPlacement
-                  ? {
-                      ...placement,
-                      sourceOutOffsetFrames: sourceOutFrame - selectedClip.sourceOutFrame,
-                    }
-                  : placement,
-              ),
-            }
-          : track,
-      ),
-    });
+    if (!onSequenceChange || !selectedPlacement) return;
+    const next = proposeTrim(selectedPlacement.id, "trailing", sourceOutFrame);
+    if (next) commitEdit(next);
   }
 
   return (
@@ -144,6 +140,37 @@ export default function SequenceEditor({
     >
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-3 text-xl font-semibold">Sequence editor</h1>
+        <button
+          type="button"
+          disabled={transport.playheadFrame === 0}
+          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
+          onClick={() => transport.play(-1)}
+        >
+          Play reverse
+        </button>
+        <button
+          type="button"
+          disabled={transport.playheadFrame === sequence.durationFrames}
+          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
+          onClick={() => transport.play(1)}
+        >
+          Play forward
+        </button>
+        <button
+          type="button"
+          disabled={!transport.isPlaying}
+          className="rounded border px-3 py-1 text-sm disabled:opacity-60"
+          onClick={transport.pause}
+        >
+          Pause
+        </button>
+        <output
+          aria-label="Sequence playhead position"
+          aria-live="off"
+          className="text-sm tabular-nums"
+        >
+          Sequence frame {transport.playheadFrame}
+        </output>
         {["Split", "Undo"].map((label) => (
           <button
             type="button"
@@ -163,13 +190,28 @@ export default function SequenceEditor({
           titles={titles}
           clipWidth="136px"
           clipHeight="76px"
+          onDragStart={
+            onSequenceChange
+              ? (ids) => setPoolClipId(ids.length === 1 ? ids[0] : undefined)
+              : undefined
+          }
         />
         <section className="flex min-h-40 flex-col items-center justify-center rounded-lg bg-slate-900 p-4 text-center text-slate-100">
           <h2 className="text-lg font-semibold">Preview</h2>
           <p className="text-sm text-slate-300">Preview is not connected.</p>
         </section>
-        <section className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+        <section
+          aria-label="Selection inspector"
+          className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800"
+        >
           <h2 className="mb-2 text-lg font-semibold">Selection inspector</h2>
+          {selectedIds.length > 1 && (
+            <p className="text-sm">
+              {selectedIds.length} placements selected
+              <br />
+              {selectedTracks.map(({ track }) => track.label).join(", ")}
+            </p>
+          )}
           {selectedClip && (
             <p className="mb-2 text-sm font-medium">
               {titles[selectedClip.id] ?? `Clip ${selectedClip.id}`}
@@ -194,9 +236,15 @@ export default function SequenceEditor({
                   max={trimBounds.max}
                   step={1}
                   defaultValue={trimBounds.sourceOutFrame}
+                  aria-describedby={minimumTrimLength > 1 ? trimHintId : undefined}
                   className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
                 />
               </label>
+              {minimumTrimLength > 1 && (
+                <p id={trimHintId} className="text-sm">
+                  Keep at least {minimumTrimLength} sequence frames for the fades.
+                </p>
+              )}
               <button
                 type="submit"
                 className="rounded bg-slate-800 px-3 py-1 text-sm text-white dark:bg-slate-600"
@@ -205,7 +253,7 @@ export default function SequenceEditor({
               </button>
             </form>
           )}
-          {editableTrack && selectedPlacement && selectedClip && maxFadeFrames > 0 ? (
+          {fadeBounds && selectedPlacement ? (
             <div className="space-y-3">
               {fadeFields.map(({ field, label, button }) => (
                 <form
@@ -213,7 +261,9 @@ export default function SequenceEditor({
                   className="space-y-2"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    applyFade(field, Number(new FormData(event.currentTarget).get("duration")));
+                    const duration = Number(new FormData(event.currentTarget).get("duration"));
+                    const next = proposePlacementFade(selectedPlacement.id, field, duration);
+                    if (next) commitEdit(next);
                   }}
                 >
                   <label className="block space-y-1 text-sm">
@@ -222,8 +272,8 @@ export default function SequenceEditor({
                       name="duration"
                       type="number"
                       required
-                      min={1}
-                      max={maxFadeFrames}
+                      min={fadeBounds.min}
+                      max={fadeBounds.max}
                       step={1}
                       defaultValue={selectedPlacement[field]}
                       className="block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900"
@@ -238,7 +288,7 @@ export default function SequenceEditor({
                 </form>
               ))}
             </div>
-          ) : !selectedPlacement ? (
+          ) : selectedIds.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {onSequenceChange
                 ? "Select a placement to edit it."
@@ -248,12 +298,20 @@ export default function SequenceEditor({
         </section>
       </div>
       <SequenceTimeline
+        playheadFrame={transport.playheadFrame}
+        onSeek={transport.seek}
         sequence={sequence}
         clips={clips}
         titles={titles}
-        onClipDrop={editableTrack ? dropClip : undefined}
-        onPlacementMove={onSequenceChange ? commitPlacementMove : undefined}
-        selectedPlacementId={selectedPlacement?.id}
+        poolClipId={poolClipId}
+        onClipDrop={onSequenceChange ? dropClip : undefined}
+        evaluateMove={onSequenceChange ? proposePlacementMove : undefined}
+        onPlacementMove={onSequenceChange ? commitEdit : undefined}
+        evaluateFade={onSequenceChange ? proposePlacementFade : undefined}
+        onPlacementFade={onSequenceChange ? commitEdit : undefined}
+        evaluateTrim={onSequenceChange ? proposeTrim : undefined}
+        onPlacementTrim={onSequenceChange ? commitEdit : undefined}
+        selectedPlacementIds={selectedIds}
         onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
       />
     </section>

@@ -12,6 +12,10 @@ const meta = {
   component: SequenceEditor,
   decorators: [withSampleProject],
   parameters: { layout: "fullscreen" },
+  argTypes: {
+    // Accept nested `sequence` URL args as well as edits in the Controls panel.
+    sequence: { control: "object", type: { name: "object", value: {} } },
+  },
   args: {
     clips: [
       {
@@ -60,68 +64,16 @@ const mainTrack: SequenceTrack = {
   ],
 };
 
-export const VisualShell: Story = {
-  args: {
-    sequence: {
-      durationFrames: 480,
-      tracks: [
-        {
-          id: "cutaways",
-          label: "Cutaways",
-          placements: [
-            {
-              id: "lighthouse-cutaway",
-              clipId: "lighthouse",
-              sequenceStartFrame: 90,
-              entryTransitionFrames: 30,
-            },
-          ],
-        },
-        mainTrack,
-      ],
+export const AssembleARoughCut: Story = {
+  name: "Assemble a rough cut",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Try trimming a placement after adding an entry or reveal fade; the fade keeps its duration. Use the Inspector for exact source out and fade values, or the ruler and transport to navigate without media.",
+      },
     },
   },
-};
-
-export const TrailingTrimFixture: Story = {
-  args: {
-    sequence: {
-      durationFrames: 360,
-      tracks: [
-        {
-          id: "cutaways",
-          label: "Cutaways",
-          placements: [
-            {
-              id: "harbor-cutaway",
-              clipId: "harbor",
-              sequenceStartFrame: 120,
-              sourceInOffsetFrames: 6,
-              sourceOutOffsetFrames: 6,
-            },
-          ],
-        },
-        {
-          id: "main",
-          label: "Main",
-          placements: [
-            {
-              id: "harbor-main",
-              clipId: "harbor",
-              sequenceStartFrame: 0,
-              sourceOutOffsetFrames: 240,
-            },
-          ],
-        },
-      ],
-    },
-    onSequenceChange: fn(),
-    onCutListChange: fn(),
-  },
-  render: renderEditingHost,
-};
-
-export const GapFixture: Story = {
   args: {
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },
@@ -131,61 +83,32 @@ export const GapFixture: Story = {
   render: renderEditingHost,
 };
 
-export const StraightCutFixture: Story = {
+export const RearrangeALayeredEdit: Story = {
+  name: "Rearrange a layered edit",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Select Harbor on Main and Shift-click Lighthouse on Alternate. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Escape cancels a move.",
+      },
+    },
+  },
   args: {
     sequence: {
       durationFrames: 240,
       tracks: [
         {
-          id: "main",
-          label: "Main",
+          id: "cutaways",
+          label: "Cutaways",
           placements: [
-            { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
-            { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
-          ],
-        },
-      ],
-    },
-    onSequenceChange: fn(),
-    onCutListChange: fn(),
-  },
-  render: renderEditingHost,
-};
-
-export const PlacementMove: Story = {
-  args: {
-    sequence: {
-      durationFrames: 372,
-      tracks: [
-        {
-          id: "main",
-          label: "Main",
-          placements: [
-            { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
             {
-              id: "lighthouse-close",
+              id: "lighthouse-open",
               clipId: "lighthouse",
-              sequenceStartFrame: 240,
-              sourceInOffsetFrames: -6,
-              sourceOutOffsetFrames: 6,
-              entryTransitionFrames: 30,
+              sequenceStartFrame: 0,
+              sourceOutOffsetFrames: -60,
             },
           ],
         },
-      ],
-    },
-    onSequenceChange: fn(),
-    onCutListChange: fn(),
-  },
-  render: renderEditingHost,
-};
-
-export const CrossTrackMove: Story = {
-  args: {
-    sequence: {
-      durationFrames: 240,
-      tracks: [
-        { id: "cutaways", label: "Cutaways", placements: [] },
         {
           id: "main",
           label: "Main",
@@ -203,11 +126,11 @@ export const CrossTrackMove: Story = {
           label: "Alternate",
           placements: [
             {
-              id: "lighthouse-cutaway",
+              id: "lighthouse-alternate",
               clipId: "lighthouse",
               sequenceStartFrame: 120,
               sourceInOffsetFrames: 6,
-              sourceOutOffsetFrames: 6,
+              sourceOutOffsetFrames: -6,
             },
           ],
         },

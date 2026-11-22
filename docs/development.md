@@ -29,7 +29,7 @@ npm ci
 The browser test starts its own Storybook on port 6007. Install Chromium with
 `npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`
 to a compatible local Chromium executable (for example on NixOS). The
-`SequenceEditor` gap story uses local fixtures and makes no media service requests.
+`SequenceEditor` workflow stories use local fixtures and make no media service requests.
 
 Prefer Storybook args and Controls for fixture state and Actions for callback payloads.
 Use story `play` functions for interactions they can exercise faithfully; keep real

@@ -95,14 +95,27 @@ compiled result of the same edit, or `null` if the edit cannot be represented. L
 sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence, clips, sources, frameRate)`
 directly.
 
-On a single track, drop a clip into an existing gap or apply an entry or reveal fade in the
-inspector. Drag a placement to move it on its track or to another track. A move cannot
-overlap another placement on the destination track or extend the sequence. For straight cuts
-at matching frame rates, edit **Source out** in the inspector to trim a placement’s trailing
-edge independently of other placements of the same clip. These edits preserve sequence
-duration. The compiler flattens fully covered straight cuts across tracks, giving the upper
-active placement precedence. It compiles fades only on single-track sequences, and only when
-the fades don't intersect. The preview is a placeholder.
+Click a placement to select it, Shift-click to toggle it in the selection, or click empty
+track space to clear the selection. Drag a placement to preview its exact destination.
+Dragging a selected placement moves the selection together, or none of it if any
+destination is blocked. A valid move can grow the sequence but never shortens it.
+Drag a clip from the pool to preview where it would land. Drop it onto an existing track
+to fill a gap or extend the sequence.
+
+At matching frame rates, drag either placement edge to trim it in place, or enter a precise
+trailing trim in the inspector’s **Source out** field. Trim handles remain available after
+adding fades: fades stay attached to their edges at the same duration, and a trim that
+would make them overlap is blocked. A valid trailing trim can grow the sequence but never
+shortens it. On a single track, adjust entry and reveal fades using their separate timeline
+handles or the inspector. The compiler flattens
+fully covered straight cuts across tracks, giving the upper active placement precedence.
+It compiles fades only on single-track sequences, and only when the fades don't intersect.
+
+Click the ruler or drag the playhead to seek. Forward, reverse, and pause work even while
+the media preview is disconnected. Transport and selection do not emit edits.
+
+In Storybook, try **Assemble a rough cut** for single-track edits and **Rearrange a layered edit**
+for cross-track moves.
 
 ### VideoSelectionPage
 
