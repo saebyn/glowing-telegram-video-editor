@@ -5,3 +5,5 @@
 - Read tickets from their file paths.
 - Record triage on a `Status:` line near the top; see [triage labels](triage-labels.md).
 - Append discussion under `## Comments`.
+
+For an implementation batch, use the [TDD issue burndown prompt](tdd-issue-burndown.md).

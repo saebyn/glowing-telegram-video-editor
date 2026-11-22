@@ -3,8 +3,8 @@
 Build a React editor for describing a multi-track edit and compiling it to
 `CutList` from `@saebyn/glowing-telegram-types`. Start with the component tree in
 Storybook, then wire and test one editing action at a time. The host application
-owns persistent state. The library provides the model, editing UI, and compiler;
-it does not save projects or render video in this first phase.
+owns persistent state. The library provides the model, editing UI, and `CutList`
+compiler. Saving projects and rendering the authored sequence are outside its scope.
 
 This document describes the intended behavior, not a checklist of what the
 current Storybook stories already support.
@@ -13,7 +13,7 @@ current Storybook stories already support.
 
 ```text
 SequenceEditor                         controlled by the host
-├─ EditToolbar                         playhead transport; split and undo later
+├─ EditToolbar                         playhead transport and edit actions
 ├─ Workspace
 │  ├─ ProjectClipPool                  reuse the existing clip browser
 │  ├─ PreviewPane                      placeholder, no player
@@ -103,6 +103,11 @@ for the current one. Selection, playhead changes, drag previews, and
 blocked, cancelled, or unchanged drops emit neither callback. Loading or
 replacing the sequence through props does not emit `onCutListChange`.
 
+Undo and Redo step through host-accepted sequences. Feeding back the exact
+proposed sequence object acknowledges the edit. Replacing it with a
+different sequence object clears local history; no history entry is added
+for a rejected proposal or a session-only action.
+
 Expose the compiler as a utility, but do not require hosts to call it as part
 of normal editor integration. The editor handles compilation for its edits.
 
@@ -113,6 +118,9 @@ of normal editor integration. The editor handles compilation for its edits.
   selection; click the ruler to seek instead. Drag a selected placement to
   move the selection, or drag an unselected placement to move only that
   placement. Marquee selection is a follow-up.
+- Delete removes the selected placements together in one edit. It does not
+  close gaps, shorten the sequence, remove tracks, or remove reusable clips
+  from the clip pool. Delete is unavailable without a placement selection.
 - The Inspector shows editable trim and transition properties for one
   placement. For multiple placements, it shows the selection count and tracks,
   not bulk editing fields. Use placement edges for direct timeline trimming
@@ -143,8 +151,7 @@ Invalid drops show a blocked preview and do not change the sequence.
 For example, if a group move would extend a 160-frame sequence to 190 frames
 but would also cause a same-track collision, neither the placements nor the
 duration change. Once the collision clears, a valid drop commits the placements
-and any duration increase together. When Undo is added, it treats that as one
-action.
+and any duration increase together. Undo restores both in one action.
 
 Start with destinations on whole sequence frames. Future optional snap targets
 can include placement edges, the playhead, and the ruler grid. Snapping adjusts
@@ -154,8 +161,8 @@ the group offset, not individual placements.
 
 Click the ruler or drag the playhead to seek. Play forward, play in reverse,
 and pause the sequence playhead even while the preview pane is disconnected.
-The playhead position is session state in sequence frames and will provide
-the position for a future split.
+The playhead position is session state in sequence frames. Split uses the
+current playhead to split eligible selected placements.
 
 ## `CutList` boundary
 
@@ -177,14 +184,25 @@ frame rates, if lower placement A covers sequence `[0, 100)` using source
 `[500, 520)`, emit A `[100, 140)`, B `[500, 520)`, then A `[160, 200)`.
 Express authored entry and reveal fades using `transitionIn` and
 `transitionOut`, respectively, on the corresponding output section edges
-when the schema can carry them. Verifying how a downstream renderer
-interprets those fields is out of scope.
+when the schema can carry them. The library contract ends at the emitted
+`CutList`: verify section order, source-frame ranges, and transition fields
+and durations. Downstream renderer behavior and rendered-media verification
+are outside this project's scope.
 
 The compiler requires matching source and project rates; it does not round
-mixed-rate cuts. Authored fades compile only on a single track. If entry and
-reveal regions intersect within one placement, or any placement has a fade
-in a multi-track sequence, compilation returns `null` rather than dropping
-either fade. Uncovered gaps and empty sequences also produce no `CutList`.
+mixed-rate cuts. Intersecting entry and reveal regions within a placement,
+uncovered gaps, and empty sequences produce no `CutList`.
+
+Resolve fade neighbors while flattening the authored tracks into the existing
+ordered `outputTrack`; do not copy the authored tracks to the `CutList`.
+For a reveal fade, emit the outgoing section with `transitionOut`,
+then the section from the uppermost placement active at the outgoing
+placement's exclusive end. In the A → B → A example, B's `transitionOut`
+is followed by the resumed section of A, which starts at source frame 160
+at sequence frame 60. Entry fades use the preceding section in flattened
+order. Empty tracks do not affect
+this ordering. The compiler returns `null` if an obscured edge or fade
+window cannot be represented without changing the authored fade.
 
 ## Storybook editing setups
 
