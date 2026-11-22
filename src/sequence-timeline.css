@@ -21,10 +21,45 @@
   pointer-events: auto;
 }
 
-/* The playhead is controlled by the host and must not intercept editing gestures. */
-.gtve-sequence-timeline .timeline-editor-cursor,
-.gtve-sequence-timeline .timeline-editor-cursor-area {
+/* Only the native grip in the ruler receives pointer events, not the playhead line. */
+.gtve-sequence-timeline .timeline-editor-cursor {
   pointer-events: none;
+  z-index: 1;
+  width: 0;
+  border: 0;
+  transform: none;
+}
+
+/* The cursor must have zero layout width to reach both drag bounds. */
+.gtve-sequence-timeline .timeline-editor-cursor::after {
+  content: "";
+  position: absolute;
+  height: 100%;
+  border-left: 1px solid #5297ff;
+  pointer-events: none;
+}
+
+.gtve-sequence-timeline .timeline-editor-cursor-top,
+.gtve-sequence-timeline .timeline-editor-cursor-area {
+  display: none;
+}
+
+.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-top,
+.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-area {
+  display: block;
+  top: calc(-1 * var(--gtve-ruler-height));
+  left: var(--gtve-cursor-grip-offset);
+  height: 16px;
+}
+
+.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-top {
+  width: 12px;
+  transform: translateX(-50%);
+}
+
+.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-area {
+  touch-action: none;
+  pointer-events: auto;
 }
 
 .gtve-sequence-empty {

@@ -46,6 +46,7 @@ import {
 const RULER_HEIGHT = 32;
 const RULER = ".timeline-editor-time-area-interact";
 const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
+const CURSOR_GRIP = ".timeline-editor-cursor-area";
 const ROW_HEIGHT = 72;
 const DRAG_THRESHOLD = 4;
 const SCROLL_EDGE = 32;
@@ -148,6 +149,7 @@ export default function SequenceTimeline({
   const frameRate = useProjectFrameRate();
   const surface = useRef<HTMLDivElement>(null);
   const timeline = useRef<TimelineState>(null);
+  const keyboardPlayhead = useRef<HTMLDivElement>(null);
   const drag = useRef<PlacementDrag | null>(null);
   const moved = useRef(false);
   const splitPointerOrigin = useRef<PointerPosition | null>(null);
@@ -178,6 +180,15 @@ export default function SequenceTimeline({
   const headroomTicks = hasDragHeadroom ? SEQUENCE_VIEWPORT_TICKS + (isDragging ? 1 : 0) : 0;
   const scaleCount = tickCount + headroomTicks;
   const maxDragScrollLeft = maxScrollLeft + headroomTicks * scaleWidth;
+  const playheadX = playheadFrame * pixelsPerFrame - visibleScrollLeft;
+  const playheadVisible = playheadX >= 0 && playheadX <= width;
+  const playheadGripOffset = Math.max(8, Math.min(width - 8, playheadX)) - playheadX;
+
+  function seekFromCursor(seconds: number) {
+    const frame = snapFrame(secondsToFrame(seconds, frameRate), durationFrames);
+    onSeek(frame);
+    return frame;
+  }
 
   function changeZoom(nextZoom: number, fit = false) {
     const next = getSequenceTimelineViewport(width, durationFrames, nextZoom);
@@ -639,9 +650,22 @@ export default function SequenceTimeline({
           // CutOverlay finds the widget's horizontal scroll through `.timeline-wrapper`.
           className="gtve-sequence-timeline timeline-wrapper relative overflow-hidden"
           data-pool-dragging={isPoolDragging || undefined}
-          style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
+          data-seekable-playhead={
+            (!hasDragHeadroom && width > 0 && durationFrames > 0 && playheadVisible) || undefined
+          }
+          style={
+            {
+              "--gtve-ruler-height": `${RULER_HEIGHT}px`,
+              "--gtve-cursor-grip-offset": `${playheadGripOffset}px`,
+            } as CSSProperties
+          }
           onPointerDown={(event) => {
-            if (event.isPrimary && event.button === 0) moved.current = false;
+            if (!event.isPrimary || event.button !== 0) return;
+            moved.current = false;
+            if ((event.target as Element).closest(CURSOR_GRIP)) {
+              keyboardPlayhead.current?.focus({ preventScroll: true });
+              onSeek(playheadFrame);
+            }
           }}
           onPointerMove={handlePointerMove}
           onPointerUp={finishPlacementDrag}
@@ -682,9 +706,10 @@ export default function SequenceTimeline({
           }}
           onDrop={handleDrop}
         >
-          {/* The widget scrolls its cursor during drag headroom; the ruler grip stays hidden. */}
+          {/* Keep the keyboard target hidden while placement gestures extend the ruler. */}
           {!hasDragHeadroom && width > 0 && durationFrames > 0 && (
             <SequencePlayheadGrip
+              ref={keyboardPlayhead}
               frame={playheadFrame}
               durationFrames={durationFrames}
               pixelsPerFrame={pixelsPerFrame}
@@ -716,6 +741,12 @@ export default function SequenceTimeline({
                 setPoolDraft(poolDestination(poolPointer.current));
             }}
             rowHeight={ROW_HEIGHT}
+            onCursorDrag={seekFromCursor}
+            onCursorDragEnd={(seconds) => {
+              const frame = seekFromCursor(seconds);
+              // The widget ends the gesture in seconds, even when the rounded frame didn't change.
+              timeline.current?.setTime(framesToSeconds(frame, frameRate));
+            }}
             onClickRow={(event) => {
               if (
                 !onPlacementSplit &&

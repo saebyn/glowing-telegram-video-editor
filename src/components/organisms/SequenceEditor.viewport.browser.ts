@@ -221,3 +221,22 @@ test("zooming at the sequence endpoint keeps the whole playhead grip reachable",
   await expect(frameReadout).toHaveText("Sequence frame 480");
   expect(await emissions()).toStrictEqual(noEdits);
 });
+
+test("scrubbing past the zoomed ruler stops at the last visible sequence frame", async ({
+  page,
+}) => {
+  const { emissions, ruler, playhead, frameReadout, zoomIn } = await openViewport(page);
+  await zoomIn.click();
+  const rail = await visibleBox(ruler);
+  await ruler.click({ position: { x: rail.width / 2, y: rail.height * 0.75 } });
+  await expect(frameReadout).toHaveText("Sequence frame 120");
+
+  const grip = await visibleBox(playhead);
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rail.x + rail.width + 10, grip.y + grip.height / 2, { steps: 6 });
+  await expect(frameReadout).toHaveText("Sequence frame 240");
+  await page.mouse.up();
+  await expect(frameReadout).toHaveText("Sequence frame 240");
+  expect(await emissions()).toStrictEqual(noEdits);
+});
