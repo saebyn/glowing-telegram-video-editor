@@ -20,3 +20,12 @@ implementation.
 
 - Not started: initial snap targets, defaults, and tie-breaking still need
   decisions. Existing whole-sequence-frame positioning remains in place.
+- Evaluate Keplar's `gridSnap`, `dragLine`, and
+  `getAssistDragLineActionIds` in the installed
+  [`@keplar-404/react-timeline-editor` version](../../../package.json).
+  `gridSnap` uses ruler subdivisions, not the sequence frame grid.
+  Compare how the native guides and snapping behave for same-row and
+  cross-row moves. These options do not affect our custom placement drag
+  by themselves. Keep the group's shared frame offset, identical preview
+  and drop positions, and collision and track-lock rules even if only
+  the guides can be reused.

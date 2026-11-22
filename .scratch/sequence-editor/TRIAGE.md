@@ -67,8 +67,9 @@ This was the suggested implementation order.
 | --- | --- |
 | [21 — Snapping](issues/21-snap-placement-moves.md) | Initial snap targets, defaults, and how to choose between equally close targets. |
 | [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and destination track selection. |
-| [26 — Markers and playback ranges](issues/26-add-sequence-markers-and-playback-ranges.md) | Persistence and behavior when the sequence endpoint changes. |
+| [26 — Sequence markers](issues/26-add-sequence-markers-and-playback-ranges.md) | Marker persistence and behavior when the sequence endpoint changes. |
 | [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md) | Whether to add general diagnostics beyond transition-specific feedback, and where to surface them. Gaps are valid. |
 | [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an accepted edit with a different object. Saved/dirty state and save failures stay with the host. |
+| [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, and how the range interacts with seeking and reverse playback. |
 
 Close-gap and ripple-delete behavior are not in scope.
