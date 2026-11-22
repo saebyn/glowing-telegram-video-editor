@@ -181,3 +181,53 @@ it("rejects a placement whose source rate differs from the project rate", () => 
 
   expect(compileCutList(sequence, clips, sources, { numerator: 30, denominator: 2 })).toBeNull();
 });
+
+it("does not silently discard a reveal fade on a covered track", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      {
+        id: "upper",
+        label: "Upper",
+        placements: [{ id: "placement-a", clipId: "a", sequenceStartFrame: 0 }],
+      },
+      {
+        id: "lower",
+        label: "Lower",
+        placements: [
+          {
+            id: "placement-b",
+            clipId: "b",
+            sequenceStartFrame: 40,
+            revealTransitionFrames: 10,
+          },
+        ],
+      },
+    ],
+  };
+
+  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+});
+
+it("does not compile entry and reveal fades whose regions intersect", () => {
+  const sequence: Sequence = {
+    durationFrames: 100,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "placement-a",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            entryTransitionFrames: 60,
+            revealTransitionFrames: 50,
+          },
+        ],
+      },
+    ],
+  };
+
+  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+});
