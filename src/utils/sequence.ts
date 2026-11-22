@@ -53,49 +53,91 @@ export function placeClipInGap(
   return { ...sequence, tracks: [{ ...track, placements: [...track.placements, placement] }] };
 }
 
-/** Compile contiguous, straight cuts on one track at matching source and project rates. */
+type ResolvedPlacement = {
+  sequenceStartFrame: number;
+  sourceInFrame: number;
+  s3Location: string;
+};
+
+/** Compile fully covered, straight cuts at matching source and project rates. */
 export function compileCutList(
   sequence: Sequence,
   clips: readonly VideoClip[],
   sources: readonly SequenceSource[],
   frameRate: FrameRate,
 ): CutList | null {
-  if (sequence.tracks.length !== 1) return null;
+  const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
+  for (const [trackIndex, track] of sequence.tracks.entries()) {
+    let trackEndFrame = 0;
+    for (const placement of inSequenceOrder(track.placements)) {
+      const { sequenceStartFrame } = placement;
+      if (sequenceStartFrame < trackEndFrame || placement.entryTransitionFrames) return null;
+      const clip = clips.find(({ id }) => id === placement.clipId);
+      if (!clip) return null;
+      const source = sources.find(({ id }) => id === clip.sourceId);
+      const { sourceInFrame, sourceOutFrame, sourceFrameRate } = getPlacementSourceRange(
+        clip,
+        placement,
+      );
+      const sequenceEndFrame = sequenceStartFrame + (sourceOutFrame - sourceInFrame);
+      if (
+        !source ||
+        BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
+          BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator) ||
+        sourceInFrame < 0 ||
+        sourceOutFrame <= sourceInFrame ||
+        (clip.sourceDurationFrames !== undefined && sourceOutFrame > clip.sourceDurationFrames) ||
+        !(sequenceEndFrame <= sequence.durationFrames)
+      ) {
+        return null;
+      }
 
+      boundaries.push(
+        {
+          frame: sequenceStartFrame,
+          trackIndex,
+          placement: { sequenceStartFrame, sourceInFrame, s3Location: source.s3Location },
+        },
+        { frame: sequenceEndFrame, trackIndex },
+      );
+      trackEndFrame = sequenceEndFrame;
+    }
+  }
+
+  // Stable sorting preserves end-before-start order for adjacent placements on a track.
+  boundaries.sort((a, b) => a.frame - b.frame);
+  const active: (ResolvedPlacement | undefined)[] = sequence.tracks.map(() => undefined);
+  let visible: ResolvedPlacement | undefined;
+  let cutStartFrame = 0;
   const inputMedia: CutList["inputMedia"] = [];
   const output: CutList["outputTrack"][number][] = [];
-  let nextFrame = 0;
-  for (const placement of inSequenceOrder(sequence.tracks[0].placements)) {
-    if (placement.sequenceStartFrame !== nextFrame || placement.entryTransitionFrames) return null;
-    const clip = clips.find(({ id }) => id === placement.clipId);
-    if (!clip) return null;
-    const source = sources.find(({ id }) => id === clip.sourceId);
-    const { sourceInFrame, sourceOutFrame, sourceFrameRate } = getPlacementSourceRange(
-      clip,
-      placement,
-    );
-    if (
-      !source ||
-      BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
-        BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator) ||
-      sourceInFrame < 0 ||
-      sourceOutFrame <= sourceInFrame ||
-      (clip.sourceDurationFrames !== undefined && sourceOutFrame > clip.sourceDurationFrames)
-    ) {
+  for (const [index, { frame, trackIndex, placement }] of boundaries.entries()) {
+    active[trackIndex] = placement;
+    // Resolve priority after applying every change at this exclusive boundary.
+    if (boundaries[index + 1]?.frame === frame) continue;
+    const nextVisible = active.find((candidate) => candidate !== undefined);
+    if (nextVisible === visible) continue;
+
+    if (visible) {
+      const { s3Location, sourceInFrame, sequenceStartFrame } = visible;
+      let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
+      if (mediaIndex === -1) {
+        mediaIndex = inputMedia.length;
+        inputMedia.push({ s3Location, sections: [] });
+      }
+      const { sections } = inputMedia[mediaIndex];
+      output.push({ mediaIndex, sectionIndex: sections.length });
+      sections.push({
+        startFrame: sourceInFrame + (cutStartFrame - sequenceStartFrame),
+        endFrame: sourceInFrame + (frame - sequenceStartFrame),
+      });
+    } else if (frame > cutStartFrame) {
       return null;
     }
-
-    let mediaIndex = inputMedia.findIndex(({ s3Location }) => s3Location === source.s3Location);
-    if (mediaIndex === -1) {
-      mediaIndex = inputMedia.length;
-      inputMedia.push({ s3Location: source.s3Location, sections: [] });
-    }
-    const { sections } = inputMedia[mediaIndex];
-    output.push({ mediaIndex, sectionIndex: sections.length });
-    sections.push({ startFrame: sourceInFrame, endFrame: sourceOutFrame });
-    nextFrame += sourceOutFrame - sourceInFrame;
+    visible = nextVisible;
+    cutStartFrame = frame;
   }
   const [first, ...rest] = output;
-  if (!first || nextFrame !== sequence.durationFrames) return null;
+  if (!first || cutStartFrame !== sequence.durationFrames) return null;
   return { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] };
 }

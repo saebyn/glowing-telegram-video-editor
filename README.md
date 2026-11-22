@@ -96,8 +96,9 @@ sequence does not emit a `CutList`. Hosts can also call `compileCutList(sequence
 directly.
 
 The first editing action drops a single clip into an existing gap on one track without
-changing the sequence duration. The compiler currently handles fully covered, straight cuts on
-one track with matching source and project rates. The preview and inspector are placeholders.
+changing the sequence duration. The compiler flattens fully covered straight cuts across tracks
+at matching source and project rates. The upper active placement takes precedence. The preview
+and inspector are placeholders.
 
 ### VideoSelectionPage
 
