@@ -1,6 +1,6 @@
 ---
 name: tdd-issue-burndown
-description: Implement ready local Markdown tickets using TDD. Pick the first unblocked, unresolved ticket automatically, coordinate work by ticket, and record verification and blockers.
+description: Implement ready local Markdown tickets using TDD. Pick the first unblocked, unresolved ticket automatically, coordinate work by ticket, and verify and commit each completed ticket.
 ---
 
 # TDD issue burndown
@@ -36,4 +36,12 @@ description: Implement ready local Markdown tickets using TDD. Pick the first un
 6. Run relevant repo checks and mutation tests for changed code. Record
    verification and in-scope blockers under each ticket's `## Comments`.
    Mark completed tickets with a `Resolution:` line following tracker
-   conventions. Report what passed, what's blocked, and what's ready next.
+   conventions.
+7. Commit each completed ticket on the working branch as soon as it is
+   verified and resolved, before starting the next dependent ticket. Include
+   its implementation, tests, and tracker updates in one ticket-scoped commit.
+   Keep unrelated working-tree changes and other tickets out of it. When
+   subagents work in parallel, integrate and commit their tickets separately.
+   If you can't safely isolate a ticket's changes, report the blocker rather
+   than bundling unrelated work.
+8. Report the commits, what passed, what's blocked, and what's ready next.

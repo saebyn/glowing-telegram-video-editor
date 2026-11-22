@@ -33,8 +33,13 @@ tickets that need the same files and use a spare agent for review.
 
 Run relevant repo checks and mutation tests for changed code. Record
 verification and in-scope blockers in each ticket's Comments. Mark completed
-tickets with a Resolution line. Report what passed, what's blocked, and
-which tickets are ready next.
+tickets with a Resolution line. As each ticket is verified and resolved,
+commit its implementation, tests, and tracker updates together on the
+working branch, before starting the next dependent ticket. Keep unrelated
+changes and other tickets out of the commit. Integrate parallel subagent
+work one ticket at a time. If the changes can't be safely isolated, report
+that blocker instead of bundling them. Report the commits, what passed,
+what's blocked, and which tickets are ready next.
 ```
 
 For the sequence editor, verification ends at observable editing behavior,
