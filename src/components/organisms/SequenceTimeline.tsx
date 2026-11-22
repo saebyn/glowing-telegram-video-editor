@@ -1,4 +1,5 @@
 import {
+  CutOverlay,
   Timeline,
   type TimelineEditor,
   type TimelineState,
@@ -150,6 +151,7 @@ export default function SequenceTimeline({
   const drag = useRef<PlacementDrag | null>(null);
   const moved = useRef(false);
   const splitPointerOrigin = useRef<PointerPosition | null>(null);
+  const [splitOverlayRevision, setSplitOverlayRevision] = useState(0);
   const pointer = useRef<PointerPosition | null>(null);
   const scrollLeft = useRef(0);
   const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
@@ -342,6 +344,32 @@ export default function SequenceTimeline({
     }));
     return { items, rows };
   }, [tracks, clips, sources, titles, frameRate]);
+
+  const splitEnabled = onPlacementSplit !== undefined;
+  const secondsPerFrame = framesToSeconds(1, frameRate);
+  const splitRows = useMemo(
+    () =>
+      splitEnabled
+        ? rows.map((row, index) => ({
+            ...row,
+            // Splitting, like trimming, requires matching source and project rates.
+            actions: tracks[index].locked
+              ? []
+              : row.actions.flatMap((action) => {
+                  const item = items.get(action.id);
+                  if (!item?.trimRange) return [];
+                  return [
+                    {
+                      ...action,
+                      start: item.sequenceFrame * secondsPerFrame,
+                      end: (item.sequenceFrame + item.duration) * secondsPerFrame,
+                    },
+                  ];
+                }),
+          }))
+        : [],
+    [splitEnabled, items, rows, tracks, secondsPerFrame],
+  );
 
   function poolDestination(event: PointerPosition) {
     const { left, right, top } = surface.current!.getBoundingClientRect();
@@ -608,7 +636,8 @@ export default function SequenceTimeline({
         />
         <div
           ref={surface}
-          className="gtve-sequence-timeline relative overflow-hidden"
+          // CutOverlay finds the widget's horizontal scroll through `.timeline-wrapper`.
+          className="gtve-sequence-timeline timeline-wrapper relative overflow-hidden"
           data-pool-dragging={isPoolDragging || undefined}
           style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
           onPointerDown={(event) => {
@@ -819,15 +848,13 @@ export default function SequenceTimeline({
                         title={title}
                         aria-pressed={selectedPlacementIds.includes(id)}
                         onPointerDown={(event) => {
-                          if (!event.isPrimary || event.button !== 0) return;
-                          if (onPlacementSplit) {
-                            splitPointerOrigin.current = {
-                              clientX: event.clientX,
-                              clientY: event.clientY,
-                            };
+                          if (
+                            onPlacementSplit ||
+                            !onPlacementMove ||
+                            !event.isPrimary ||
+                            event.button !== 0
+                          )
                             return;
-                          }
-                          if (!onPlacementMove) return;
                           const { left, width } = surface.current!.getBoundingClientRect();
                           event.currentTarget.setPointerCapture(event.pointerId);
                           drag.current = {
@@ -843,16 +870,7 @@ export default function SequenceTimeline({
                           };
                         }}
                         onClick={(event) => {
-                          if (onPlacementSplit) {
-                            if (event.detail === 0 || moved.current || !surface.current) return;
-                            const node = surface.current;
-                            const left =
-                              node.querySelector(EDIT_GRID)?.scrollLeft ?? scrollLeft.current;
-                            const x = event.clientX - node.getBoundingClientRect().left + left;
-                            onPlacementSplit(id, snapFrame(x / pixelsPerFrame, durationFrames));
-                            return;
-                          }
-                          if (event.detail === 0 || !moved.current)
+                          if (!onPlacementSplit && (event.detail === 0 || !moved.current))
                             onPlacementSelect(id, event.shiftKey);
                         }}
                         className={`${classes} ${onPlacementSplit ? "cursor-crosshair select-none" : onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
@@ -905,6 +923,54 @@ export default function SequenceTimeline({
               );
             }}
           />
+          {onPlacementSplit && width > 0 && tracks.length > 0 && (
+            // Leave the ruler and playhead reachable above the overlay.
+            <div
+              className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height)"
+              onPointerDown={(event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+                splitPointerOrigin.current = { clientX: event.clientX, clientY: event.clientY };
+              }}
+              onClickCapture={(event) => {
+                if (moved.current || event.detail === 0) {
+                  event.stopPropagation();
+                  return;
+                }
+                // Locked placements are absent from the blade's hit targets. Keep the
+                // editor's blocked-edit feedback when someone clicks one anyway.
+                const destination = poolDestination(event);
+                if (!destination || !tracks[destination.trackIndex]?.locked) return;
+                const seconds = framesToSeconds(destination.sequenceFrame, frameRate);
+                const action = rows[destination.trackIndex].actions.find(
+                  ({ start, end }) => start <= seconds && seconds < end,
+                );
+                if (action) onPlacementSplit(action.id, destination.sequenceFrame);
+              }}
+            >
+              <CutOverlay
+                // The widget retains its hover until the pointer moves. Clear it on pan, zoom or cut.
+                key={`${visibleScrollLeft}:${pixelsPerFrame}:${splitOverlayRevision}`}
+                data={splitRows}
+                // Same pixels/second as the ruler, but snap the blade to sequence frames, not ruler ticks.
+                scale={secondsPerFrame}
+                scaleWidth={pixelsPerFrame}
+                scaleSplitCount={1}
+                startLeft={0}
+                rowHeight={ROW_HEIGHT}
+                editAreaTopOffset={0}
+                gridSnap
+                config={{
+                  cursor: "crosshair",
+                  formatPillLabel: (seconds) =>
+                    `Split at sequence frame ${secondsToFrame(seconds, frameRate)}`,
+                }}
+                onCut={(_trackId, placementId, seconds) => {
+                  onPlacementSplit(placementId, secondsToFrame(seconds, frameRate));
+                  setSplitOverlayRevision((revision) => revision + 1);
+                }}
+              />
+            </div>
+          )}
           {Array.from(items.values()).flatMap((item) =>
             (["entryTransition", "revealTransition"] as const).flatMap((field) => {
               const transition = item[field];

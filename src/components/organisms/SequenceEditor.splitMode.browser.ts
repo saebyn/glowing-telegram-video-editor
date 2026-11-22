@@ -20,8 +20,13 @@ test("Split mode cuts only the clicked placement at the pointer and leaves selec
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   expect(await emissions()).toEqual(noEdits);
+  await lighthouse.first().scrollIntoViewIfNeeded();
   const box = (await lighthouse.first().boundingBox())!;
-  await lighthouse.first().click({ position: { x: box.width / 2, y: box.height / 2 } });
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await expect(timeline.getByText("Split at sequence frame 30", { exact: true })).toBeVisible();
+  await page.mouse.click(x, y);
   await expect
     .poll(async () =>
       (await emissions()).sequences[0]?.tracks.map(({ placements }) => placements.length),
@@ -34,6 +39,7 @@ test("Split mode cuts only the clicked placement at the pointer and leaves selec
     sourceInOffsetFrames: 30,
   });
   expect(cutLists).toHaveLength(1);
+  await expect(timeline.getByText("Split at sequence frame 30", { exact: true })).toHaveCount(0);
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(lighthouse.nth(1)).toHaveAttribute("aria-pressed", "false");
   const remainingIds = sequences[0].tracks.flatMap(({ placements }) =>
@@ -60,10 +66,12 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
   const playhead = page.getByLabel("Sequence playhead position");
   await harbors.first().click();
   await page.getByRole("button", { name: "Split mode", exact: true }).click();
+  await harbors.first().scrollIntoViewIfNeeded();
   const first = (await harbors.first().boundingBox())!;
   const last = (await harbors.last().boundingBox())!;
+  const ruler = (await timeline.locator(".timeline-editor-time-area-interact").boundingBox())!;
   const y = first.y + first.height / 2;
-  await page.mouse.click(first.x + 1, y);
+  await page.mouse.click(ruler.x + 0.25, y);
   await page.mouse.click((first.x + first.width + last.x) / 2, y);
   await page.mouse.move(first.x + first.width / 3, y);
   await page.mouse.down();
@@ -78,8 +86,14 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
   await pan.focus();
   await page.keyboard.press("End");
   expect(Number(await pan.inputValue())).toBeGreaterThan(0);
+  await harbors.last().scrollIntoViewIfNeeded();
   const closing = (await harbors.last().boundingBox())!;
-  await harbors.last().click({ position: { x: closing.width / 2, y: closing.height / 2 } });
+  const cutX = closing.x + closing.width / 2;
+  const cutY = closing.y + closing.height / 2;
+  await page.mouse.move(cutX, cutY);
+  await expect(timeline.getByText("Split at sequence frame 300", { exact: true })).toBeVisible();
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.click(cutX, cutY);
   await expect
     .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[2].sequenceStartFrame)
     .toBe(300);

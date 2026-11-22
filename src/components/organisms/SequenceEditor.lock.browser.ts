@@ -72,7 +72,12 @@ test("Split mode blocks a locked placement while Split at the playhead skips it"
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true }).first();
   await page.getByRole("button", { name: "Split mode", exact: true }).click();
-  await lighthouse.click();
+  const box = (await lighthouse.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await expect(timeline.getByText(/^Split at sequence frame /)).toHaveCount(0);
+  await page.mouse.click(x, y);
   await expect(page.getByText("Blocked: the track is locked.", { exact: true })).toBeVisible();
   expect(await emissions()).toStrictEqual(noEdits);
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
