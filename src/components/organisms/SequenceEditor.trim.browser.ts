@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 
@@ -54,23 +54,7 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
     ],
   };
 
-  const sequences: Sequence[] = [];
-  const cutLists: (CutList | null)[] = [];
-  await page.exposeFunction("recordSequence", (next: Sequence) => sequences.push(next));
-  await page.exposeFunction("recordCutList", (next: CutList | null) => cutLists.push(next));
-  await page.addInitScript(() => {
-    const host = window as Window & {
-      recordSequence?(next: Sequence): Promise<void>;
-      recordCutList?(next: CutList | null): Promise<void>;
-    };
-    host.addEventListener("sequence-editor:sequence-change", (event) => {
-      void host.recordSequence?.((event as CustomEvent<Sequence>).detail);
-    });
-    host.addEventListener("sequence-editor:cut-list-change", (event) => {
-      void host.recordCutList?.((event as CustomEvent<CutList | null>).detail);
-    });
-  });
-
+  const { sequences, cutLists } = await recordEdits(page);
   await page.goto("/iframe.html?id=organisms-sequenceeditor--trailing-trim-fixture&viewMode=story");
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   // There are two placements of the same clip, one on each track.
@@ -100,3 +84,59 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
   await harbor.last().click();
   await expect(outFrame).toHaveValue("474");
 });
+
+test("a trailing trim cannot overlap the next placement but can leave a gap", async ({ page }) => {
+  const { sequences, cutLists } = await recordEdits(page);
+  await page.goto("/iframe.html?id=organisms-sequenceeditor--entry-fade-fixture&viewMode=story");
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  const outFrame = page.getByLabel("Source out (exclusive frame)");
+  const submit = page.getByRole("button", { name: "Trim placement" });
+
+  await outFrame.fill("235");
+  await submit.click();
+  await expect(outFrame).toHaveValue("235");
+
+  await outFrame.fill("230");
+  await submit.click();
+  const trimmed: Sequence = {
+    durationFrames: 240,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "harbor-open",
+            clipId: "harbor",
+            sequenceStartFrame: 0,
+            sourceOutOffsetFrames: -4,
+          },
+          { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
+        ],
+      },
+    ],
+  };
+  await expect.poll(() => sequences).toStrictEqual([trimmed]);
+  await expect.poll(() => cutLists).toStrictEqual([null]);
+});
+
+async function recordEdits(page: Page) {
+  const sequences: Sequence[] = [];
+  const cutLists: (CutList | null)[] = [];
+  await page.exposeFunction("recordSequence", (next: Sequence) => sequences.push(next));
+  await page.exposeFunction("recordCutList", (next: CutList | null) => cutLists.push(next));
+  await page.addInitScript(() => {
+    const host = window as Window & {
+      recordSequence?(next: Sequence): Promise<void>;
+      recordCutList?(next: CutList | null): Promise<void>;
+    };
+    host.addEventListener("sequence-editor:sequence-change", (event) => {
+      void host.recordSequence?.((event as CustomEvent<Sequence>).detail);
+    });
+    host.addEventListener("sequence-editor:cut-list-change", (event) => {
+      void host.recordCutList?.((event as CustomEvent<CutList | null>).detail);
+    });
+  });
+  return { sequences, cutLists };
+}
