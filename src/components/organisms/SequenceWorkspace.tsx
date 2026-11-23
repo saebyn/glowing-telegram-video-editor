@@ -1,5 +1,4 @@
 import { Fragment, type CSSProperties, type ReactNode, useId, useRef, useState } from "react";
-import type { WorkspacePane } from "./WorkspacePaneToggles";
 
 const paneLabels = { clipPool: "Clip pool", preview: "Preview", inspector: "Inspector" };
 const minimumWidths = { clipPool: 192, preview: 224, inspector: 224 };
@@ -10,20 +9,20 @@ type Drag = {
   pointerId: number;
   x: number;
   widths: Widths;
-  visibility: ReadonlySet<WorkspacePane>;
+  visibility: string;
 };
+
+export interface SequenceWorkspaceProps {
+  clipPool?: ReactNode;
+  preview?: ReactNode;
+  inspector?: ReactNode;
+}
 
 export default function SequenceWorkspace({
   clipPool,
   preview,
   inspector,
-  hiddenPanes,
-}: {
-  clipPool: ReactNode;
-  preview: ReactNode;
-  inspector: ReactNode;
-  hiddenPanes: ReadonlySet<WorkspacePane>;
-}) {
+}: SequenceWorkspaceProps) {
   const id = useId();
   const elements = useRef<Record<Pane, HTMLElement | null>>({
     clipPool: null,
@@ -44,15 +43,13 @@ export default function SequenceWorkspace({
     {
       pane: "inspector",
       className: "rounded-lg bg-gray-50 p-4 wrap-anywhere dark:bg-gray-800",
-      content: (
-        <>
-          <h2 className="mb-2 text-lg font-semibold">Inspector</h2>
-          {inspector}
-        </>
-      ),
+      content: inspector,
     },
   ] as const;
-  const panes = workspacePanes.filter(({ pane }) => !hiddenPanes.has(pane));
+  const panes = workspacePanes.filter(
+    ({ content }) => content != null && typeof content !== "boolean",
+  );
+  const visibility = panes.map(({ pane }) => pane).join(":");
   const total = panes.reduce((sum, { pane }) => sum + widths[pane], 0);
   const columns = panes
     .map(
@@ -114,7 +111,7 @@ export default function SequenceWorkspace({
                   tabIndex={0}
                   className="my-2 hidden min-w-0 touch-none cursor-col-resize border-x-[6px] border-y-0 border-transparent bg-slate-500 bg-clip-content hover:bg-blue-500 focus-visible:bg-blue-500 active:bg-blue-500 @min-[64rem]:block"
                   onPointerDown={(event) => {
-                    if (event.button !== 0 || drag.current?.visibility === hiddenPanes) return;
+                    if (event.button !== 0 || drag.current?.visibility === visibility) return;
                     event.preventDefault();
                     event.currentTarget.focus({ preventScroll: true });
                     event.currentTarget.setPointerCapture(event.pointerId);
@@ -122,15 +119,12 @@ export default function SequenceWorkspace({
                       pointerId: event.pointerId,
                       x: event.clientX,
                       widths: measureWidths(),
-                      visibility: hiddenPanes,
+                      visibility,
                     };
                   }}
                   onPointerMove={(event) => {
                     const active = drag.current;
-                    if (
-                      active?.pointerId === event.pointerId &&
-                      active.visibility === hiddenPanes
-                    ) {
+                    if (active?.pointerId === event.pointerId && active.visibility === visibility) {
                       resize(before, pane, active.widths, event.clientX - active.x);
                     }
                   }}
@@ -140,7 +134,7 @@ export default function SequenceWorkspace({
                   onKeyDown={(event) => {
                     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
                     event.preventDefault();
-                    if (drag.current?.visibility !== hiddenPanes) {
+                    if (drag.current?.visibility !== visibility) {
                       resize(before, pane, measureWidths(), event.key === "ArrowLeft" ? -16 : 16);
                     }
                   }}

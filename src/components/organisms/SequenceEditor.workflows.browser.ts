@@ -9,14 +9,14 @@ test("Storybook lists only the two sequence editing workflows", async ({ request
   };
 
   const workflows = Object.values(entries)
-    .filter(({ title, type }) => title === "Organisms/SequenceEditor" && type === "story")
+    .filter(({ title, type }) => title === "Pages/SequenceEditorPage" && type === "story")
     .map(({ id, name }) => ({ id, name }));
   expect(workflows).toHaveLength(2);
   expect(workflows).toEqual(
     expect.arrayContaining([
-      { id: "organisms-sequenceeditor--assemble-a-rough-cut", name: "Assemble a rough cut" },
+      { id: roughCutStoryId, name: "Assemble a rough cut" },
       {
-        id: "organisms-sequenceeditor--rearrange-a-layered-edit",
+        id: layeredEditStoryId,
         name: "Rearrange a layered edit",
       },
     ]),

@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 
 export interface RenameSequenceTrackProps {
-  tracks: readonly { id: string; label: string }[];
+  tracks: readonly Readonly<{ id: string; label: string }>[];
   onRename: (trackId: string, label: string) => void;
 }
 

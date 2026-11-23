@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { withSampleProject } from "@/fixtures/video";
-import SequenceEditor from "./SequenceEditor";
+import SequenceEditorPage from "@/components/pages/SequenceEditorPage";
 
 const meta = {
   title: "Testing/Sequence editor shortcuts",
@@ -18,7 +18,7 @@ export const TwoEditors: StoryObj = {
         <button type="button">Outside both editors</button>
         {["First editor", "Second editor"].map((label) => (
           <section key={label} aria-label={label}>
-            <SequenceEditor
+            <SequenceEditorPage
               sequence={sequence}
               clips={[]}
               sources={[]}

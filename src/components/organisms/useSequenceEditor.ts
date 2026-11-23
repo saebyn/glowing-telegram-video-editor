@@ -315,6 +315,7 @@ export function useSequenceEditor({
   }
 
   const clipPoolProps: SequenceClipPoolProps = {
+    frameRate,
     clips,
     sources,
     titles,
@@ -459,7 +460,9 @@ export function useSequenceEditor({
       event.metaKey ||
       event.shiftKey ||
       !(target instanceof Element) ||
-      !event.currentTarget.contains(target)
+      !event.currentTarget.contains(target) ||
+      (event.currentTarget.hasAttribute("data-sequence-editor-shortcuts") &&
+        target.closest("[data-sequence-editor-shortcuts]") !== event.currentTarget)
     ) {
       return;
     }
@@ -589,7 +592,9 @@ export function useSequenceEditor({
     addTrack: onSequenceChange
       ? () => commitEdit(addSequenceTrack(sequence, crypto.randomUUID()))
       : undefined,
-    renameTrack: onSequenceChange ? { tracks: sequence.tracks, onRename: renameTrack } : undefined,
+    renameTrack: onSequenceChange
+      ? { tracks: sequence.tracks.map(({ id, label }) => ({ id, label })), onRename: renameTrack }
+      : undefined,
   };
 
   function clipTitle(id: string) {

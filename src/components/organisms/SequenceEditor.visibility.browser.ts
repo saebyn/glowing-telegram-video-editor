@@ -6,6 +6,19 @@ import {
   roughCutStoryId,
 } from "./SequenceEditor.browserHarness";
 
+test("an omitted Preview has no toggle and does not stop transport", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${roughCutStoryId}&viewMode=story&args=omitPreview:true`);
+  await expect(page.getByRole("region", { name: "Sequence timeline" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("region", { name: "Preview", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByLabel("Sequence playhead position")).not.toHaveText("Sequence frame 0");
+  expect(await emissions()).toEqual(noEdits);
+});
+
 async function bounds(locator: Locator) {
   const box = await locator.boundingBox();
   if (!box) throw new Error(`Expected ${locator} to be visible`);
@@ -21,6 +34,39 @@ async function resize(page: Page, name: string, pixels: number) {
   await page.mouse.move(startX + pixels, startY, { steps: 4 });
   await page.mouse.up();
 }
+
+test("hiding the Clip Pool cancels a native drag before release", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline", exact: true });
+  const pool = page.getByRole("region", { name: "Clip pool", exact: true });
+  const card = await bounds(pool.locator('[draggable="true"]').filter({ hasText: "Lighthouse" }));
+  const row = await bounds(timeline.getByRole("group", { name: "Track: Main", exact: true }));
+  const surface = await bounds(timeline);
+  const left = row.x + row.width;
+  const x = left + (surface.x + surface.width - left) / 2;
+  const y = row.y + row.height / 2;
+  await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x - 2, y, { steps: 16 });
+  await page.mouse.move(x, y);
+  const preview = timeline.getByRole("figure", { name: "Proposed placement: Lighthouse" });
+  await expect(preview).toBeVisible();
+
+  const toggle = page.getByRole("group", { name: "Workspace panes" }).getByRole("button", {
+    name: "Clip pool",
+    exact: true,
+  });
+  // A held native drag prevents ordinary clicks; invoke the host's visibility control.
+  await toggle.evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(pool).toHaveCount(0);
+  await expect(preview).toHaveCount(0);
+  // Releasing over the track must not commit even if the workspace reflowed.
+  const destination = await bounds(timeline.getByRole("group", { name: "Track: Main" }));
+  await page.mouse.move(x, destination.y + destination.height / 2);
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+});
 
 test("hiding and restoring the Inspector gives Preview space without losing the selected edit", async ({
   page,

@@ -5,17 +5,18 @@ import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
 import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import type { SequenceTrack } from "@/types";
-import SequenceEditor, { type SequenceEditorProps } from "./SequenceEditor";
+import SequenceEditorPage, { type SequenceEditorPageProps } from "./SequenceEditorPage";
 
-type EditingHostArgs = SequenceEditorProps & {
+type EditingHostArgs = SequenceEditorPageProps & {
   acceptEdits?: boolean;
   readOnly?: boolean;
   startWithoutTracks?: boolean;
+  omitPreview?: boolean;
 };
 
 const meta = {
-  title: "Organisms/SequenceEditor",
-  component: SequenceEditor,
+  title: "Pages/SequenceEditorPage",
+  component: SequenceEditorPage,
   decorators: [withSampleProject],
   parameters: { layout: "fullscreen" },
   argTypes: {
@@ -25,6 +26,7 @@ const meta = {
     acceptEdits: { control: "boolean", name: "Accept edits" },
     readOnly: { control: "boolean", name: "Read-only" },
     startWithoutTracks: { control: "boolean", name: "Start without tracks" },
+    omitPreview: { control: "boolean", name: "Omit Preview" },
   },
   args: {
     acceptEdits: true,
@@ -157,6 +159,7 @@ function renderEditingHost({
   acceptEdits = true,
   readOnly = false,
   startWithoutTracks = false,
+  omitPreview = false,
   ...args
 }: EditingHostArgs) {
   const [, updateArgs] = useArgs<EditingHostArgs>();
@@ -164,8 +167,9 @@ function renderEditingHost({
   const empty = useMemo(() => ({ durationFrames, tracks: [] }), [durationFrames]);
 
   return (
-    <SequenceEditor
+    <SequenceEditorPage
       {...args}
+      {...(omitPreview ? { slots: { preview: null } } : {})}
       sequence={startWithoutTracks ? empty : args.sequence}
       onSequenceChange={
         readOnly

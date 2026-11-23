@@ -1,8 +1,8 @@
 import type { Ref } from "react";
 import { snapFrame } from "@/utils/frames";
 
-type SequencePlayheadGripProps = {
-  ref: Ref<HTMLDivElement>;
+export type SequencePlayheadGripProps = {
+  ref?: Ref<HTMLDivElement>;
   frame: number;
   durationFrames: number;
   pixelsPerFrame: number;

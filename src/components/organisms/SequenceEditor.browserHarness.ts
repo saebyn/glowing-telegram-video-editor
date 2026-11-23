@@ -2,8 +2,8 @@ import type { Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 
-export const roughCutStoryId = "organisms-sequenceeditor--assemble-a-rough-cut";
-export const layeredEditStoryId = "organisms-sequenceeditor--rearrange-a-layered-edit";
+export const roughCutStoryId = "pages-sequenceeditorpage--assemble-a-rough-cut";
+export const layeredEditStoryId = "pages-sequenceeditorpage--rearrange-a-layered-edit";
 type Workflow = typeof roughCutStoryId | typeof layeredEditStoryId;
 type SequenceArgs = Record<`sequence.${string}`, string | number | undefined> & {
   acceptEdits?: string;

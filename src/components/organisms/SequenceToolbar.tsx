@@ -1,5 +1,5 @@
 import { TransportBar } from "@keplar-404/react-timeline-editor";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { formatTimecode, framesToSeconds, secondsToFrame } from "@/utils/frames";
 import RenameSequenceTrack, { type RenameSequenceTrackProps } from "./RenameSequenceTrack";
 import { AddSequenceTrack } from "./SequenceTrackActions";
@@ -85,6 +85,8 @@ export interface SequenceToolbarProps {
   shorten?: ShortenSequenceFormProps;
   addTrack?: () => void;
   renameTrack?: RenameSequenceTrackProps;
+  /** Layout action controls supplied by the default page or a host layout. */
+  paneToggles?: ReactNode;
 }
 
 export default function SequenceToolbar({
@@ -98,8 +100,8 @@ export default function SequenceToolbar({
   shorten,
   addTrack,
   renameTrack,
-  children,
-}: PropsWithChildren<SequenceToolbarProps>) {
+  paneToggles,
+}: SequenceToolbarProps) {
   return (
     <header className="flex flex-wrap items-center gap-2">
       <h1 className="mr-3 text-xl font-semibold">Sequence editor</h1>
@@ -121,7 +123,7 @@ export default function SequenceToolbar({
       {shorten && <ShortenSequenceForm {...shorten} />}
       {addTrack && <AddSequenceTrack onAddTrack={addTrack} />}
       {renameTrack && <RenameSequenceTrack {...renameTrack} />}
-      {children}
+      {paneToggles}
     </header>
   );
 }
@@ -137,8 +139,10 @@ export function SequenceEditButton({
   return (
     <button
       type="button"
-      disabled={!onClick}
-      className="rounded border px-3 py-1 text-sm disabled:opacity-60"
+      // Preserve focus when an accepted Undo or Redo makes its action unavailable.
+      aria-disabled={!onClick}
+      tabIndex={onClick ? undefined : -1}
+      className="rounded border px-3 py-1 text-sm aria-disabled:opacity-60"
       onClick={onClick}
     >
       {children}

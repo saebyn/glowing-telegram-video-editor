@@ -78,16 +78,16 @@ The library exports the following components:
 - **`VideoPreview`** - Plays a host-rendered stream with audio monitoring controls
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
 - **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
-- **`SequenceEditor`** - Controlled editor for explicit clip placements, with `CutList` output
+- **`SequenceEditorPage`** - Controlled editor for explicit clip placements, with `CutList` output
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
 ## Component Usage
 
-Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditor`, `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
 
-### SequenceEditor
+### SequenceEditorPage
 
 The host supplies `sequence`, `clips`, and `sources` (source IDs and `s3Location` values).
 On an edit, feed `onSequenceChange` back into `sequence`. `onCutListChange` receives the
@@ -97,6 +97,36 @@ received by `onSequenceChange` back into `sequence` when accepting an edit. Pass
 different sequence object is an independent host replacement and clears history. Hosts
 can also call `compileCutList(sequence, clips, sources, frameRate)` directly.
 The editor and compiler do not render the sequence; their output contract ends at the `CutList`.
+
+The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
+`timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane
+toggle. You can wrap any default by forwarding its props:
+
+```tsx
+import {
+  SequenceEditorPage,
+  SequenceInspector,
+  type SequenceInspectorProps,
+} from "@saebyn/glowing-telegram-video-editor";
+
+function CustomInspector(props: SequenceInspectorProps) {
+  return <aside><SequenceInspector {...props} /></aside>;
+}
+
+<SequenceEditorPage
+  sequence={sequence}
+  clips={clips}
+  sources={sources}
+  onSequenceChange={setSequence}
+  slots={{ inspector: CustomInspector, preview: null }}
+/>;
+```
+
+For a custom layout, call `useSequenceEditor` once and give the exported
+components their corresponding props (`toolbarProps`, `clipPoolProps`,
+`previewProps`, `inspectorProps`, and `timelineProps`). `SequenceWorkspace`
+accepts rendered pane nodes. Render `notices` where appropriate and bind
+`handleEditorKeyDown` on a focusable editor root to opt in to shortcuts.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.

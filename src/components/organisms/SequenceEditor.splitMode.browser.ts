@@ -105,7 +105,7 @@ test("Split mode cuts only the clicked placement at the pointer and leaves selec
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(lighthouse).toHaveCount(2);
-  await page.getByRole("region", { name: "Sequence editor", exact: true }).press("Escape");
+  await page.keyboard.press("Escape");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await lighthouse.first().click();
   await expect(lighthouse.first()).toHaveAttribute("aria-pressed", "true");

@@ -122,6 +122,7 @@ export default function SequenceInspector({
   const dissolve = transition?.dissolve;
   return (
     <>
+      <h2 className="mb-2 text-lg font-semibold">Inspector</h2>
       {locked && (
         <p className="mb-2 text-sm">
           This track is locked. Its placements can be inspected but not edited.

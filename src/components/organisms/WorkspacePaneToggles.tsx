@@ -1,23 +1,29 @@
-const panes = [
+const paneOptions = [
   { id: "clipPool", label: "Clip pool" },
   { id: "preview", label: "Preview" },
   { id: "inspector", label: "Inspector" },
   { id: "timeline", label: "Sequence timeline" },
 ] as const;
 
-export type WorkspacePane = (typeof panes)[number]["id"];
+export type WorkspacePane = (typeof paneOptions)[number]["id"];
+
+export interface WorkspacePaneTogglesProps {
+  panes?: readonly WorkspacePane[];
+  hiddenPanes: ReadonlySet<WorkspacePane>;
+  onToggle: (pane: WorkspacePane) => void;
+}
 
 export default function WorkspacePaneToggles({
   hiddenPanes,
   onToggle,
-}: {
-  hiddenPanes: ReadonlySet<WorkspacePane>;
-  onToggle: (pane: WorkspacePane) => void;
-}) {
+  panes,
+}: WorkspacePaneTogglesProps) {
+  const configured = paneOptions.filter(({ id }) => !panes || panes.includes(id));
+  if (!configured.length) return null;
   return (
     <fieldset className="flex min-w-0 flex-wrap items-center gap-2">
       <legend className="sr-only">Workspace panes</legend>
-      {panes.map(({ id, label }) => (
+      {configured.map(({ id, label }) => (
         <button
           key={id}
           type="button"
