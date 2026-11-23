@@ -11,7 +11,7 @@ import WorkspacePaneToggles, { type WorkspacePane } from "./WorkspacePaneToggles
 export type SequenceEditorProps = UseSequenceEditorOptions;
 
 export default function SequenceEditor(props: SequenceEditorProps) {
-  const { sequence, clips, sources, onSequenceChange } = props;
+  const { onSequenceChange } = props;
   const {
     previewProps,
     toolbarProps,
@@ -19,17 +19,7 @@ export default function SequenceEditor(props: SequenceEditorProps) {
     notices,
     clipPoolProps,
     timelineProps,
-    selectedIds,
-    selectedTransition,
-    sequenceDissolves,
-    splitMode,
-    splitAtPointer,
-    commitEdit,
-    selectPlacement,
-    selectTransition,
     handleEditorKeyDown,
-    proposePlacementFade,
-    proposeTrim,
   } = useSequenceEditor(props);
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
   const shortcutsHintId = useId();
@@ -71,26 +61,7 @@ export default function SequenceEditor(props: SequenceEditorProps) {
         clipPool={<SequenceClipPool {...clipPoolProps} />}
         inspector={<SequenceInspector {...inspectorProps} />}
       />
-      {!hiddenPanes.has("timeline") && (
-        <SequenceTimeline
-          {...timelineProps}
-          sequence={sequence}
-          sources={sources}
-          clips={clips}
-          titles={clipPoolProps.titles}
-          onTrackEdit={onSequenceChange ? commitEdit : undefined}
-          evaluateFade={onSequenceChange ? proposePlacementFade : undefined}
-          onPlacementFade={onSequenceChange ? commitEdit : undefined}
-          evaluateTrim={onSequenceChange ? proposeTrim : undefined}
-          onPlacementTrim={onSequenceChange ? commitEdit : undefined}
-          selectedPlacementIds={selectedIds}
-          onPlacementSelect={onSequenceChange ? selectPlacement : undefined}
-          onPlacementSplit={onSequenceChange && splitMode ? splitAtPointer : undefined}
-          selectedTransitionId={selectedTransition?.transition.id}
-          dissolveDetails={sequenceDissolves}
-          onTransitionSelect={selectTransition}
-        />
-      )}
+      {!hiddenPanes.has("timeline") && <SequenceTimeline {...timelineProps} />}
     </section>
   );
 }

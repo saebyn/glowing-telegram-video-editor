@@ -46,7 +46,7 @@ function HandoffHost({ testMove = false }: { testMove?: boolean }) {
       : original,
   );
   const [movePreview, setMovePreview] = useState<string>();
-  const { toolbarProps, clipPoolProps, timelineProps, sequenceDissolves } = useSequenceEditor({
+  const { toolbarProps, clipPoolProps, timelineProps } = useSequenceEditor({
     sequence,
     clips,
     sources,
@@ -82,6 +82,14 @@ function HandoffHost({ testMove = false }: { testMove?: boolean }) {
           <button
             type="button"
             onClick={() => {
+              timelineProps.activatePlacement?.({ placementId: "moving", sequenceFrame: 60 });
+            }}
+          >
+            Activate placement at sequence frame 60
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               const result = timelineProps.previewPlacementMove?.(moveIntent);
               setMovePreview(
                 result?.kind === "move"
@@ -114,16 +122,7 @@ function HandoffHost({ testMove = false }: { testMove?: boolean }) {
           </button>
         </>
       )}
-      <SequenceTimeline
-        {...timelineProps}
-        sequence={sequence}
-        clips={clips}
-        sources={sources}
-        titles={titles}
-        selectedPlacementIds={[]}
-        dissolveDetails={sequenceDissolves}
-        onTransitionSelect={() => {}}
-      />
+      <SequenceTimeline {...timelineProps} />
     </>
   );
 }

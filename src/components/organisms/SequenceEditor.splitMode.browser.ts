@@ -29,6 +29,39 @@ test("Escape dismisses Split mode only in the editor with focus", async ({ page 
   await expect(first).toHaveAttribute("aria-pressed", "true");
 });
 
+test("a replacement Timeline activation selects or splits according to the session mode", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(
+    "/iframe.html?id=testing-sequence-pool-handoff--frame-based-actions&viewMode=story",
+  );
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  const activate = page.getByRole("button", { name: "Activate placement at sequence frame 60" });
+  const toggle = page.getByRole("button", { name: "Split mode", exact: true });
+  const placement = timeline.getByRole("button", { name: "Example clip", exact: true });
+  await activate.click();
+  await expect(placement).toHaveAttribute("aria-pressed", "true");
+  expect(await emissions()).toEqual(noEdits);
+
+  await toggle.click();
+  await activate.click();
+  await expect(placement).toHaveCount(2);
+  await expect(placement.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(placement.last()).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Sequence playhead position")).toHaveText("Sequence frame 0");
+  const split = await emissions();
+  expect(split.sequences).toHaveLength(1);
+  expect(split.sequences[0].tracks[0].placements[1]).toMatchObject({
+    clipId: "clip",
+    sequenceStartFrame: 60,
+    sourceInOffsetFrames: 60,
+  });
+  expect(split.cutLists).toHaveLength(1);
+});
+
 test("Split mode cuts only the clicked placement at the pointer and leaves selection and playhead alone", async ({
   page,
 }) => {

@@ -1,7 +1,5 @@
 import { type PointerEvent, useId, useLayoutEffect, useRef, useState } from "react";
-import type { Sequence } from "@/types";
-
-type SequenceFadeHandleProps = {
+export type SequenceFadeHandleProps = {
   label: string;
   edge: "entry" | "reveal";
   frames: number;
@@ -10,8 +8,8 @@ type SequenceFadeHandleProps = {
   selected?: boolean;
   onSelect?: () => void;
   edit?: {
-    evaluate: (frames: number, onConflict?: () => void) => Sequence | null;
-    commit: (next: Sequence) => void;
+    evaluate: (frames: number) => "valid" | "blocked" | "conflict";
+    commit: (frames: number) => void;
     locked?: boolean;
   };
 };
@@ -109,18 +107,14 @@ export default function SequenceFadeHandle({
               setDraft(null);
               return;
             }
-            let reason: "blocked" | "conflict" = "blocked";
-            const evaluated = edit.evaluate(next, () => {
-              reason = "conflict";
-            });
-            setDraft(evaluated ? next : reason);
+            const evaluated = edit.evaluate(next);
+            setDraft(evaluated === "valid" ? next : evaluated);
           }}
           onPointerUp={(event) => {
             const next = proposedFrames(event);
             if (next === null) return;
             clearDrag();
-            const evaluated = edit.evaluate(next);
-            if (evaluated) edit.commit(evaluated);
+            edit.commit(next);
           }}
           onPointerCancel={(event) => {
             event.stopPropagation();

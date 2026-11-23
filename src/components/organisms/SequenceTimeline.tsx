@@ -19,12 +19,12 @@ import type {
   FrameRate,
   MediaKind,
   PlacementTransition,
-  Sequence,
+  SequenceTrack,
   SequenceSource,
   VideoClip,
 } from "@/types";
 import { getDissolveWindow } from "@/utils/dissolveWindow";
-import { getFadeBounds, type PlacementFadeField } from "@/utils/fadePlacement";
+import type { PlacementFadeField } from "@/utils/fadePlacement";
 import {
   formatFrames,
   framesToSeconds,
@@ -32,8 +32,8 @@ import {
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
-import { type getSequenceDissolves, getPlacementSourceRange } from "@/utils/sequence";
-import { getTrimmableSourceRange, type PlacementTrimEdge } from "@/utils/trimPlacement";
+import { getPlacementSourceRange } from "@/utils/sequence";
+import type { PlacementTrimEdge } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
 import SequenceTrackHeaders from "./SequenceTrackHeaders";
@@ -112,27 +112,49 @@ export type SequenceTimelinePlacementProps = {
   movePlacement?: (intent: PlacementMoveIntent) => void;
 };
 
-type SequenceTimelineProps = SequenceTimelinePlacementProps & {
-  sequence: Sequence;
+export type TimelineTrimIntent = {
+  placementId: string;
+  edge: PlacementTrimEdge;
+  sourceFrame: number;
+};
+export type TimelineFadeIntent = {
+  placementId: string;
+  field: PlacementFadeField;
+  durationFrames: number;
+};
+export type TimelinePlacementActivation = {
+  placementId: string;
+  sequenceFrame?: number;
+  toggle?: boolean;
+};
+type Extension = Readonly<{ startFrame: number; endFrame: number }>;
+
+export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
+  durationFrames: number;
+  tracks: readonly SequenceTrack[];
   sources: readonly SequenceSource[];
   clips: readonly VideoClip[];
   titles: Record<string, string>;
-  onTrackEdit?: (next: Sequence) => void;
-  evaluateFade?: (
-    id: string,
-    field: PlacementFadeField,
-    duration: number,
-    onConflict?: () => void,
-  ) => Sequence | null;
-  onPlacementFade?: (next: Sequence) => void;
-  evaluateTrim?: (id: string, edge: PlacementTrimEdge, sourceFrame: number) => Sequence | null;
-  onPlacementTrim?: (next: Sequence) => void;
+  reorderTrack?: (trackId: string, destinationTrackId: string) => void;
+  removeTrack?: (trackId: string) => void;
+  removableTrackIds: readonly string[];
+  toggleTrackLock?: (trackId: string) => void;
+  previewFade?: (intent: TimelineFadeIntent) => "valid" | "blocked" | "conflict";
+  editFade?: (intent: TimelineFadeIntent) => void;
+  previewTrim?: (intent: TimelineTrimIntent) => boolean;
+  trimPlacement?: (intent: TimelineTrimIntent) => void;
+  trimRanges: ReadonlyMap<string, { sourceInFrame: number; sourceOutFrame: number }>;
+  fadePlacementIds: ReadonlySet<string>;
   selectedPlacementIds: readonly string[];
-  onPlacementSelect?: (id: string | null, toggle: boolean) => void;
-  onPlacementSplit?: (id: string, sequenceFrame: number) => void;
+  splitMode: boolean;
+  activatePlacement?: (activation: TimelinePlacementActivation) => void;
+  clearPlacementSelection?: () => void;
   selectedTransitionId?: string;
-  dissolveDetails: ReturnType<typeof getSequenceDissolves>;
-  onTransitionSelect: (id: string) => void;
+  dissolveDetails: ReadonlyMap<
+    string,
+    { outgoingExtension: Extension | null; incomingExtension: Extension | null }
+  >;
+  selectTransition: (id: string) => void;
 };
 
 type MoveDestination = { trackIndex: number | null; sequenceFrame: number };
@@ -171,29 +193,35 @@ export default function SequenceTimeline({
   frameRate,
   playheadFrame,
   onSeek,
-  sequence,
+  durationFrames,
+  tracks,
   sources,
   clips,
   titles,
-  onTrackEdit,
+  reorderTrack,
+  removeTrack,
+  removableTrackIds,
+  toggleTrackLock,
   activeClipId,
   endClipDrag,
   previewClipPlacement,
   placeClip,
   previewPlacementMove,
   movePlacement,
-  evaluateFade,
-  onPlacementFade,
-  evaluateTrim,
-  onPlacementTrim,
+  previewFade,
+  editFade,
+  previewTrim,
+  trimPlacement,
+  trimRanges,
+  fadePlacementIds,
   selectedPlacementIds,
-  onPlacementSelect,
-  onPlacementSplit,
+  splitMode,
+  activatePlacement,
+  clearPlacementSelection,
   selectedTransitionId,
   dissolveDetails,
-  onTransitionSelect,
+  selectTransition,
 }: SequenceTimelineProps) {
-  const { durationFrames, tracks } = sequence;
   const surface = useRef<HTMLDivElement>(null);
   const timeline = useRef<TimelineState>(null);
   const keyboardPlayhead = useRef<HTMLDivElement>(null);
@@ -289,7 +317,15 @@ export default function SequenceTimeline({
   useLayoutEffect(() => {
     if (drag.current) clearMove();
     if (trimDrag.current) clearTrim();
-  }, [sequence, clips, frameRate.numerator, frameRate.denominator, clearMove, clearTrim]);
+  }, [
+    tracks,
+    durationFrames,
+    clips,
+    frameRate.numerator,
+    frameRate.denominator,
+    clearMove,
+    clearTrim,
+  ]);
 
   useLayoutEffect(() => {
     if (!hasDragHeadroom) return;
@@ -360,7 +396,7 @@ export default function SequenceTimeline({
         sequenceFrame: number;
         duration: number;
         trackIndex: number;
-        trimRange: ReturnType<typeof getTrimmableSourceRange>;
+        trimRange: { sourceInFrame: number; sourceOutFrame: number } | undefined;
         mediaKind: MediaKind | undefined;
         thumbnails: SequenceSource["keyframes"];
       }
@@ -382,7 +418,7 @@ export default function SequenceTimeline({
           sequenceFrame: placement.sequenceStartFrame,
           duration,
           trackIndex,
-          trimRange: getTrimmableSourceRange(placement, clip, frameRate),
+          trimRange: trimRanges.get(placement.id),
           mediaKind: source?.mediaKind,
           thumbnails:
             source?.mediaKind === "audio-only"
@@ -405,9 +441,9 @@ export default function SequenceTimeline({
       }),
     }));
     return { items, rows };
-  }, [tracks, clips, sources, titles, frameRate]);
+  }, [tracks, clips, sources, titles, frameRate, trimRanges]);
 
-  const splitEnabled = onPlacementSplit !== undefined;
+  const splitEnabled = splitMode && activatePlacement !== undefined;
   const secondsPerFrame = framesToSeconds(1, frameRate);
   const splitRows = useMemo(
     () =>
@@ -501,7 +537,7 @@ export default function SequenceTimeline({
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     const splitOrigin = splitPointerOrigin.current;
     if (
-      onPlacementSplit &&
+      splitEnabled &&
       splitOrigin &&
       event.isPrimary &&
       Math.hypot(event.clientX - splitOrigin.clientX, event.clientY - splitOrigin.clientY) >=
@@ -546,8 +582,7 @@ export default function SequenceTimeline({
       const next = proposedTrim(event.clientX, activeTrim);
       clearTrim();
       if (activeTrim.width !== event.currentTarget.getBoundingClientRect().width) return;
-      const result = evaluateTrim?.(next.placementId, next.edge, next.sourceFrame);
-      if (result) onPlacementTrim?.(result);
+      trimPlacement?.(next);
       return;
     }
     const activeDrag = drag.current;
@@ -574,9 +609,7 @@ export default function SequenceTimeline({
   const draftItem = draft && items.get(draft.placementId);
   const trimItem = trimDraft && items.get(trimDraft.placementId);
   const activeTrimPreview = trimItem && trimDraft && trimDraft.frameOffset !== 0;
-  const trimBlocked =
-    activeTrimPreview &&
-    !evaluateTrim?.(trimDraft.placementId, trimDraft.edge, trimDraft.sourceFrame);
+  const trimBlocked = activeTrimPreview && !previewTrim?.(trimDraft);
   const trimStart =
     trimItem && trimDraft
       ? trimItem.sequenceFrame + (trimDraft.edge === "leading" ? trimDraft.frameOffset : 0)
@@ -696,10 +729,13 @@ export default function SequenceTimeline({
       </div>
       <div className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-md bg-slate-800 text-slate-100">
         <SequenceTrackHeaders
-          sequence={sequence}
+          tracks={tracks}
           rulerHeight={RULER_HEIGHT}
           rowHeight={ROW_HEIGHT}
-          onCommit={onTrackEdit}
+          reorderTrack={reorderTrack}
+          removeTrack={removeTrack}
+          removableTrackIds={removableTrackIds}
+          toggleTrackLock={toggleTrackLock}
         />
         <div
           ref={surface}
@@ -800,12 +836,12 @@ export default function SequenceTimeline({
             }}
             onClickRow={(event) => {
               if (
-                !onPlacementSplit &&
+                !splitEnabled &&
                 !moved.current &&
                 event.detail !== 0 &&
                 !(event.target as Element).closest("button")
               ) {
-                onPlacementSelect?.(null, false);
+                clearPlacementSelection?.();
               }
             }}
             getScaleRender={(seconds) => {
@@ -875,9 +911,9 @@ export default function SequenceTimeline({
                     : "items-center"
               }`;
               const trimGrips =
-                !onPlacementSplit &&
-                evaluateTrim &&
-                onPlacementTrim &&
+                !splitEnabled &&
+                previewTrim &&
+                trimPlacement &&
                 trimRange &&
                 (["leading", "trailing"] as const).map((edge) => (
                   <button
@@ -924,14 +960,14 @@ export default function SequenceTimeline({
                   <div
                     className={`absolute inset-y-1 z-[2] overflow-hidden rounded ${compactTrim ? "inset-x-0" : "inset-x-px"}`}
                   >
-                    {onPlacementSelect ? (
+                    {activatePlacement ? (
                       <button
                         type="button"
                         title={title}
                         aria-pressed={selectedPlacementIds.includes(id)}
                         onPointerDown={(event) => {
                           if (
-                            onPlacementSplit ||
+                            splitEnabled ||
                             !movePlacement ||
                             !event.isPrimary ||
                             event.button !== 0
@@ -952,10 +988,17 @@ export default function SequenceTimeline({
                           };
                         }}
                         onClick={(event) => {
-                          if (!onPlacementSplit && (event.detail === 0 || !moved.current))
-                            onPlacementSelect(id, event.shiftKey);
+                          if (!splitEnabled && (event.detail === 0 || !moved.current))
+                            activatePlacement({
+                              placementId: id,
+                              toggle: event.shiftKey,
+                              sequenceFrame:
+                                event.detail === 0
+                                  ? undefined
+                                  : poolDestination(event)?.sequenceFrame,
+                            });
                         }}
-                        className={`${classes} ${onPlacementSplit ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                        className={`${classes} ${splitEnabled ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
                       >
                         {content}
                       </button>
@@ -978,19 +1021,17 @@ export default function SequenceTimeline({
                           pixelsPerFrame={pixelsPerFrame}
                           selected={!!transition && transition.id === selectedTransitionId}
                           onSelect={
-                            transition && !onPlacementSplit
-                              ? () => onTransitionSelect(transition.id)
+                            transition && !splitEnabled
+                              ? () => selectTransition(transition.id)
                               : undefined
                           }
                           edit={
-                            !onPlacementSplit &&
-                            evaluateFade &&
-                            onPlacementFade &&
-                            getFadeBounds(item.duration)
+                            !splitEnabled && previewFade && editFade && fadePlacementIds.has(id)
                               ? {
-                                  evaluate: (frames, onConflict) =>
-                                    evaluateFade(id, field, frames, onConflict),
-                                  commit: onPlacementFade,
+                                  evaluate: (durationFrames) =>
+                                    previewFade({ placementId: id, field, durationFrames }),
+                                  commit: (durationFrames) =>
+                                    editFade({ placementId: id, field, durationFrames }),
                                   locked: tracks[item.trackIndex].locked,
                                 }
                               : undefined
@@ -1005,7 +1046,7 @@ export default function SequenceTimeline({
               );
             }}
           />
-          {onPlacementSplit && width > 0 && tracks.length > 0 && (
+          {splitEnabled && width > 0 && tracks.length > 0 && (
             // Leave the ruler and playhead reachable above the overlay.
             <div
               className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height)"
@@ -1026,7 +1067,11 @@ export default function SequenceTimeline({
                 const action = rows[destination.trackIndex].actions.find(
                   ({ start, end }) => start <= seconds && seconds < end,
                 );
-                if (action) onPlacementSplit(action.id, destination.sequenceFrame);
+                if (action)
+                  activatePlacement({
+                    placementId: action.id,
+                    sequenceFrame: destination.sequenceFrame,
+                  });
               }}
             >
               <CutOverlay
@@ -1047,7 +1092,10 @@ export default function SequenceTimeline({
                     `Split at sequence frame ${secondsToFrame(seconds, frameRate)}`,
                 }}
                 onCut={(_trackId, placementId, seconds) => {
-                  onPlacementSplit(placementId, secondsToFrame(seconds, frameRate));
+                  activatePlacement({
+                    placementId,
+                    sequenceFrame: secondsToFrame(seconds, frameRate),
+                  });
                   setSplitOverlayRevision((revision) => revision + 1);
                 }}
               />
@@ -1085,8 +1133,8 @@ export default function SequenceTimeline({
                     `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
                     ...extensions,
                   ].join("\n")}
-                  disabled={!!onPlacementSplit}
-                  className={`absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white ${onPlacementSplit ? "pointer-events-none" : ""}`}
+                  disabled={splitEnabled}
+                  className={`absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white ${splitEnabled ? "pointer-events-none" : ""}`}
                   style={{
                     left: isEmptyWindow ? Math.min(left, Math.max(0, width - 4)) : left,
                     top: RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + 4,
@@ -1094,7 +1142,7 @@ export default function SequenceTimeline({
                   }}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onTransitionSelect(transition.id);
+                    selectTransition(transition.id);
                   }}
                 >
                   Dissolve

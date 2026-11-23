@@ -20,13 +20,21 @@ import {
   hasTransitionAuthoringConflict,
   placeClipInGap,
 } from "@/utils/sequence";
-import { addSequenceTrack, findPlacementTrack } from "@/utils/sequenceTracks";
+import {
+  addSequenceTrack,
+  canRemoveSequenceTrack,
+  findPlacementTrack,
+  removeSequenceTrack,
+  reorderSequenceTrack,
+  toggleSequenceTrackLock,
+} from "@/utils/sequenceTracks";
 import { shortenSequence } from "@/utils/shortenSequence";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {
   applyLeadingTrim,
   applyTrailingTrim,
   getTrailingTrimBounds,
+  getTrimmableSourceRange,
   type PlacementTrimEdge,
 } from "@/utils/trimPlacement";
 import type { SequencePreviewPlaceholderProps } from "./SequencePreviewPlaceholder";
@@ -37,7 +45,10 @@ import type {
   PlaceClipIntent,
   PlacementMovePreview,
   PlacementMovePreviewIntent,
-  SequenceTimelinePlacementProps,
+  SequenceTimelineProps,
+  TimelineFadeIntent,
+  TimelinePlacementActivation,
+  TimelineTrimIntent,
 } from "./SequenceTimeline";
 import type { SequenceToolbarProps } from "./SequenceToolbar";
 import { useSequenceHistory } from "./useSequenceHistory";
@@ -315,16 +326,115 @@ export function useSequenceEditor({
     endClipDrag,
   };
 
-  const timelineProps: SequenceTimelinePlacementProps = {
+  const { trimRanges, fadePlacementIds, removableTrackIds } = useMemo(() => {
+    const trimRanges = new Map<string, { sourceInFrame: number; sourceOutFrame: number }>();
+    const fadePlacementIds = new Set<string>();
+    for (const track of sequence.tracks) {
+      for (const placement of track.placements) {
+        const clip = clips.find(({ id }) => id === placement.clipId);
+        if (!clip) continue;
+        const trimRange = getTrimmableSourceRange(placement, clip, frameRate);
+        if (trimRange) trimRanges.set(placement.id, trimRange);
+        if (
+          getFadeBounds(getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate))
+        )
+          fadePlacementIds.add(placement.id);
+      }
+    }
+    const removableTrackIds = sequence.tracks
+      .filter((track) => canRemoveSequenceTrack(sequence, track))
+      .map(({ id }) => id);
+    return { trimRanges, fadePlacementIds, removableTrackIds };
+  }, [sequence, clips, frameRate]);
+
+  function activatePlacement({
+    placementId,
+    sequenceFrame,
+    toggle = false,
+  }: TimelinePlacementActivation) {
+    if (splitMode) {
+      if (sequenceFrame !== undefined) splitAtPointer(placementId, sequenceFrame);
+    } else if (findPlacementTrack(sequence, placementId)) {
+      selectPlacement(placementId, toggle);
+    }
+  }
+
+  function previewFade({ placementId, field, durationFrames }: TimelineFadeIntent) {
+    let blocked: "blocked" | "conflict" = "blocked";
+    return proposePlacementFade(placementId, field, durationFrames, () => {
+      blocked = "conflict";
+    })
+      ? ("valid" as const)
+      : blocked;
+  }
+
+  function editFade({ placementId, field, durationFrames }: TimelineFadeIntent) {
+    const next = proposePlacementFade(placementId, field, durationFrames);
+    if (next) commitEdit(next);
+  }
+
+  const timelineProps: SequenceTimelineProps = {
     frameRate,
     playheadFrame: transport.playheadFrame,
     onSeek: transport.seek,
+    durationFrames: sequence.durationFrames,
+    tracks: sequence.tracks,
+    sources,
+    clips,
+    titles,
     activeClipId,
     endClipDrag,
     previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
     placeClip: onSequenceChange ? placeClip : undefined,
     previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
     movePlacement: onSequenceChange ? movePlacement : undefined,
+    reorderTrack: onSequenceChange
+      ? (trackId, destinationTrackId) => {
+          const next = reorderSequenceTrack(
+            sequence,
+            trackId,
+            sequence.tracks.findIndex(({ id }) => id === destinationTrackId),
+          );
+          if (next) commitEdit(next);
+        }
+      : undefined,
+    removeTrack: onSequenceChange
+      ? (trackId) => {
+          const next = removeSequenceTrack(sequence, trackId);
+          if (next) commitEdit(next);
+        }
+      : undefined,
+    removableTrackIds,
+    toggleTrackLock: onSequenceChange
+      ? (trackId) => {
+          const next = toggleSequenceTrackLock(sequence, trackId);
+          if (next) commitEdit(next);
+        }
+      : undefined,
+    previewFade: onSequenceChange ? previewFade : undefined,
+    editFade: onSequenceChange ? editFade : undefined,
+    previewTrim: onSequenceChange
+      ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
+      : undefined,
+    trimPlacement: onSequenceChange
+      ? ({ placementId, edge, sourceFrame }: TimelineTrimIntent) => {
+          const next = proposeTrim(placementId, edge, sourceFrame);
+          if (next) commitEdit(next);
+        }
+      : undefined,
+    trimRanges,
+    fadePlacementIds,
+    selectedPlacementIds: selectedIds,
+    splitMode: !!onSequenceChange && splitMode,
+    activatePlacement: onSequenceChange ? activatePlacement : undefined,
+    clearPlacementSelection: onSequenceChange
+      ? () => {
+          if (!splitMode) selectPlacement(null, false);
+        }
+      : undefined,
+    selectedTransitionId: selectedTransition?.transition.id,
+    dissolveDetails: sequenceDissolves,
+    selectTransition,
   };
 
   function nudgeSelection(offset: number) {
@@ -592,17 +702,7 @@ export function useSequenceEditor({
     clipPoolProps,
     timelineProps,
     notices,
-    selectedIds,
-    selectedTransition,
-    sequenceDissolves,
-    splitMode,
-    splitAtPointer,
-    commitEdit,
-    selectPlacement,
-    selectTransition,
     handleEditorKeyDown,
-    proposePlacementFade,
-    proposeTrim,
   };
 }
 

@@ -1,26 +1,29 @@
 import { type PointerEvent, useCallback, useLayoutEffect, useRef, useState } from "react";
-import type { Sequence } from "@/types";
-import { reorderSequenceTrack } from "@/utils/sequenceTracks";
 import { RemoveSequenceTrack, ToggleSequenceTrackLock } from "./SequenceTrackActions";
 
-type TrackHeadersProps = {
-  sequence: Sequence;
+export type SequenceTrackHeadersProps = {
+  tracks: readonly Readonly<{ id: string; label: string; locked?: boolean }>[];
   rulerHeight: number;
   rowHeight: number;
-  onCommit?: (next: Sequence) => void;
+  reorderTrack?: (trackId: string, destinationTrackId: string) => void;
+  removeTrack?: (trackId: string) => void;
+  removableTrackIds: readonly string[];
+  toggleTrackLock?: (trackId: string) => void;
 };
 
 type TrackDrag = { pointerId: number; id: string; origin: number };
 type TrackPreview = { index: number; before: boolean };
 
 export default function SequenceTrackHeaders({
-  sequence,
+  tracks,
   rulerHeight,
   rowHeight,
-  onCommit,
-}: TrackHeadersProps) {
-  const { tracks } = sequence;
-  const editable = onCommit !== undefined;
+  reorderTrack,
+  removeTrack,
+  removableTrackIds,
+  toggleTrackLock,
+}: SequenceTrackHeadersProps) {
+  const editable = reorderTrack !== undefined;
   const drag = useRef<TrackDrag | null>(null);
   const [preview, setPreview] = useState<TrackPreview | null>(null);
 
@@ -31,7 +34,7 @@ export default function SequenceTrackHeaders({
 
   useLayoutEffect(() => {
     if (drag.current) cancel();
-  }, [sequence, editable, cancel]);
+  }, [tracks, editable, cancel]);
 
   useLayoutEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -72,8 +75,7 @@ export default function SequenceTrackHeaders({
         cancel();
         // A scroll or layout change may move the row under a stationary pointer.
         if (index === null || index !== preview?.index) return;
-        const next = reorderSequenceTrack(sequence, active.id, index);
-        if (next) onCommit?.(next);
+        reorderTrack?.(active.id, tracks[index].id);
       }}
     >
       <div className="flex items-center px-3 font-semibold" style={{ height: rulerHeight }}>
@@ -93,12 +95,12 @@ export default function SequenceTrackHeaders({
           role="group"
           aria-label={`Track: ${track.label}`}
           className={`relative flex items-center gap-1 border-t border-slate-600 pl-3 pr-1 ${
-            onCommit || track.locked ? "pb-6" : ""
+            toggleTrackLock || removeTrack || track.locked ? "pb-6" : ""
           }`}
           style={{ height: rowHeight }}
         >
           <span className="min-w-0 flex-1 wrap-anywhere">{track.label}</span>
-          {onCommit && tracks.length > 1 && (
+          {reorderTrack && tracks.length > 1 && (
             <button
               type="button"
               aria-label={`Reorder track: ${track.label}`}
@@ -131,10 +133,14 @@ export default function SequenceTrackHeaders({
               }`}
             />
           )}
-          {onCommit && (
-            <RemoveSequenceTrack sequence={sequence} track={track} onCommit={onCommit} />
+          {removeTrack && removableTrackIds.includes(track.id) && (
+            <RemoveSequenceTrack label={track.label} onRemove={() => removeTrack(track.id)} />
           )}
-          <ToggleSequenceTrackLock sequence={sequence} track={track} onCommit={onCommit} />
+          <ToggleSequenceTrackLock
+            label={track.label}
+            locked={track.locked}
+            onToggle={toggleTrackLock && (() => toggleTrackLock(track.id))}
+          />
         </div>
       ))}
     </div>
