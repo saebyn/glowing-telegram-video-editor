@@ -1,31 +1,55 @@
 # 21 — Snap placement moves
 
-Status: needs-info
+Status: ready-for-agent
 Depends on: [02](02-select-and-move-placements-together.md)
 
 ## Proposal
 
-Add a snapping toggle and optional targets for placement edges, the playhead,
-and the ruler grid. Show what snapped during the drag and make the resulting
-position agree with the committed drop. For a group, snapping adjusts one
-common sequence-frame offset. It never moves members independently or
-bypasses collision rules.
+Add optional snapping to pointer drags of existing clip placements. Show
+the alignment during the drag and commit the position that was previewed.
 
-With snapping off, keep existing whole-sequence-frame positioning. Start
-with moving existing placements; review trims and clip-pool drops
-separately. Decide the initial target defaults and tie-breaking before
-implementation.
+## Acceptance criteria
+
+- Add a keyboard-operable **Snap** toggle to the sequence editor toolbar
+  with an accessible pressed state. It starts off and is editor UI state for
+  the session, not part of the sequence or Undo history. Toggling it does not
+  emit `onSequenceChange` or `onCutListResult`. With it off, pointer drags
+  retain the existing whole-sequence-frame positioning and show no guide.
+- With snapping on, compare either edge of every moving placement against
+  the playhead and both edges of stationary placements on any track,
+  including locked tracks. Use effective placement ranges and exclude the
+  placements being moved from the targets. A candidate is within reach when
+  the horizontal distance from the unsnapped edge to the target is at most
+  8 CSS pixels at the current zoom. The drag still resolves to whole
+  sequence frames.
+- Take the closest candidate that passes the existing move evaluator for
+  the whole group. For equal distances, prefer the earlier resulting start
+  of the grabbed placement; if the destination is identical, show the
+  earlier target frame. If no candidate is valid, use the ordinary unsnapped
+  destination and its usual blocked feedback, if any.
+- Apply one common sequence-frame offset to all moving placements and do
+  not change the requested track shift. Show a guide at the winning target
+  frame and show the exact destinations in the drag preview. Use the same
+  snap resolution for preview and release; do not commit a destination
+  different from the one previewed. Clear the guide when no snap applies or
+  the gesture ends. A valid changed drop emits one sequence change and one
+  `CutList` result and is one Undo step; a blocked or unchanged drop emits
+  neither callback.
+- Verify a single placement snapping to the playhead, a group snapping via
+  a companion's edge to a stationary edge on another track, equal-distance
+  tie-breaking, and a nearer blocked candidate giving way to a valid one.
+  Cover fallback to the unsnapped move, snapping off, and the same
+  pixel tolerance at different zoom levels. In a controlled Storybook
+  scenario, check that the guide and preview agree with the committed frames
+  and that Undo restores the group together.
+
+## Out of scope
+
+Ruler-tick snapping, per-target toggles, persistence, keyboard nudges, trims,
+and clip-pool drops.
 
 ## Comments
 
-- Not started: initial snap targets, defaults, and tie-breaking still need
-  decisions. Existing whole-sequence-frame positioning remains in place.
-- Evaluate Keplar's `gridSnap`, `dragLine`, and
-  `getAssistDragLineActionIds` in the installed
-  [`@keplar-404/react-timeline-editor` version](../../../package.json).
-  `gridSnap` uses ruler subdivisions, not the sequence frame grid.
-  Compare how the native guides and snapping behave for same-row and
-  cross-row moves. These options do not affect our custom placement drag
-  by themselves. Keep the group's shared frame offset, identical preview
-  and drop positions, and collision and track-lock rules even if only
-  the guides can be reused.
+- Keplar's native drag snapping does not drive our custom placement drag.
+  Guide rendering is a Timeline detail; use the existing frame-based move
+  evaluator to validate snapped destinations.

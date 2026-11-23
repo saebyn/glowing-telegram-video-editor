@@ -289,9 +289,15 @@ but would also cause a same-track collision, neither the placements nor the
 duration change. Once the collision clears, a valid drop commits the placements
 and any duration increase together. Undo restores both in one action.
 
-Start with destinations on whole sequence frames. Future optional snap targets
-can include placement edges, the playhead, and the ruler grid. Snapping adjusts
-the group offset, not individual placements.
+Destinations are always on whole sequence frames. The **Snap** toolbar
+toggle starts off and belongs to the editor session. When enabled for a
+placement drag, either edge of any moving placement can align with the
+playhead or a stationary placement edge on any track within 8 CSS pixels.
+Use the nearest valid alignment, preferring the earlier resulting start of
+the grabbed placement on ties. Apply one frame offset to the group and show
+the winning alignment in the preview. If no alignment is valid, keep the
+unsnapped destination. Ruler ticks, nudges, trims, and clip-pool drops are
+outside this first snapping slice.
 
 ## Playhead without a media preview
 

@@ -8,12 +8,16 @@
 Media used for review or editing. A source with video has a native **source frame rate**.
 _Avoid_: “Video” when it could also mean the preview or rendered output.
 
+**Playback rendition**:
+A version of a source used in a sequence preview, with the same content at the same elapsed time as the source. It is distinct from the media used to render the sequence.
+
 **Source frame**:
 Zero-based frame index within a specific video source.
 _Avoid_: Unqualified “frame” when both source and sequence positions are in play.
 
 **Frame thumbnail**:
 A still image representing a video source at a particular source frame. It need not come from a codec keyframe.
+_Avoid_: The legacy term “keyframe” for the still image; reserve “keyframe” for the codec concept in this context.
 
 **Source range**:
 The span within a source from the inclusive **in point** to the exclusive **out point**. Video in and out points are boundaries on the source frame grid.

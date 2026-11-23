@@ -7,7 +7,17 @@ without introducing another triage status.
 
 ## Ready for an agent
 
-No unresolved tickets are currently marked `ready-for-agent`.
+- [21 — Snap placement moves](issues/21-snap-placement-moves.md):
+  align single or grouped placement moves to the playhead or stationary edges
+  without changing move validation.
+- [46 — Make `CutList` issues actionable](issues/46-make-cutlist-issues-actionable.md):
+  explain unavailable output in the default editor and let editors jump to
+  the first gap or inspect an affected placement.
+- [47 — Separate render and preview source inputs](issues/47-separate-render-and-preview-source-inputs.md):
+  require host-supplied HLS for video in the editor without requiring it for
+  `CutList` compilation.
+- [48 — Share frame thumbnails across the sequence editor](issues/48-share-frame-thumbnails-across-the-sequence-editor.md):
+  use one source collection for clip pool hover previews and timeline strips.
 
 ## Completed composition batch
 
@@ -88,10 +98,13 @@ any of them ready.
 
 | Ticket | Decision still needed | Fit to revisit |
 | --- | --- | --- |
-| [21 — Snapping](issues/21-snap-placement-moves.md) | Targets, defaults, and tie-breaking. | Keep preview and release in agreement at the frame-based move interface; Keplar guides are adapter details. |
 | [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and track. | Use shared edit actions and accepted history, not page-local edit logic. |
 | [26 — Sequence markers](issues/26-add-sequence-markers-and-playback-ranges.md) | Marker persistence and behavior when the sequence endpoint changes. | Separate any persistent marker data from editor UI state and Timeline presentation. |
 | [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an edit with a different object. | Keep the current shared history contract until that need is established. Saved/dirty state and save failures stay with the host. |
 | [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, seeking, and reverse playback. | Use the shared transport clock even with Preview omitted; keep Keplar's loop overlay in the default Timeline adapter. |
+| [49 — HLS playback in `SequencePreview`](issues/49-design-hls-playback-for-sequence-preview.md) | First playback slice, transport sync, and load failures. | Follow the shared transport using host-supplied HLS; don't use the rendered preview. |
+| [50 — Audio-only playback](issues/50-design-audio-only-sequence-preview.md) | Streaming format, source metadata, and overlap behavior. | Keep audio-only inputs valid without a preview URL. |
+| [51 — Duplicate source IDs](issues/51-design-duplicate-source-id-handling.md) | Validation point and failure behavior. | Keep editor and compiler source resolution consistent. |
+| [52 — Standalone project clip thumbnails](issues/52-revisit-standalone-project-clip-thumbnails.md) | Whether standalone callers would benefit from timed source thumbnails. | Don't require playback or render metadata just to display images. |
 
 Close-gap and ripple-delete behavior are not in scope.
