@@ -7,7 +7,7 @@ async function openSequence(page: Page, durationFrames?: number) {
   await page.addInitScript(() => {
     const emissions: string[] = [];
     (window as RecordingWindow).playheadEdits = emissions;
-    for (const name of ["sequence-editor:sequence-change", "sequence-editor:cut-list-change"]) {
+    for (const name of ["sequence-editor:sequence-change", "sequence-editor:cut-list-result"]) {
       window.addEventListener(name, () => emissions.push(name));
     }
   });
@@ -215,7 +215,7 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
   await page.getByLabel("Source out (exclusive frame)").fill("186");
   await page.getByRole("button", { name: "Trim placement", exact: true }).click();
   // Trimming 60 frames from the last placement leaves [300, 360) uncovered.
-  const trimEdits = ["sequence-editor:sequence-change", "sequence-editor:cut-list-change"];
+  const trimEdits = ["sequence-editor:sequence-change", "sequence-editor:cut-list-result"];
   await expect.poll(edits).toEqual(trimEdits);
 
   await page.clock.install({ time: new Date("2025-01-01T00:00:00Z") });

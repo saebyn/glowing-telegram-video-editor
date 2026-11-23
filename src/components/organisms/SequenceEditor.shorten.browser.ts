@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  compiled,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -37,8 +38,8 @@ test("shortening uncovered time commits the new endpoint and its exact CutList",
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -54,7 +55,7 @@ test("shortening uncovered time commits the new endpoint and its exact CutList",
           { mediaIndex: 0, sectionIndex: 0 },
           { mediaIndex: 1, sectionIndex: 0 },
         ],
-      },
+      }),
     ],
   });
   await expect(page.getByRole("region", { name: "Sequence timeline" })).toContainText(

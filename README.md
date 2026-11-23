@@ -90,9 +90,11 @@ Pass positions and durations as whole frames. Positions are zero-based. Source r
 ### SequenceEditorPage
 
 The host supplies `sequence`, `clips`, and `sources` (source IDs and `s3Location` values).
-On an edit, feed `onSequenceChange` back into `sequence`. `onCutListChange` receives the
-compiled result of the same edit, or `null` if the edit cannot be represented. Loading a
-sequence does not emit a `CutList`. To keep Undo history, feed the same sequence object
+On an edit, feed `onSequenceChange` back into `sequence`. `onCutListResult` receives the
+compilation result for that same edit. Check `result.ok` before reading `result.cutList`.
+Both branches have an `issues` list: it can be empty on success and is nonempty on failure.
+A compilation failure does not reject the edit. Loading a sequence does not emit a
+compilation result. To keep Undo history, feed the same sequence object
 received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
 different sequence object is an independent host replacement and clears history. Hosts
 can also call `compileCutList(sequence, clips, sources, frameRate)` directly.
@@ -170,8 +172,8 @@ If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
 In the Inspector, **Centered dissolves** adds a dissolve at either placement edge.
 The timeline shows its centered window and the Inspector shows the contributing footage
-beyond each placement trim. An active dissolve is retained and emits a `null` `CutList`;
-the published format cannot carry its timing and contributions.
+beyond each placement trim. An active dissolve is retained and reported as a
+compilation issue; the published format cannot carry its timing and contributions.
 
 To show frame thumbnails on the timeline, supply `keyframes: [{ sourceFrame, url }]`
 on a source. The strip uses only native source frames in the placement’s effective

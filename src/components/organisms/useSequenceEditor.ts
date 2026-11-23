@@ -1,8 +1,14 @@
-import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useMemo, useState } from "react";
 import type { SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
+import type {
+  ClipPlacement,
+  CutListIssue,
+  CutListResult,
+  Sequence,
+  SequenceSource,
+  VideoClip,
+} from "@/types";
 import { getPlacementSourceRange } from "@/utils/clipPlacements";
 import compileCutList from "@/utils/compileCutList";
 import { evaluatePlacementDissolve } from "@/utils/dissolvePlacement";
@@ -22,11 +28,7 @@ import {
   reorderSequenceTrack,
   toggleSequenceTrackLock,
 } from "@/utils/sequenceTracks";
-import {
-  getFadeOutputIssue,
-  getSequenceDissolves,
-  hasTransitionAuthoringConflict,
-} from "@/utils/sequenceTransitions";
+import { getSequenceDissolves, hasTransitionAuthoringConflict } from "@/utils/sequenceTransitions";
 import { shortenSequence } from "@/utils/shortenSequence";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {
@@ -61,8 +63,8 @@ export interface UseSequenceEditorOptions {
   titles?: Record<string, string>;
   /** The host owns the sequence and feeds accepted edits back as props. Omit for read-only. */
   onSequenceChange?: (sequence: Sequence) => void;
-  /** Emits null when a committed edit cannot be represented as a CutList. */
-  onCutListChange?: (cutList: CutList | null) => void;
+  /** Compilation result for the same proposed sequence sent to onSequenceChange. */
+  onCutListResult?: (result: CutListResult) => void;
 }
 
 const fadeFields = [
@@ -70,16 +72,17 @@ const fadeFields = [
   { field: "revealTransition", label: "Reveal fade", button: "Apply reveal fade" },
 ] as const;
 
-const fadeOutputMessages = {
-  overlap: "CutList unavailable: authored fades overlap.",
-  interrupted: "CutList unavailable: an authored fade crosses a visible cut.",
-  gap: "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
-  dissolve: "CutList unavailable: the format cannot represent a centered dissolve.",
+const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = {
+  "fade-overlap": "CutList unavailable: authored fades overlap.",
+  "fade-interrupted": "CutList unavailable: an authored fade crosses a visible cut.",
+  "fade-gap":
+    "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
+  "unsupported-dissolve": "CutList unavailable: the format cannot represent a centered dissolve.",
   "dissolve-conflict": "CutList unavailable: a centered dissolve competes with another transition.",
   "dissolve-interrupted": "CutList unavailable: a visible cut interrupts a centered dissolve.",
   "dissolve-gap":
     "CutList unavailable: a centered dissolve meets a gap. The missing side contributes black picture and silence.",
-} as const;
+};
 
 function findTransition(sequence: Sequence, id: string | undefined) {
   if (id === undefined) return undefined;
@@ -108,7 +111,7 @@ export function useSequenceEditor({
   keyframes = emptyKeyframes,
   titles = emptyThumbnails,
   onSequenceChange,
-  onCutListChange,
+  onCutListResult,
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
@@ -126,10 +129,23 @@ export function useSequenceEditor({
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [dissolveConflict, setDissolveConflict] = useState(false);
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
-  const fadeOutputIssue = useMemo(
-    () => getFadeOutputIssue(sequence, clips, sources, frameRate),
-    [sequence, clips, sources, frameRate],
-  );
+  const transitionNotices = useMemo(() => {
+    if (
+      !sequence.tracks.some(({ placements }) =>
+        placements.some(
+          ({ entryTransition, revealTransition }) => entryTransition || revealTransition,
+        ),
+      )
+    )
+      return [];
+    const { issues } = compileCutList(sequence, clips, sources, frameRate);
+    const messages = new Set<string>();
+    for (const { code } of issues) {
+      const message = transitionOutputMessages[code];
+      if (message) messages.add(message);
+    }
+    return [...messages];
+  }, [sequence, clips, sources, frameRate]);
   const selectedTracks = sequence.tracks.flatMap((track) => {
     const placements = track.placements.filter(({ id }) => selection.includes(id));
     return placements.length > 0 ? [{ track, placements }] : [];
@@ -210,7 +226,7 @@ export function useSequenceEditor({
   function emitEdit(next: Sequence) {
     setBlockedTrackEdit(undefined);
     onSequenceChange?.(next);
-    onCutListChange?.(compileCutList(next, clips, sources, frameRate));
+    onCutListResult?.(compileCutList(next, clips, sources, frameRate));
   }
 
   function splitAtPlayhead() {
@@ -694,8 +710,7 @@ export function useSequenceEditor({
     conflict: dissolveConflict,
   };
 
-  const notices = [];
-  if (fadeOutputIssue) notices.push(fadeOutputMessages[fadeOutputIssue]);
+  const notices = [...transitionNotices];
   if (blockedTrackEdit === sequence) notices.push("Blocked: the track is locked.");
 
   return {

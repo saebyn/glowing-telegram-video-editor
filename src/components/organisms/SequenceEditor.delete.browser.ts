@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -83,8 +85,8 @@ test("Delete removes one Lighthouse placement without removing its other use or 
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -93,7 +95,7 @@ test("Delete removes one Lighthouse placement without removing its other use or 
           },
         ],
         outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
-      },
+      }),
     ],
   });
   await expect(lighthouses).toHaveCount(1);
@@ -161,7 +163,7 @@ test("Delete removes the selection across tracks in one edit and leaves uncovere
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(lighthouses).toHaveCount(1);
   await expect(harbor).toHaveCount(0);

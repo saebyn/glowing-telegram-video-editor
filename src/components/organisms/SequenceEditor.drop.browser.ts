@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -99,7 +101,7 @@ test("a replacement pool can preview and release a native drag without a JSON pa
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await undo.click();
   await expect(timeline.getByRole("button", { name: "Example clip" })).toHaveCount(0);
@@ -109,7 +111,7 @@ test("a replacement pool can preview and release a native drag without a JSON pa
     durationFrames: 120,
     tracks: [{ id: "main", label: "Main", placements: [] }],
   });
-  expect(undone.cutLists).toEqual([null, null]);
+  expect(undone.cutListResults).toEqual([blockedOutput, blockedOutput]);
 });
 
 test("frame-based actions place without a drag and reject a move invalidated by the host", async ({
@@ -139,8 +141,8 @@ test("frame-based actions place without a drag and reject a move invalidated by 
     clipId: "clip",
     sequenceStartFrame: 120,
   });
-  expect(placed.cutLists).toHaveLength(1);
-  expect(placed.cutLists[0]).not.toBeNull();
+  expect(placed.cutListResults).toHaveLength(1);
+  expect(placed.cutListResults[0]).toHaveProperty("ok", true);
 });
 
 test("a pool drop on Cutaways extends the sequence and emits one exact CutList", async ({
@@ -202,8 +204,8 @@ test("a pool drop on Cutaways extends the sequence and emits one exact CutList",
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -223,7 +225,7 @@ test("a pool drop on Cutaways extends the sequence and emits one exact CutList",
           { mediaIndex: 1, sectionIndex: 0 },
           { mediaIndex: 0, sectionIndex: 1 },
         ],
-      },
+      }),
     ],
   });
   await expect(timeline.getByRole("button", { name: "Lighthouse", exact: true })).toHaveCount(3);
@@ -334,7 +336,7 @@ test("holding a pool clip at the right edge reaches past the endpoint without ch
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(lighthouse).toHaveCount(3);
   await expect(timeline).toContainText("Duration: 00:06.5");
@@ -382,8 +384,8 @@ test("hovering a pool clip over a bounded gap previews the exact fitted placemen
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -403,7 +405,7 @@ test("hovering a pool clip over a bounded gap previews the exact fitted placemen
           { mediaIndex: 1, sectionIndex: 0 },
           { mediaIndex: 0, sectionIndex: 1 },
         ],
-      },
+      }),
     ],
   });
   await expect(timeline).toContainText("Duration: 00:06");

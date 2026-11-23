@@ -212,14 +212,15 @@ Slot action → validate edit intent → proposed sequence
 ```
 
 The top-level callbacks are `onSequenceChange(nextSequence)` and
-`onCutListChange(cutList: CutList | null)`. Each committed edit emits one next
-sequence and one `CutList` result. The host feeds the next sequence back as a
-prop. The compiler is independent of React and takes that same next sequence,
-not the widget data. An edit still reaches the host when it cannot be
-compiled; emit `null` so the host does not mistake the previous `CutList`
-for the current one. Selection, playhead changes, drag previews, and
+`onCutListResult(result: CutListResult)`. Each committed edit emits one next
+sequence and one compilation result when those callbacks are supplied. The host
+feeds the next sequence back as a prop. The compiler is independent of React and
+takes that same next sequence, not the widget data. `ok: true` includes a `CutList`;
+`ok: false` has no `CutList` and includes at least one issue. Either branch can
+carry issues; no issues implies success. An edit still reaches the host when
+compilation fails. Selection, playhead changes, drag previews, and
 blocked, cancelled, or unchanged drops emit neither callback. Loading or
-replacing the sequence through props does not emit `onCutListChange`.
+replacing the sequence through props does not emit `onCutListResult`.
 
 Toolbar controls, drag gestures, and shortcuts call the same editor action
 for the same operation. Supply derived state such as edit availability and
@@ -346,7 +347,7 @@ uncovered gaps, and empty sequences produce no `CutList`.
 The transition model's black fallback is a desired output behavior, not a
 capability of the current compiler. If the format cannot represent an
 active dissolve, keep the authored edit, report export as unavailable,
-and emit `null` instead of approximating. See the
+and report an issue instead of approximating. See the
 [CutList change requests](cutlist-change-requests.md) for format needs to
 verify and discuss with downstream maintainers.
 
@@ -359,8 +360,14 @@ is followed by the resumed section of A, which starts at source frame 160
 at sequence frame 60. Entry fades use the preceding section in flattened
 order. Empty tracks do not affect this ordering. The compiler omits a
 fully covered fade without removing it from the sequence. A partially
-visible fade can still make the compiler return `null`, even if its
+visible fade can still block compilation, even if its
 anchoring edge is covered.
+
+Compilation collects independent issues, including the inclusive start and
+exclusive end of each sequence gap and IDs for affected placements or
+transitions. If a missing clip prevents the compiler from resolving the layout,
+it does not infer gaps from the placements it could resolve. The default editor
+shows transition notices from the result; hosts decide how to present other issues.
 
 ## Storybook editing setups
 

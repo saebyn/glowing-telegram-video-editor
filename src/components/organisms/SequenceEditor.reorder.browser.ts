@@ -3,6 +3,8 @@ import type { Locator, Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -122,7 +124,7 @@ test("a track drag previews its destination and commits the new top-first priori
   const reordered = { ...original, tracks: [main, alternate, cutaways] };
   expect(await emissions()).toStrictEqual({
     sequences: [reordered],
-    cutLists: [mainFirst],
+    cutListResults: [compiled(mainFirst)],
   });
 
   await undo.click();
@@ -130,7 +132,7 @@ test("a track drag previews its destination and commits the new top-first priori
   await expect(undo).toBeDisabled();
   expect(await emissions()).toStrictEqual({
     sequences: [reordered, original],
-    cutLists: [mainFirst, cutawaysFirst],
+    cutListResults: [compiled(mainFirst), compiled(cutawaysFirst)],
   });
 });
 
@@ -146,7 +148,7 @@ test("without host acceptance a reorder proposes both outputs but does not repla
   await expect(timeline.getByRole("status")).toHaveCount(0);
   expect(await emissions()).toStrictEqual({
     sequences: [{ ...original, tracks: [main, cutaways, alternate] }],
-    cutLists: [mainFirst],
+    cutListResults: [compiled(mainFirst)],
   });
   await expect(
     timeline.getByRole("button", { name: /^Reorder track:/ }).first(),
@@ -222,12 +224,15 @@ test("reorder keeps an exposed interrupted fade, explains the unavailable CutLis
 
   const reordered = { ...original, tracks: [cutaways, alternateWithFade, main] };
   await expect(unavailable).toBeVisible();
-  expect(await emissions()).toStrictEqual({ sequences: [reordered], cutLists: [null] });
+  expect(await emissions()).toStrictEqual({
+    sequences: [reordered],
+    cutListResults: [blockedOutput],
+  });
 
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(unavailable).toBeHidden();
   expect(await emissions()).toStrictEqual({
     sequences: [reordered, { ...original, tracks: [cutaways, main, alternateWithFade] }],
-    cutLists: [null, cutawaysFirst],
+    cutListResults: [blockedOutput, compiled(cutawaysFirst)],
   });
 });

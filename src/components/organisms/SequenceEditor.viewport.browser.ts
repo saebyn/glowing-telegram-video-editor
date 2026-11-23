@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
+  blockedOutput,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -170,7 +171,7 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(preview).toHaveCount(0);
   await expect.poll(async () => (await visibleBox(lighthouse)).x).toBeCloseTo(draft.x, 0);

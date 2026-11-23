@@ -1,4 +1,4 @@
-import type { FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
+import type { CutListIssue, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
 import { getDissolveWindow } from "./dissolveWindow";
 import {
   resolveVisibleSequence,
@@ -18,13 +18,14 @@ function firstSpanEndingAfter(spans: readonly VisibleSpan[], frame: number) {
   return low;
 }
 
-function applyVisibleFades(
+type TransitionOutputIssue = Extract<CutListIssue, { transitionId: string }>;
+
+function* applyVisibleFades(
   spans: readonly VisibleSpan[],
   fades: readonly ResolvedFade[],
   durationFrames: number,
-) {
-  let missingNeighbor = false;
-  for (const { placement, edge, duration, kind } of fades) {
+): Generator<TransitionOutputIssue> {
+  for (const { id, placement, edge, duration, kind } of fades) {
     if (kind !== "fade") continue;
     const entry = edge === "entry";
     const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
@@ -42,7 +43,7 @@ function applyVisibleFades(
           ? start > 0 && neighbor?.end !== start
           : end < durationFrames && neighbor?.start !== end
       ) {
-        missingNeighbor = true;
+        yield { code: "fade-gap", transitionId: id };
       }
       if (entry) first.transitionIn = { type: "fade", duration };
       else first.transitionOut = { type: "fade", duration };
@@ -50,7 +51,7 @@ function applyVisibleFades(
         (first.transitionIn?.duration ?? 0) + (first.transitionOut?.duration ?? 0) >
         first.end - first.start
       ) {
-        return "overlap";
+        yield { code: "fade-overlap", transitionId: id };
       }
     } else {
       // A hidden edge is harmless only when higher tracks obscure the entire window.
@@ -59,14 +60,13 @@ function applyVisibleFades(
       for (let i = index; i < spans.length && spans[i].start < visibleEnd; i++) {
         const span = spans[i];
         if (span.start > coveredTo || span.placement.trackIndex >= placement.trackIndex) {
-          return "interrupted";
+          break;
         }
         coveredTo = span.end;
       }
-      if (coveredTo < visibleEnd) return "interrupted";
+      if (coveredTo < visibleEnd) yield { code: "fade-interrupted", transitionId: id };
     }
   }
-  return missingNeighbor ? "gap" : null;
 }
 
 function visibleAt(spans: readonly VisibleSpan[], frame: number) {
@@ -88,13 +88,16 @@ function isContinuous(
   let cursor = start;
   for (let i = firstSpanEndingAfter(spans, start); i < spans.length && spans[i].start < end; i++) {
     const span = spans[i];
+    if (!placement || span.start > cursor) return false;
+    // Report a source discontinuity only when both sides can be compared.
     if (
-      !placement ||
-      span.start > cursor ||
-      span.placement.s3Location !== placement.s3Location ||
-      sourceAt(span.placement, cursor) !== sourceAt(placement, cursor)
-    )
+      span.placement.sourceMappingKnown &&
+      placement.sourceMappingKnown &&
+      (span.placement.s3Location !== placement.s3Location ||
+        sourceAt(span.placement, cursor) !== sourceAt(placement, cursor))
+    ) {
       return false;
+    }
     cursor = span.end;
   }
   return !placement || cursor >= end;
@@ -195,13 +198,13 @@ export function getSequenceDissolves(
     )
   )
     return details;
-  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
-  if (resolved) {
-    for (const transition of resolved.fades) {
+  const { layout, issues } = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  if (layout && !issues.length) {
+    for (const transition of layout.fades) {
       if (transition.kind === "dissolve") {
         details.set(
           transition.id,
-          dissolveDetails(resolved.spans, resolved.fades, transition, sequence.durationFrames),
+          dissolveDetails(layout.spans, layout.fades, transition, sequence.durationFrames),
         );
       }
     }
@@ -216,9 +219,9 @@ export function hasTransitionAuthoringConflict(
   frameRate: FrameRate,
   transitionId: string,
 ) {
-  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
-  if (!resolved) return false;
-  const { spans, fades } = resolved;
+  const { layout, issues } = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
+  if (!layout || issues.length) return false;
+  const { spans, fades } = layout;
   const changed = fades.find(({ id }) => id === transitionId);
   if (!changed) return false;
   if (changed.kind === "dissolve") {
@@ -251,53 +254,35 @@ export function hasTransitionAuthoringConflict(
   );
 }
 
-function getDissolveIssue(
+function* getDissolveIssues(
   spans: readonly VisibleSpan[],
   transitions: readonly ResolvedFade[],
   duration: number,
-) {
+): Generator<TransitionOutputIssue> {
   for (const transition of transitions) {
     if (transition.kind !== "dissolve") continue;
     const details = dissolveDetails(spans, transitions, transition, duration);
     if (!details.covered && details.startFrame < details.endFrame) {
-      if (details.conflict) return "dissolve-conflict";
-      if (details.interrupted) return "dissolve-interrupted";
-      if (details.missingIncoming || details.missingOutgoing) return "dissolve-gap";
-      return "dissolve";
+      const code = details.conflict
+        ? "dissolve-conflict"
+        : details.interrupted
+          ? "dissolve-interrupted"
+          : details.missingIncoming || details.missingOutgoing
+            ? "dissolve-gap"
+            : "unsupported-dissolve";
+      yield { code, transitionId: transition.id };
     }
   }
-  return null;
 }
 
-/** Attach fades to visible spans in place, returning any issue that blocks output. */
+/** Attach fades to visible spans in place and collect output issues. */
 export function applyCutListTransitions(
   spans: readonly VisibleSpan[],
   fades: readonly ResolvedFade[],
   durationFrames: number,
 ) {
-  return (
-    getDissolveIssue(spans, fades, durationFrames) ??
-    applyVisibleFades(spans, fades, durationFrames)
-  );
-}
-
-/** Transition-specific output feedback, independent of gaps elsewhere in the sequence. */
-export function getFadeOutputIssue(
-  sequence: Sequence,
-  clips: readonly VideoClip[],
-  sources: readonly SequenceSource[],
-  frameRate: FrameRate,
-) {
-  if (
-    !sequence.tracks.some(({ placements }) =>
-      placements.some(
-        ({ entryTransition, revealTransition }) => entryTransition || revealTransition,
-      ),
-    )
-  )
-    return null;
-  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
-  return resolved
-    ? applyCutListTransitions(resolved.spans, resolved.fades, sequence.durationFrames)
-    : null;
+  return [
+    ...getDissolveIssues(spans, fades, durationFrames),
+    ...applyVisibleFades(spans, fades, durationFrames),
+  ];
 }

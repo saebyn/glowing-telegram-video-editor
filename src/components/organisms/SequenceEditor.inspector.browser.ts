@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -217,7 +218,7 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
   };
   const expectedEmissions = {
     sequences: [trimmed, faded],
-    cutLists: [cut, cutWithFade],
+    cutListResults: [compiled(cut), compiled(cutWithFade)],
   };
   await expect.poll(emissions).toStrictEqual(expectedEmissions);
   await expect(harbor).toHaveAttribute("aria-pressed", "true");

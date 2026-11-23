@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -92,7 +94,12 @@ test("moving a placement preserves duration, trims and its fade, leaving an unco
 
   // The placement now starts immediately after Harbor, leaving the last 120 frames uncovered.
   await dragTo(startX - pixelsFor120Frames);
-  await expect.poll(emissions).toStrictEqual({ sequences: [expectedSequence], cutLists: [null] });
+  await expect.poll(emissions).toStrictEqual({
+    sequences: [expectedSequence],
+    cutListResults: [
+      { ok: false, issues: [{ code: "sequence-gap", startFrame: 252, endFrame: 372 }] },
+    ],
+  });
   await expect(timeline).toContainText("Duration: 00:06.2");
   await expect(timeline.getByText("Fade in", { exact: true })).toBeVisible();
   await expect
@@ -211,7 +218,7 @@ test("moving a placement to an upper track covers the lower track at the matchin
   await page.mouse.up();
   await expect.poll(emissions).toStrictEqual({
     sequences: [expectedSequence],
-    cutLists: [expectedCutList],
+    cutListResults: [compiled(expectedCutList)],
   });
   await expect(preview).toHaveCount(0);
   await expect.poll(async () => (await lighthouse.boundingBox())?.y).toBeLessThan(middle.y);
@@ -316,7 +323,7 @@ test("a placement can preview beyond the endpoint at the same scale and extend o
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
 });
 
@@ -415,7 +422,7 @@ test("grabbing the far end of a placement can still move its start past the sequ
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
 });
 

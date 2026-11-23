@@ -59,7 +59,7 @@ test("a replacement Timeline activation selects or splits according to the sessi
     sequenceStartFrame: 60,
     sourceInOffsetFrames: 60,
   });
-  expect(split.cutLists).toHaveLength(1);
+  expect(split.cutListResults).toHaveLength(1);
 });
 
 test("Split mode cuts only the clicked placement at the pointer and leaves selection and playhead alone", async ({
@@ -87,13 +87,13 @@ test("Split mode cuts only the clicked placement at the pointer and leaves selec
       (await emissions()).sequences[0]?.tracks.map(({ placements }) => placements.length),
     )
     .toEqual([2, 1, 1]);
-  const { sequences, cutLists } = await emissions();
+  const { sequences, cutListResults } = await emissions();
   expect(sequences[0].tracks[0].placements[1]).toMatchObject({
     id: expect.stringMatching(/\S/),
     sequenceStartFrame: 30,
     sourceInOffsetFrames: 30,
   });
-  expect(cutLists).toHaveLength(1);
+  expect(cutListResults).toHaveLength(1);
   await expect(timeline.getByText("Split at sequence frame 30", { exact: true })).toHaveCount(0);
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(lighthouse.nth(1)).toHaveAttribute("aria-pressed", "false");

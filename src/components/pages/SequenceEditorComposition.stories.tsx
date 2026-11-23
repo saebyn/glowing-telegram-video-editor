@@ -176,8 +176,8 @@ function useControlledStory(manualFirstEdit = false) {
       else setPending(next);
       window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
     },
-    onCutListChange(next) {
-      window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-change", { detail: next }));
+    onCutListResult(result) {
+      window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-result", { detail: result }));
     },
   };
   return {

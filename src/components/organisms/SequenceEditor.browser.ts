@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
+  compiled,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -67,7 +68,9 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
   await expect(timeline).not.toContainText("Lighthouse");
   await drag((left.x + left.width + right.x) / 2, rowY);
 
-  await expect.poll(async () => (await emissions()).cutLists).toStrictEqual([expected]);
+  await expect
+    .poll(async () => (await emissions()).cutListResults)
+    .toStrictEqual([compiled(expected)]);
   await expect(timeline.getByText("Lighthouse", { exact: true })).toBeVisible();
   await expect(timeline).toContainText("Duration: 00:06");
 });
@@ -143,7 +146,7 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
   expect(Math.abs(fadeBox.width - placementBox.width / 4)).toBeLessThan(2);
   expect(await emissions()).toStrictEqual({
     sequences: [expectedSequence],
-    cutLists: [expectedCutList],
+    cutListResults: [compiled(expectedCutList)],
   });
 });
 
@@ -194,14 +197,14 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
 
   const duration = page.getByLabel("Reveal fade duration (sequence frames)");
   await duration.fill("48", { timeout: 3_000 });
-  expect(await emissions()).toStrictEqual({ sequences: [], cutLists: [] });
+  expect(await emissions()).toStrictEqual({ sequences: [], cutListResults: [] });
   const indicator = timeline.getByText("Fade out", { exact: true });
   await expect(indicator).toHaveCount(0);
   await page.getByRole("button", { name: "Apply reveal fade", exact: true }).click();
 
   await expect.poll(emissions).toStrictEqual({
     sequences: [expectedSequence],
-    cutLists: [expectedCutList],
+    cutListResults: [compiled(expectedCutList)],
   });
   await expect(indicator).toBeVisible();
   await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);

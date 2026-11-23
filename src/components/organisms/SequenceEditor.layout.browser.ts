@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  blockedOutput,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -76,6 +77,6 @@ test("move feedback does not cancel a drag when the editor just fits the viewpor
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
 });

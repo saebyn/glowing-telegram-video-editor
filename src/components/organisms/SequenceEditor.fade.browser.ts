@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -73,7 +75,9 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
       { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 24 } },
     ],
   };
-  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
 });
 
 async function dragFade(page: Page, handle: Locator, dx: number) {
@@ -157,7 +161,9 @@ test("a timeline reveal grip edits a placement on a track between empty tracks",
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
-  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
 });
 
 test("the Inspector authors a reveal to the lower track in a layered edit", async ({ page }) => {
@@ -214,7 +220,7 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
         ],
       }),
     ],
-    cutLists: [cutList],
+    cutListResults: [compiled(cutList)],
   });
 });
 
@@ -256,7 +262,7 @@ test("a layered timeline fade commits but explains a window interrupted by anoth
         ],
       }),
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(
     page.getByText("CutList unavailable: an authored fade crosses a visible cut."),
@@ -274,7 +280,7 @@ test("a gap elsewhere does not block a locally representable layered fade", asyn
   await expect
     .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0].revealTransition)
     .toEqual({ id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 12 });
-  expect((await emissions()).cutLists).toEqual([null]);
+  expect((await emissions()).cutListResults).toEqual([blockedOutput]);
   await expect(page.getByText("CutList unavailable:")).toHaveCount(0);
 });
 
@@ -318,7 +324,7 @@ test("opening a gap preserves both adjoining fades and reports their missing con
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(page.getByText("CutList unavailable: an authored fade meets a gap.")).toBeVisible();
 });
@@ -365,7 +371,9 @@ test("dragging Lighthouse's entry handle previews 30 frames and commits once wit
       { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 30 } },
     ],
   };
-  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
   await expect(indicator).toBeVisible();
@@ -412,7 +420,9 @@ test("Harbor's separate reveal handle previews 48 frames from the trailing edge 
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
-  await expect.poll(emissions).toStrictEqual({ sequences: [next], cutLists: [cutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
   await expect(page.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("48");
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("");
   expect(await harbor.boundingBox()).toMatchObject({ x: before.x, width: before.width });
@@ -466,7 +476,7 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
   };
   await expect.poll(emissions).toStrictEqual({
     sequences: [...afterFade.sequences, trimmed],
-    cutLists: [...afterFade.cutLists, null],
+    cutListResults: [...afterFade.cutListResults, blockedOutput],
   });
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   const placement = (await lighthouse.boundingBox())!;
@@ -506,7 +516,7 @@ test("a trim preserves both fades and reports unsupported overlapping output", a
   });
   await expect.poll(emissions).toStrictEqual({
     sequences: [...initial.sequences, next],
-    cutLists: [...initial.cutLists, null],
+    cutListResults: [...initial.cutListResults, blockedOutput],
   });
   await expect(page.getByText("CutList unavailable: authored fades overlap.")).toBeVisible();
 });
@@ -534,7 +544,7 @@ test("an entry fade keeps the recorded source extension after a trailing trim", 
       sourceOutOffsetFrames: -109,
       entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 20 },
     });
-  expect((await emissions()).cutLists).toEqual([null]);
+  expect((await emissions()).cutListResults).toEqual([blockedOutput]);
   await timeline.getByRole("button", { name: "Select entry fade: Harbor" }).click();
   await expect(
     page.getByText("Transition source extension: 125 inclusive – 134 exclusive"),
@@ -556,8 +566,8 @@ test("adjacent fades leave both handles usable, but a resize cannot make them co
   await page.getByRole("button", { name: "Apply reveal fade", exact: true }).click();
   await expect(page.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("48");
   const initial = (await emissions())!;
-  expect(initial.cutLists).toHaveLength(2);
-  expect(initial.cutLists[1]).not.toBeNull();
+  expect(initial.cutListResults).toHaveLength(2);
+  expect(initial.cutListResults[1]).toHaveProperty("ok", true);
   const { entryTransition, revealTransition } = initial.sequences[1].tracks[0].placements[0];
   expect(entryTransition?.id).toEqual(expect.stringMatching(/\S/));
   expect(revealTransition?.id).toEqual(expect.stringMatching(/\S/));

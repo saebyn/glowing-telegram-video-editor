@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -76,8 +77,8 @@ test("renaming a track commits only its display name and preserves the compiled 
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -93,7 +94,7 @@ test("renaming a track commits only its display name and preserves the compiled 
           { mediaIndex: 0, sectionIndex: 0 },
           { mediaIndex: 1, sectionIndex: 0 },
         ],
-      },
+      }),
     ],
   });
   await expect(timeline.getByText("Harbor bed", { exact: true })).toBeVisible();

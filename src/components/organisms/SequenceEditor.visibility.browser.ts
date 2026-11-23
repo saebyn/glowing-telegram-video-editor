@@ -87,7 +87,7 @@ test("hiding and restoring the Inspector gives Preview space without losing the 
   await expect(trimmedRange).toBeVisible();
   const editsBeforeToggle = await emissions();
   expect(editsBeforeToggle.sequences).toHaveLength(1);
-  expect(editsBeforeToggle.cutLists).toHaveLength(1);
+  expect(editsBeforeToggle.cutListResults).toHaveLength(1);
 
   const controls = page.getByRole("group", { name: "Workspace panes" });
   const toggle = controls.getByRole("button", { name: "Inspector", exact: true });

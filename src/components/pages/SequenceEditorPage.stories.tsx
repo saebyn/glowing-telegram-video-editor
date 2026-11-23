@@ -91,7 +91,7 @@ export const AssembleARoughCut: Story = {
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },
     onSequenceChange: fn(),
-    onCutListChange: fn(),
+    onCutListResult: fn(),
   },
   render: renderEditingHost,
 };
@@ -150,7 +150,7 @@ export const RearrangeALayeredEdit: Story = {
       ],
     },
     onSequenceChange: fn(),
-    onCutListChange: fn(),
+    onCutListResult: fn(),
   },
   render: renderEditingHost,
 };
@@ -182,9 +182,11 @@ function renderEditingHost({
               );
             }
       }
-      onCutListChange={(next) => {
-        args.onCutListChange?.(next);
-        window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-change", { detail: next }));
+      onCutListResult={(result) => {
+        args.onCutListResult?.(result);
+        window.dispatchEvent(
+          new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
+        );
       }}
     />
   );

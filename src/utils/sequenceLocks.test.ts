@@ -44,8 +44,16 @@ test("lock is authored on the intended track but does not change the compiled re
     ],
     outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
   };
-  expect(compileCutList(sequence, [harbor], sources, frameRate)).toEqual(expected);
-  expect(compileCutList(next, [harbor], sources, frameRate)).toEqual(expected);
+  expect(compileCutList(sequence, [harbor], sources, frameRate)).toEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
+  expect(compileCutList(next, [harbor], sources, frameRate)).toEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 test("a lock blocks whole group moves out of the track and any move or drop into it", () => {

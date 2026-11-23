@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -115,14 +116,14 @@ test("one Undo restores both placements and the old duration after an extending 
   await expect(timeline).toContainText("Duration: 00:05");
   const moved = await emissions();
   expect(moved.sequences).toHaveLength(1);
-  expect(moved.cutLists).toHaveLength(1);
+  expect(moved.cutListResults).toHaveLength(1);
 
   await expect(undo).toBeEnabled();
   await undo.click();
 
   await expect.poll(emissions).toStrictEqual({
     sequences: [...moved.sequences, layeredSequence],
-    cutLists: [...moved.cutLists, layeredCutList],
+    cutListResults: [...moved.cutListResults, compiled(layeredCutList)],
   });
   await expect(timeline).toContainText("Duration: 00:04");
   await expect(undo).toBeDisabled();
@@ -167,7 +168,7 @@ test("an independent host replacement clears Undo without emitting either callba
   await page.getByRole("tab", { name: /^Actions\b/ }).click();
   const actions = page.getByRole("tabpanel", { name: "Actions" });
   await expect(actions.getByText("onSequenceChange", { exact: true })).toHaveCount(1);
-  await expect(actions.getByText("onCutListChange", { exact: true })).toHaveCount(1);
+  await expect(actions.getByText("onCutListResult", { exact: true })).toHaveCount(1);
 });
 
 test("Undo restores successive accepted edits newest first without recording the Undo itself", async ({
@@ -198,9 +199,10 @@ test("Undo restores successive accepted edits newest first without recording the
   // Submitting the already accepted boundary is not a new edit.
   await trim.click();
   await expect(undo).toBeDisabled();
-  const { sequences, cutLists } = await emissions();
+  const { sequences, cutListResults } = await emissions();
   expect(sequences.map(({ durationFrames }) => durationFrames)).toEqual([390, 420, 390, 360]);
-  expect(cutLists).toEqual([null, null, null, null]);
+  const gap = { ok: false, issues: [{ code: "sequence-gap", startFrame: 120, endFrame: 240 }] };
+  expect(cutListResults).toEqual([gap, gap, gap, gap]);
 });
 
 test("a host that declines a proposal does not add or consume an Undo entry", async ({ page }) => {
@@ -230,7 +232,7 @@ test("a host that declines a proposal does not add or consume an Undo entry", as
   await actions.click();
   const actionLog = page.getByRole("tabpanel", { name: "Actions" });
   await expect(actionLog.getByText("onSequenceChange", { exact: true })).toBeVisible();
-  await expect(actionLog.getByText("onCutListChange", { exact: true })).toBeVisible();
+  await expect(actionLog.getByText("onCutListResult", { exact: true })).toBeVisible();
 
   await controls.click();
   await setAcceptEdits(true);

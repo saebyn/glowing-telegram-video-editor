@@ -1,7 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { Sequence } from "@/types";
+import type { CutListResult, Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -76,7 +78,7 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
     ],
   };
 
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openSameClipOnTwoTracks(page);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   // There are two placements of the same clip, one on each track.
@@ -89,23 +91,23 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
 
   await submit.click();
   expect(sequences).toEqual([]);
-  expect(cutLists).toEqual([]);
+  expect(cutListResults).toEqual([]);
 
   // The placement must retain at least one source frame and stay inside its source.
   for (const invalidEnd of [120, 1001]) {
     await outFrame.fill(String(invalidEnd));
     await submit.click();
     expect(sequences).toEqual([]);
-    expect(cutLists).toEqual([]);
+    expect(cutListResults).toEqual([]);
     await expect(outFrame).toHaveValue(String(invalidEnd));
   }
 
   await outFrame.fill("210");
   expect(sequences).toEqual([]);
-  expect(cutLists).toEqual([]);
+  expect(cutListResults).toEqual([]);
   await submit.click();
   await expect.poll(() => sequences).toStrictEqual([expectedSequence]);
-  await expect.poll(() => cutLists).toStrictEqual([expectedCutList]);
+  await expect.poll(() => cutListResults).toStrictEqual([compiled(expectedCutList)]);
 
   await harbor.last().click();
   await expect(outFrame).toHaveValue("474");
@@ -114,7 +116,7 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
 test("extending a trailing trim past the endpoint commits the grown sequence and its CutList", async ({
   page,
 }) => {
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openSameClipOnTwoTracks(page);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -127,7 +129,7 @@ test("extending a trailing trim past the endpoint commits the grown sequence and
   await page.getByRole("button", { name: "Trim placement" }).click();
 
   await expect.poll(() => sequences).toStrictEqual([extendedSequence]);
-  await expect.poll(() => cutLists).toStrictEqual([extendedCutList]);
+  await expect.poll(() => cutListResults).toStrictEqual([compiled(extendedCutList)]);
 });
 
 const extendedSequence: Sequence = {
@@ -180,7 +182,7 @@ const extendedCutList: CutList = {
 };
 
 test("a trailing trim cannot overlap the next placement but can leave a gap", async ({ page }) => {
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
@@ -212,13 +214,13 @@ test("a trailing trim cannot overlap the next placement but can leave a gap", as
     ],
   };
   await expect.poll(() => sequences).toStrictEqual([trimmed]);
-  await expect.poll(() => cutLists).toStrictEqual([null]);
+  await expect.poll(() => cutListResults).toStrictEqual([blockedOutput]);
 });
 
 test("dragging a leading trim previews the new edge and commits one gap-producing edit", async ({
   page,
 }) => {
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -246,7 +248,7 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
   expect(Math.abs(proposed.x + proposed.width - (before.x + before.width))).toBeLessThan(2);
   expect(await lighthouse.boundingBox()).toEqual(before);
   expect(sequences).toEqual([]);
-  expect(cutLists).toEqual([]);
+  expect(cutListResults).toEqual([]);
 
   await page.mouse.up();
   const trimmed: Sequence = {
@@ -268,7 +270,7 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
     ],
   };
   await expect.poll(() => sequences).toStrictEqual([trimmed]);
-  await expect.poll(() => cutLists).toStrictEqual([null]);
+  await expect.poll(() => cutListResults).toStrictEqual([blockedOutput]);
   await expect(preview).toHaveCount(0);
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   const after = await visibleBox(lighthouse);
@@ -279,7 +281,7 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
 test("dragging the trailing edge can pan past the endpoint and grow the sequence on release", async ({
   page,
 }) => {
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openSameClipOnTwoTracks(page);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true }).last();
@@ -309,12 +311,12 @@ test("dragging the trailing edge can pan past the endpoint and grow the sequence
   expect(Math.abs(proposed.x - authored.x)).toBeLessThan(2);
   expect(Math.abs(proposed.width - authored.width - (26 * before.width) / 360)).toBeLessThan(2);
   expect(sequences).toEqual([]);
-  expect(cutLists).toEqual([]);
+  expect(cutListResults).toEqual([]);
   await expect(timeline).toContainText("Duration: 00:06");
 
   await page.mouse.up();
   await expect.poll(() => sequences).toStrictEqual([extendedSequence]);
-  await expect.poll(() => cutLists).toStrictEqual([extendedCutList]);
+  await expect.poll(() => cutListResults).toStrictEqual([compiled(extendedCutList)]);
   await expect(preview).toHaveCount(0);
 });
 
@@ -371,14 +373,14 @@ test("dragging the trailing edge of a one-frame placement previews and commits a
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
 });
 
 test("blocked, cancelled, and unchanged edge drags leave the authored placement untouched", async ({
   page,
 }) => {
-  const { sequences, cutLists } = await recordEdits(page);
+  const { sequences, cutListResults } = await recordEdits(page);
   await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -411,7 +413,7 @@ test("blocked, cancelled, and unchanged edge drags leave the authored placement 
     await page.mouse.up();
     await expect(preview).toHaveCount(0);
     expect(sequences).toEqual([]);
-    expect(cutLists).toEqual([]);
+    expect(cutListResults).toEqual([]);
     expect(await lighthouse.boundingBox()).toEqual(before);
     await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
   }
@@ -426,20 +428,22 @@ async function visibleBox(locator: Locator) {
 
 async function recordEdits(page: Page) {
   const sequences: Sequence[] = [];
-  const cutLists: (CutList | null)[] = [];
+  const cutListResults: CutListResult[] = [];
   await page.exposeFunction("recordSequence", (next: Sequence) => sequences.push(next));
-  await page.exposeFunction("recordCutList", (next: CutList | null) => cutLists.push(next));
+  await page.exposeFunction("recordCutListResult", (next: CutListResult) =>
+    cutListResults.push(next),
+  );
   await page.addInitScript(() => {
     const host = window as Window & {
       recordSequence?(next: Sequence): Promise<void>;
-      recordCutList?(next: CutList | null): Promise<void>;
+      recordCutListResult?(next: CutListResult): Promise<void>;
     };
     host.addEventListener("sequence-editor:sequence-change", (event) => {
       void host.recordSequence?.((event as CustomEvent<Sequence>).detail);
     });
-    host.addEventListener("sequence-editor:cut-list-change", (event) => {
-      void host.recordCutList?.((event as CustomEvent<CutList | null>).detail);
+    host.addEventListener("sequence-editor:cut-list-result", (event) => {
+      void host.recordCutListResult?.((event as CustomEvent<CutListResult>).detail);
     });
   });
-  return { sequences, cutLists };
+  return { sequences, cutListResults };
 }

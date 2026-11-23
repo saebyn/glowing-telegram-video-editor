@@ -1,6 +1,6 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { Sequence } from "@/types";
+import type { CutListResult, Sequence } from "@/types";
 
 export const roughCutStoryId = "pages-sequenceeditorpage--assemble-a-rough-cut";
 export const layeredEditStoryId = "pages-sequenceeditorpage--rearrange-a-layered-edit";
@@ -35,19 +35,28 @@ export const straightCutArgs: SequenceArgs = {
   "sequence.tracks[0].placements[1].sourceOutOffsetFrames": undefined,
 };
 
-type Emissions = { sequences: Sequence[]; cutLists: (CutList | null)[] };
+type Emissions = { sequences: Sequence[]; cutListResults: CutListResult[] };
 type RecordingWindow = Window & { sequenceEditorEmissions?: Emissions };
-export const noEdits: Emissions = { sequences: [], cutLists: [] };
+export const noEdits: Emissions = { sequences: [], cutListResults: [] };
+
+export function compiled(cutList: CutList): CutListResult {
+  return { ok: true, cutList, issues: [] };
+}
+
+export const blockedOutput = {
+  ok: false,
+  issues: expect.arrayContaining([expect.objectContaining({ code: expect.any(String) })]),
+};
 
 export async function recordEditorEmissions(page: Page) {
   await page.addInitScript(() => {
-    const emissions: Emissions = { sequences: [], cutLists: [] };
+    const emissions: Emissions = { sequences: [], cutListResults: [] };
     (window as RecordingWindow).sequenceEditorEmissions = emissions;
     window.addEventListener("sequence-editor:sequence-change", (event) => {
       emissions.sequences.push((event as CustomEvent<Sequence>).detail);
     });
-    window.addEventListener("sequence-editor:cut-list-change", (event) => {
-      emissions.cutLists.push((event as CustomEvent<CutList | null>).detail);
+    window.addEventListener("sequence-editor:cut-list-result", (event) => {
+      emissions.cutListResults.push((event as CustomEvent<CutListResult>).detail);
     });
   });
   return () =>

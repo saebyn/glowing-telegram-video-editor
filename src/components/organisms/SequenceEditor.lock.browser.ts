@@ -15,7 +15,7 @@ test("Lock is a host-owned edit and Undo unlocks before undoing the trim", async
   await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
   await page.getByLabel("Source out (exclusive frame)").fill("620");
   await page.getByRole("button", { name: "Trim placement", exact: true }).click();
-  const { sequences, cutLists } = await emissions();
+  const { sequences, cutListResults } = await emissions();
   const trim = sequences[0];
   expect(trim.tracks[0].placements[1].sourceOutOffsetFrames).toBe(-1);
   await timeline
@@ -26,7 +26,7 @@ test("Lock is a host-owned edit and Undo unlocks before undoing the trim", async
   ).toBeVisible();
   await expect.poll(emissions).toEqual({
     sequences: [trim, { ...trim, tracks: [{ ...trim.tracks[0], locked: true }] }],
-    cutLists: [cutLists[0], cutLists[0]],
+    cutListResults: [cutListResults[0], cutListResults[0]],
   });
   const undo = page.getByRole("button", { name: "Undo", exact: true });
   await undo.click();
@@ -90,7 +90,7 @@ test("Split mode blocks a locked placement while Split at the playhead skips it"
       (await emissions()).sequences[0]?.tracks.map(({ placements }) => placements.length),
     )
     .toEqual([1, 2, 1]);
-  expect((await emissions()).cutLists).toHaveLength(1);
+  expect((await emissions()).cutListResults).toHaveLength(1);
 });
 
 test("undoing removal restores the empty track in its locked state", async ({ page }) => {
@@ -107,11 +107,11 @@ test("undoing removal restores the empty track in its locked state", async ({ pa
   await expect(
     timeline.getByRole("button", { name: "Unlock track: Track 1", exact: true }),
   ).toBeVisible();
-  const { sequences, cutLists } = await emissions();
+  const { sequences, cutListResults } = await emissions();
   expect(sequences[3]).toEqual(sequences[1]);
-  expect(cutLists).toHaveLength(4);
-  expect(cutLists[0]).not.toBeNull();
-  expect(cutLists).toEqual(Array(4).fill(cutLists[0]));
+  expect(cutListResults).toHaveLength(4);
+  expect(cutListResults[0]).toHaveProperty("ok", true);
+  expect(cutListResults).toEqual(Array(4).fill(cutListResults[0]));
 });
 
 test("the Inspector can read locked ranges but cannot trim or set a fade", async ({ page }) => {

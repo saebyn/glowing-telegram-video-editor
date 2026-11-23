@@ -18,7 +18,7 @@ transport clock rather than introducing a second one.
   and pan. Test keyboard access as well as pointer dragging.
 - With looping enabled, the playhead repeats the range without media.
   Setting or looping the range does not trim the sequence or emit
-  `onSequenceChange` or `onCutListChange`.
+  `onSequenceChange` or `onCutListResult`.
 - Verify the agreed behavior when the sequence endpoint shrinks,
   playback is reversed, or the playhead is moved outside the range.
 

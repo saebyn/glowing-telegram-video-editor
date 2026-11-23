@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
+import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -99,7 +102,7 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
       },
     ],
   };
-  const cutList = {
+  const cutList: CutList = {
     version: "1.0.0",
     inputMedia: [
       {
@@ -116,7 +119,9 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
-  await expect.poll(emissions).toStrictEqual({ sequences: [shifted], cutLists: [cutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [shifted], cutListResults: [compiled(cutList)] });
   await expect(grip).toHaveAttribute("aria-valuemax", "241");
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(alternate).toHaveAttribute("aria-pressed", "true");
@@ -158,7 +163,7 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
         ],
       },
     ],
-    cutLists: [cutList, null],
+    cutListResults: [compiled(cutList), blockedOutput],
   });
   await expect(grip).toHaveAttribute("aria-valuemax", "241");
   await expect(grip).toHaveAttribute("aria-valuenow", "0");

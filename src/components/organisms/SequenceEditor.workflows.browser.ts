@@ -44,6 +44,6 @@ for (const { name, storyId, outPoint, duration } of [
     await expect(timeline).toContainText(`Duration: ${duration}`);
     const actions = page.getByRole("tabpanel", { name: "Actions" });
     await expect(actions.getByText("onSequenceChange", { exact: true })).toBeVisible();
-    await expect(actions.getByText("onCutListChange", { exact: true })).toBeVisible();
+    await expect(actions.getByText("onCutListResult", { exact: true })).toBeVisible();
   });
 }

@@ -42,6 +42,8 @@ without reopening the completed editing work.
 - [25 — Reorder tracks](issues/25-reorder-tracks.md).
 - [36 — Click-to-split mode](issues/36-split-a-placement-where-you-click.md).
 - [38 — Lock tracks](issues/38-lock-tracks.md).
+- [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md):
+  structured compiler issues reach the host without blocking edits.
 
 ## Completed follow-up batch
 
@@ -89,7 +91,6 @@ any of them ready.
 | [21 — Snapping](issues/21-snap-placement-moves.md) | Targets, defaults, and tie-breaking. | Keep preview and release in agreement at the frame-based move interface; Keplar guides are adapter details. |
 | [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and track. | Use shared edit actions and accepted history, not page-local edit logic. |
 | [26 — Sequence markers](issues/26-add-sequence-markers-and-playback-ranges.md) | Marker persistence and behavior when the sequence endpoint changes. | Separate any persistent marker data from editor UI state and Timeline presentation. |
-| [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md) | Whether to add general diagnostics and where to surface them. Gaps are valid. | Keep diagnostics independent of the default Toolbar and layout. |
 | [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an edit with a different object. | Keep the current shared history contract until that need is established. Saved/dirty state and save failures stay with the host. |
 | [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, seeking, and reverse playback. | Use the shared transport clock even with Preview omitted; keep Keplar's loop overlay in the default Timeline adapter. |
 

@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -108,14 +110,16 @@ test("Redo restores both placements and the duration of an accepted group move",
   await expect(redo).toBeDisabled();
   expect(await emissions()).toStrictEqual(noEdits);
   await page.mouse.up();
-  await expect.poll(emissions).toStrictEqual({ sequences: [moved], cutLists: [movedCutList] });
+  await expect
+    .poll(emissions)
+    .toStrictEqual({ sequences: [moved], cutListResults: [compiled(movedCutList)] });
   await expect(redo).toBeDisabled();
 
   await undo.click();
   await expect(timeline).toContainText("Duration: 00:04");
   await expect.poll(emissions).toStrictEqual({
     sequences: [moved, original],
-    cutLists: [movedCutList, originalCutList],
+    cutListResults: [compiled(movedCutList), compiled(originalCutList)],
   });
   await expect(redo).toBeEnabled();
 
@@ -123,7 +127,7 @@ test("Redo restores both placements and the duration of an accepted group move",
   await expect(timeline).toContainText("Duration: 00:05");
   await expect.poll(emissions).toStrictEqual({
     sequences: [moved, original, moved],
-    cutLists: [movedCutList, originalCutList, movedCutList],
+    cutListResults: [compiled(movedCutList), compiled(originalCutList), compiled(movedCutList)],
   });
   await expect(redo).toBeDisabled();
   await expect(undo).toBeEnabled();
@@ -184,7 +188,7 @@ test("Redo reapplies successive undone edits one at a time, oldest first", async
   await timeline.getByRole("button", { name: "Harbor", exact: true }).first().click();
   expect(await emissions()).toStrictEqual({
     sequences: [firstTrim, secondTrim, firstTrim, original],
-    cutLists: [null, null, null, null],
+    cutListResults: [blockedOutput, blockedOutput, blockedOutput, blockedOutput],
   });
 
   await redo.click();
@@ -195,7 +199,14 @@ test("Redo reapplies successive undone edits one at a time, oldest first", async
   await expect(redo).toBeDisabled();
   await expect.poll(emissions).toStrictEqual({
     sequences: [firstTrim, secondTrim, firstTrim, original, firstTrim, secondTrim],
-    cutLists: [null, null, null, null, null, null],
+    cutListResults: [
+      blockedOutput,
+      blockedOutput,
+      blockedOutput,
+      blockedOutput,
+      blockedOutput,
+      blockedOutput,
+    ],
   });
 });
 
@@ -291,5 +302,5 @@ test("an independent sequence replacement clears the redo path without emitting 
   await page.getByRole("tab", { name: /^Actions\b/ }).click();
   const actions = page.getByRole("tabpanel", { name: "Actions" });
   await expect(actions.getByText("onSequenceChange", { exact: true })).toHaveCount(2);
-  await expect(actions.getByText("onCutListChange", { exact: true })).toHaveCount(2);
+  await expect(actions.getByText("onCutListResult", { exact: true })).toHaveCount(2);
 });

@@ -1,13 +1,8 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { expect, it } from "vitest";
-import { compileCutList as publicCompileCutList } from "@/index";
+import { compileCutList } from "@/index";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
-import compileCutList from "./compileCutList";
-import {
-  getFadeOutputIssue,
-  getSequenceDissolves,
-  hasTransitionAuthoringConflict,
-} from "./sequenceTransitions";
+import { getSequenceDissolves, hasTransitionAuthoringConflict } from "./sequenceTransitions";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clips: readonly VideoClip[] = [
@@ -33,6 +28,59 @@ const sources: readonly SequenceSource[] = [
 const fade = (id: string, durationFrames: number) =>
   ({ id, kind: "fade", durationFrames }) as const;
 
+it("reports each sequence gap alongside a visible unsupported dissolve", () => {
+  const sequence: Sequence = {
+    durationFrames: 150,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          { id: "a", clipId: "a", sequenceStartFrame: 10 },
+          {
+            id: "b",
+            clipId: "b",
+            sequenceStartFrame: 110,
+            entryTransition: { id: "blend", kind: "dissolve", durationFrames: 8 },
+          },
+        ],
+      },
+    ],
+  };
+
+  expect(compileCutList(sequence, clips, sources, frameRate)).toEqual({
+    ok: false,
+    issues: [
+      { code: "sequence-gap", startFrame: 0, endFrame: 10 },
+      { code: "sequence-gap", startFrame: 130, endFrame: 150 },
+      { code: "unsupported-dissolve", transitionId: "blend" },
+    ],
+  });
+});
+
+it("collects missing references without claiming that an unresolved placement leaves a gap", () => {
+  const sequence: Sequence = {
+    durationFrames: 120,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          { id: "unknown", clipId: "missing", sequenceStartFrame: 0 },
+          { id: "known", clipId: "b", sequenceStartFrame: 100 },
+        ],
+      },
+    ],
+  };
+  expect(compileCutList(sequence, clips, [], frameRate)).toStrictEqual({
+    ok: false,
+    issues: [
+      { code: "missing-clip", placementId: "unknown", clipId: "missing" },
+      { code: "missing-source", placementId: "known", sourceId: "source-b" },
+    ],
+  });
+});
+
 it("omits a dissolve clipped to zero visible frames at the exclusive sequence end", () => {
   const sequence: Sequence = {
     durationFrames: 100,
@@ -51,9 +99,11 @@ it("omits a dissolve clipped to zero visible frames at the exclusive sequence en
       },
     ],
   };
-  expect(publicCompileCutList(sequence, clips, sources, frameRate)?.outputTrack).toEqual([
-    { mediaIndex: 0, sectionIndex: 0 },
-  ]);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toMatchObject({
+    ok: true,
+    issues: [],
+    cutList: { outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }] },
+  });
 });
 
 it("still finds two competing dissolve owners when unrelated footage has another frame rate", () => {
@@ -107,11 +157,15 @@ it("omits a centered dissolve when a higher track hides the owning cut", () => {
     ],
   };
   expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
-    version: "1.0.0",
-    inputMedia: [
-      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 200 }] },
-    ],
-    outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 200 }] },
+      ],
+      outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
+    },
   });
 });
 
@@ -159,7 +213,31 @@ it("does not count continuous same-source split pieces as an interruption", () =
   expect(
     getSequenceDissolves(interrupted, clips, sources, frameRate).get("dissolve")?.interrupted,
   ).toBe(true);
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "unsupported-dissolve", transitionId: "dissolve" }],
+  });
+  const withMissingSource: Sequence = {
+    durationFrames: 140,
+    tracks: [
+      ...interrupted.tracks,
+      {
+        id: "tail",
+        label: "Tail",
+        placements: [{ id: "tail", clipId: "orphaned", sequenceStartFrame: 120 }],
+      },
+    ],
+  };
+  const orphanedClip = { ...clips[1], id: "orphaned", sourceId: "unregistered" };
+  expect(
+    compileCutList(withMissingSource, [...clips, orphanedClip], sources, frameRate),
+  ).toStrictEqual({
+    ok: false,
+    issues: [
+      { code: "missing-source", placementId: "tail", sourceId: "unregistered" },
+      { code: "dissolve-interrupted", transitionId: "dissolve" },
+    ],
+  });
 });
 
 it("uses the upper placement during overlap and resumes the lower source in sequence time", () => {
@@ -200,7 +278,11 @@ it("uses the upper placement during overlap and resumes the lower source in sequ
       { mediaIndex: 0, sectionIndex: 1 },
     ],
   };
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("keeps a reveal fade on the upper section before the lower source resumes", () => {
@@ -248,7 +330,11 @@ it("keeps a reveal fade on the upper section before the lower source resumes", (
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("follows a reveal with the uppermost placement starting at the same boundary", () => {
@@ -313,7 +399,11 @@ it("follows a reveal with the uppermost placement starting at the same boundary"
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("attaches an entry and a reveal fade to the distinct fragments containing their edges", () => {
@@ -373,7 +463,11 @@ it("attaches an entry and a reveal fade to the distinct fragments containing the
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("compiles unsorted placements in frame order without splitting at covered boundaries", () => {
@@ -407,7 +501,11 @@ it("compiles unsorted placements in frame order without splitting at covered bou
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("rejects overlap on one track even when an upper placement covers it", () => {
@@ -430,15 +528,29 @@ it("rejects overlap on one track even when an upper placement covers it", () => 
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [
+      {
+        code: "track-overlap",
+        trackId: "lower",
+        placementId: "placement-b2",
+        previousPlacementId: "placement-b1",
+      },
+    ],
+  });
 });
 
 it.each([
-  ["a straight cut", {}, null],
-  ["a reveal fade", { revealTransition: fade("gap-reveal", 10) }, "gap"],
+  ["a straight cut", {}, []],
+  [
+    "a reveal fade",
+    { revealTransition: fade("gap-reveal", 10) },
+    [{ code: "fade-gap", transitionId: "gap-reveal" }],
+  ],
 ] as const)(
   "does not skip an uncovered gap after %s to reach a placement on another track",
-  (_, transition, expectedIssue) => {
+  (_, transition, transitionIssues) => {
     const sequence: Sequence = {
       durationFrames: 140,
       tracks: [
@@ -455,8 +567,10 @@ it.each([
       ],
     };
 
-    expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
-    expect(getFadeOutputIssue(sequence, clips, sources, frameRate)).toBe(expectedIssue);
+    expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+      ok: false,
+      issues: [{ code: "sequence-gap", startFrame: 100, endFrame: 120 }, ...transitionIssues],
+    });
   },
 );
 
@@ -472,7 +586,10 @@ it("rejects an uncovered tail rather than shortening the sequence", () => {
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "sequence-gap", startFrame: 100, endFrame: 120 }],
+  });
 });
 
 it("has no CutList for an empty sequence", () => {
@@ -481,7 +598,10 @@ it("has no CutList for an empty sequence", () => {
     tracks: [{ id: "upper", label: "Upper", placements: [] }],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "empty-sequence" }],
+  });
 });
 
 it("rejects a placement whose source rate differs from the project rate", () => {
@@ -496,7 +616,15 @@ it("rejects a placement whose source rate differs from the project rate", () => 
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, { numerator: 30, denominator: 2 })).toBeNull();
+  expect(compileCutList(sequence, clips, sources, { numerator: 30, denominator: 2 })).toStrictEqual(
+    {
+      ok: false,
+      issues: [
+        { code: "frame-rate-mismatch", placementId: "placement-a", sourceFrameRate: frameRate },
+        { code: "sequence-gap", startFrame: 50, endFrame: 100 },
+      ],
+    },
+  );
 });
 
 it("compiles the same entry and reveal fades with or without empty tracks above and below", () => {
@@ -539,8 +667,16 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
-  expect(compileCutList(padded, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
+  expect(compileCutList(padded, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it("omits a fully covered reveal window even when the owner is visible earlier", () => {
@@ -568,15 +704,19 @@ it("omits a fully covered reveal window even when the owner is visible earlier",
   };
 
   expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
-    version: "1.0.0",
-    inputMedia: [
-      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 180 }] },
-      { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
-    ],
-    outputTrack: [
-      { mediaIndex: 0, sectionIndex: 0 },
-      { mediaIndex: 1, sectionIndex: 0 },
-    ],
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 180 }] },
+        { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 0 },
+      ],
+    },
   });
 });
 
@@ -600,15 +740,19 @@ it("omits a covered entry ending exactly where its owner becomes visible", () =>
   };
 
   expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
-    version: "1.0.0",
-    inputMedia: [
-      { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
-      { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 120, endFrame: 200 }] },
-    ],
-    outputTrack: [
-      { mediaIndex: 0, sectionIndex: 0 },
-      { mediaIndex: 1, sectionIndex: 0 },
-    ],
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 120, endFrame: 200 }] },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 0 },
+      ],
+    },
   });
 });
 
@@ -633,7 +777,10 @@ it("rejects a fade when its authored edge is covered but its last frame is visib
     ],
   };
   // The higher track covers [0, 19); the twentieth frame of the entry is still visible.
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-interrupted", transitionId: "entry" }],
+  });
 });
 
 it("rejects a reveal fade when the visible trailing fragment is shorter than the fade", () => {
@@ -664,7 +811,10 @@ it("rejects a reveal fade when the visible trailing fragment is shorter than the
   };
 
   // The fade spans [80, 100), but the outgoing placement is only visible again at 95.
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-interrupted", transitionId: "outgoing-reveal" }],
+  });
 });
 
 it("rejects an entry fade when the visible leading fragment is shorter than the fade", () => {
@@ -695,7 +845,10 @@ it("rejects an entry fade when the visible leading fragment is shorter than the 
   };
 
   // The fade spans [20, 40), but the incoming placement is covered starting at 25.
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-interrupted", transitionId: "incoming-entry" }],
+  });
 });
 
 it("does not compile entry and reveal fades whose regions intersect", () => {
@@ -718,7 +871,10 @@ it("does not compile entry and reveal fades whose regions intersect", () => {
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-overlap", transitionId: "long-reveal" }],
+  });
 });
 
 it("retains entry and reveal fades that meet without intersecting", () => {
@@ -755,13 +911,21 @@ it("retains entry and reveal fades that meet without intersecting", () => {
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    cutList: expected,
+    issues: [],
+  });
 });
 
 it.each([
-  ["zero-frame entry", { entryTransition: fade("zero-entry", 0) }],
-  ["fractional-frame reveal", { revealTransition: fade("fractional-reveal", 2.5) }],
-] as const)("rejects a %s fade even when its edge is visible", (_, transition) => {
+  ["zero-frame entry", { entryTransition: fade("zero-entry", 0) }, "zero-entry"],
+  [
+    "fractional-frame reveal",
+    { revealTransition: fade("fractional-reveal", 2.5) },
+    "fractional-reveal",
+  ],
+] as const)("rejects a %s fade even when its edge is visible", (_, transition, transitionId) => {
   const sequence: Sequence = {
     durationFrames: 100,
     tracks: [
@@ -778,5 +942,8 @@ it.each([
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "invalid-transition", transitionId }],
+  });
 });

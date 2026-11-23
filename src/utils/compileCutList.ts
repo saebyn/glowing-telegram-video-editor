@@ -1,5 +1,5 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
+import type { CutListResult, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
 import { applyCutListTransitions } from "./sequenceTransitions";
 import { resolveVisibleSequence } from "./visibleSequence";
 
@@ -9,14 +9,18 @@ export default function compileCutList(
   clips: readonly VideoClip[],
   sources: readonly SequenceSource[],
   frameRate: FrameRate,
-): CutList | null {
-  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
-  if (!resolved || !resolved.spans.length || resolved.hasGap) return null;
-  const { spans, fades } = resolved;
-  if (applyCutListTransitions(spans, fades, sequence.durationFrames)) return null;
+): CutListResult {
+  const { issues, layout } = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  if (layout) {
+    for (const gap of layout.gaps) issues.push({ code: "sequence-gap", ...gap });
+    issues.push(...applyCutListTransitions(layout.spans, layout.fades, sequence.durationFrames));
+  }
+  const [issue, ...otherIssues] = issues;
+  if (issue) return { ok: false, issues: [issue, ...otherIssues] };
+  if (!layout?.spans.length) return { ok: false, issues: [{ code: "empty-sequence" }] };
 
   const inputMedia: CutList["inputMedia"] = [];
-  const output = spans.map(({ start, end, placement, transitionIn, transitionOut }) => {
+  const output = layout.spans.map(({ start, end, placement, transitionIn, transitionOut }) => {
     const { s3Location, sourceInFrame, sequenceStartFrame } = placement;
     let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
     if (mediaIndex === -1) {
@@ -37,5 +41,9 @@ export default function compileCutList(
     };
   });
   const [first, ...rest] = output;
-  return { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] };
+  return {
+    ok: true,
+    cutList: { version: "1.0.0", inputMedia, outputTrack: [first, ...rest] },
+    issues: [],
+  };
 }

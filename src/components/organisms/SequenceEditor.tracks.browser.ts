@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -32,7 +34,7 @@ test("a host-supplied zero-track sequence can start with one Add track click", a
         tracks: [{ id: expect.stringMatching(/\S/), label: "Track 1", placements: [] }],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
 });
 
@@ -140,7 +142,7 @@ test("add inserts above a selected placement's track and only the empty track ca
       },
       original,
     ],
-    cutLists: [expectedCutList, expectedCutList],
+    cutListResults: [compiled(expectedCutList), compiled(expectedCutList)],
   });
 });
 
@@ -166,6 +168,6 @@ test("Undo, not Remove track, restores the host's zero-track sequence", async ({
       },
       { durationFrames: 120, tracks: [] },
     ],
-    cutLists: [null, null],
+    cutListResults: [blockedOutput, blockedOutput],
   });
 });

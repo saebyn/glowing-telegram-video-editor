@@ -1,3 +1,5 @@
+import type { CutList } from "@saebyn/glowing-telegram-types";
+
 /** Frames per second as a ratio of positive safe integers (e.g. 30_000 / 1001). */
 export interface FrameRate {
   numerator: number;
@@ -174,6 +176,45 @@ export interface Sequence {
   /** Tracks in visual order, top first. */
   tracks: readonly SequenceTrack[];
 }
+
+export type CutListIssue =
+  | { code: "empty-sequence" }
+  /** Zero-based sequence-frame range, with an exclusive end. */
+  | { code: "sequence-gap"; startFrame: number; endFrame: number }
+  | { code: "invalid-sequence-duration"; durationFrames: number }
+  | { code: "invalid-project-frame-rate"; frameRate: FrameRate }
+  | { code: "missing-clip"; placementId: string; clipId: string }
+  | { code: "missing-source"; placementId: string; sourceId: string }
+  | {
+      code: "frame-rate-mismatch" | "invalid-source-frame-rate";
+      placementId: string;
+      sourceFrameRate: FrameRate;
+    }
+  | {
+      code: "invalid-source-range";
+      placementId: string;
+      sourceInFrame: number;
+      sourceOutFrame: number;
+    }
+  | { code: "placement-outside-sequence"; placementId: string }
+  | { code: "track-overlap"; trackId: string; placementId: string; previousPlacementId: string }
+  | {
+      code:
+        | "invalid-transition"
+        | "fade-overlap"
+        | "fade-interrupted"
+        | "fade-gap"
+        | "unsupported-dissolve"
+        | "dissolve-conflict"
+        | "dissolve-interrupted"
+        | "dissolve-gap";
+      transitionId: string;
+    };
+
+/** A CutList is present only on success. Issues can also accompany success. */
+export type CutListResult =
+  | { ok: true; cutList: CutList; issues: readonly CutListIssue[] }
+  | { ok: false; issues: readonly [CutListIssue, ...CutListIssue[]] };
 
 /**
  * Audio channel information for preview

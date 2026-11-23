@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { Sequence } from "@/types";
 import {
+  blockedOutput,
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -132,8 +134,8 @@ test("Split cuts visible and covered placements at the playhead without a select
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -153,7 +155,7 @@ test("Split cuts visible and covered placements at the playhead without a select
           { mediaIndex: 0, sectionIndex: 1 },
           { mediaIndex: 1, sectionIndex: 0 },
         ],
-      },
+      }),
     ],
   });
   const { sequences } = await emissions();
@@ -183,7 +185,7 @@ test("Split ignores an unrelated selection and Undo restores all split placement
 
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect.poll(async () => (await emissions()).sequences[1]).toStrictEqual(layeredBeforeSplit);
-  expect((await emissions()).cutLists).toHaveLength(2);
+  expect((await emissions()).cutListResults).toHaveLength(2);
   await expect(lighthouses).toHaveCount(2);
   await expect(lighthouses.last()).toHaveAttribute("aria-pressed", "true");
 });
@@ -254,7 +256,7 @@ test("Split blocks an edge touch but still commits an interior split when the se
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [blockedOutput],
   });
   await expect(harbor).toHaveCount(3);
   await expect(split).toBeDisabled();

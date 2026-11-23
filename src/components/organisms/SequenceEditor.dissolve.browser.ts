@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  blockedOutput,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -46,7 +47,22 @@ test("an incoming edge owns an odd centered dissolve without changing the cut or
         ],
       },
     ],
-    cutLists: [null],
+    cutListResults: [
+      {
+        ok: false,
+        issues: [{ code: "unsupported-dissolve", transitionId: expect.stringMatching(/\S/) }],
+      },
+    ],
+  });
+  const { sequences, cutListResults } = await emissions();
+  expect(cutListResults[0]).toStrictEqual({
+    ok: false,
+    issues: [
+      {
+        code: "unsupported-dissolve",
+        transitionId: sequences[0].tracks[0].placements[1].entryTransition?.id,
+      },
+    ],
   });
   const indicator = timeline.getByRole("button", { name: "Select centered dissolve: Lighthouse" });
   await expect(indicator).toHaveAttribute(
@@ -147,7 +163,7 @@ test("moving two dissolves into conflict retains both authored transitions", asy
         entryTransition: { id: "incoming-dissolve", kind: "dissolve", durationFrames: 8 },
       },
     ]);
-  expect((await emissions()).cutLists).toEqual([null]);
+  expect((await emissions()).cutListResults).toEqual([blockedOutput]);
   await expect(
     page.getByText("CutList unavailable: a centered dissolve competes with another transition."),
   ).toBeVisible();

@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { noEdits, recordEditorEmissions } from "./SequenceEditor.browserHarness";
+import {
+  blockedOutput,
+  compiled,
+  noEdits,
+  recordEditorEmissions,
+} from "./SequenceEditor.browserHarness";
 
 const pageStory = "examples-sequence-editor-composition--replace-page-slots";
 const hookStory = "examples-sequence-editor-composition--assemble-with-the-hook";
@@ -58,8 +63,8 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -79,7 +84,7 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
           { mediaIndex: 1, sectionIndex: 0 },
           { mediaIndex: 0, sectionIndex: 1 },
         ],
-      },
+      }),
     ],
   });
   await page.getByRole("button", { name: "Accept proposal" }).click();
@@ -92,7 +97,7 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
     "opening",
     "closing",
   ]);
-  expect(undone.cutLists[1]).toBeNull();
+  expect(undone.cutListResults[1]).toEqual(blockedOutput);
 });
 
 test("the host-built editor emits nothing for blocked or cancelled Timeline moves", async ({

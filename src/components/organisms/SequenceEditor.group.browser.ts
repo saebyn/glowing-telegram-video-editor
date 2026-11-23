@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import type { Sequence } from "@/types";
 import {
+  compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
@@ -238,7 +239,7 @@ test("an edge-touching group previews at the old scale and commits one extending
   await page.mouse.up();
   await expect.poll(emissions).toStrictEqual({
     sequences: [expectedSequence],
-    cutLists: [expectedCutList],
+    cutListResults: [compiled(expectedCutList)],
   });
   await expect(timeline.getByRole("figure")).toHaveCount(0);
   await expect(timeline).toContainText("Duration: 00:05");
@@ -371,8 +372,8 @@ test("dragging an unselected placement leaves the existing selection in place", 
         ],
       },
     ],
-    cutLists: [
-      {
+    cutListResults: [
+      compiled({
         version: "1.0.0",
         inputMedia: [
           {
@@ -392,7 +393,7 @@ test("dragging an unselected placement leaves the existing selection in place", 
           { mediaIndex: 1, sectionIndex: 0 },
           { mediaIndex: 0, sectionIndex: 1 },
         ],
-      },
+      }),
     ],
   });
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
