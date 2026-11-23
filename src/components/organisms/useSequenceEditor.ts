@@ -13,6 +13,7 @@ import { getProjectFrameCount } from "@/utils/frames";
 import {
   compileCutList,
   evaluatePlacementMove,
+  evaluatePoolDrop,
   getFadeOutputIssue,
   getPlacementSourceRange,
   getSequenceDissolves,
@@ -30,6 +31,14 @@ import {
 } from "@/utils/trimPlacement";
 import type { SequencePreviewPlaceholderProps } from "./SequencePreviewPlaceholder";
 import type { SequenceInspectorProps } from "./SequenceInspector";
+import type { SequenceClipPoolProps } from "./SequenceClipPool";
+import type {
+  PlacementMoveIntent,
+  PlaceClipIntent,
+  PlacementMovePreview,
+  PlacementMovePreviewIntent,
+  SequenceTimelinePlacementProps,
+} from "./SequenceTimeline";
 import type { SequenceToolbarProps } from "./SequenceToolbar";
 import { useSequenceHistory } from "./useSequenceHistory";
 import { useSequenceTransport } from "./useSequenceTransport";
@@ -86,7 +95,9 @@ export function useSequenceEditor({
   sequence,
   clips,
   sources,
-  titles,
+  thumbnails = emptyThumbnails,
+  keyframes = emptyKeyframes,
+  titles = emptyThumbnails,
   onSequenceChange,
   onCutListChange,
 }: UseSequenceEditorOptions) {
@@ -102,6 +113,7 @@ export function useSequenceEditor({
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
+  const [activeClipId, setActiveClipId] = useState<string>();
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [dissolveConflict, setDissolveConflict] = useState(false);
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
@@ -222,7 +234,11 @@ export function useSequenceEditor({
     });
   }
 
-  function dropClip(clipId: string, trackId: string, sequenceFrame: number) {
+  function previewClipPlacement({ clipId, trackId, sequenceFrame }: PlaceClipIntent) {
+    return evaluatePoolDrop(sequence, clips, frameRate, clipId, trackId, sequenceFrame);
+  }
+
+  function placeClip({ clipId, trackId, sequenceFrame }: PlaceClipIntent) {
     const next = placeClipInGap(sequence, clips, frameRate, clipId, trackId, sequenceFrame);
     if (next) commitEdit(next);
   }
@@ -244,18 +260,83 @@ export function useSequenceEditor({
     );
   }
 
+  function previewPlacementMove({
+    placementId,
+    trackId,
+    outsideTrackOffset,
+    sequenceFrame,
+    placementIds,
+  }: PlacementMovePreviewIntent): PlacementMovePreview {
+    const destination =
+      trackId ??
+      (outsideTrackOffset && Number.isSafeInteger(outsideTrackOffset)
+        ? outsideTrackOffset < 0
+          ? outsideTrackOffset
+          : sequence.tracks.length - 1 + outsideTrackOffset
+        : null);
+    const result = proposePlacementMove(placementId, destination, sequenceFrame, placementIds);
+    const destinations = result.destinations.map(
+      ({ placementId, trackIndex, sequenceStartFrame }) => ({
+        placementId,
+        trackId: trackIndex === null ? null : (sequence.tracks[trackIndex]?.id ?? null),
+        sequenceStartFrame,
+      }),
+    );
+    return result.kind === "blocked"
+      ? { kind: result.kind, reason: result.reason, trackId: result.trackId, destinations }
+      : { kind: result.kind, destinations };
+  }
+
+  function movePlacement({
+    placementId,
+    trackId,
+    sequenceFrame,
+    placementIds,
+  }: PlacementMoveIntent) {
+    const result = proposePlacementMove(placementId, trackId, sequenceFrame, placementIds);
+    if (result.kind === "move") commitEdit(result.sequence);
+    if (result.kind === "blocked" && result.reason === "locked-track")
+      setBlockedTrackEdit(sequence);
+  }
+
+  function endClipDrag() {
+    setActiveClipId(undefined);
+  }
+
+  const clipPoolProps: SequenceClipPoolProps = {
+    clips,
+    sources,
+    titles,
+    thumbnails,
+    keyframes,
+    beginClipDrag: onSequenceChange
+      ? (id) => setActiveClipId(clips.some((clip) => clip.id === id) ? id : undefined)
+      : undefined,
+    endClipDrag,
+  };
+
+  const timelineProps: SequenceTimelinePlacementProps = {
+    frameRate,
+    playheadFrame: transport.playheadFrame,
+    onSeek: transport.seek,
+    activeClipId,
+    endClipDrag,
+    previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
+    placeClip: onSequenceChange ? placeClip : undefined,
+    previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
+    movePlacement: onSequenceChange ? movePlacement : undefined,
+  };
+
   function nudgeSelection(offset: number) {
     const anchor = selectedTracks[0];
     if (!onSequenceChange || !anchor) return;
     const placement = anchor.placements[0];
-    const move = proposePlacementMove(
-      placement.id,
-      anchor.track.id,
-      placement.sequenceStartFrame + offset,
-      selectedIds,
-    );
-    if (move.kind === "move") commitEdit(move.sequence);
-    if (move.kind === "blocked" && move.reason === "locked-track") setBlockedTrackEdit(sequence);
+    movePlacement({
+      placementId: placement.id,
+      trackId: anchor.track.id,
+      sequenceFrame: placement.sequenceStartFrame + offset,
+      placementIds: selectedIds,
+    });
   }
 
   function handleEditorKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -508,8 +589,9 @@ export function useSequenceEditor({
     previewProps,
     toolbarProps,
     inspectorProps,
+    clipPoolProps,
+    timelineProps,
     notices,
-    transport,
     selectedIds,
     selectedTransition,
     sequenceDissolves,
@@ -519,9 +601,10 @@ export function useSequenceEditor({
     selectPlacement,
     selectTransition,
     handleEditorKeyDown,
-    dropClip,
-    proposePlacementMove,
     proposePlacementFade,
     proposeTrim,
   };
 }
+
+const emptyThumbnails: Record<string, string> = {};
+const emptyKeyframes: Record<string, string[]> = {};

@@ -48,6 +48,101 @@ async function trackGeometry(timeline: Locator, label: string, duration: number)
   };
 }
 
+test("a replacement pool can preview and release a native drag without a JSON payload", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto("/iframe.html?id=testing-sequence-pool-handoff--replacement-pool&viewMode=story");
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  const { xAt, y } = await trackGeometry(timeline, "Main", 120);
+  const source = page.getByRole("button", { name: "Drag Example clip" });
+  const card = await source.boundingBox();
+  if (!card) throw new Error("Expected a draggable replacement pool clip");
+  const preview = timeline.getByRole("figure", { name: "Proposed placement: Example clip" });
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+
+  async function previewDrop() {
+    await page.mouse.move(card!.x + card!.width / 2, card!.y + card!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(xAt(60) - 2, y, { steps: 12 });
+    await page.mouse.move(xAt(60), y);
+    await expect(preview).toBeVisible();
+    await expect(timeline.getByRole("status")).toHaveText(
+      "Example clip → Main · Sequence frame 60",
+    );
+    expect(await emissions()).toEqual(noEdits);
+  }
+
+  await previewDrop();
+  // The replacement pool can end the handoff while the native gesture is still active.
+  await page
+    .getByRole("button", { name: "End clip handoff" })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(preview).toHaveCount(0);
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+  await expect(undo).toBeDisabled();
+
+  await previewDrop();
+  await page.mouse.up();
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        durationFrames: 180,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [{ id: expect.any(String), clipId: "clip", sequenceStartFrame: 60 }],
+          },
+        ],
+      },
+    ],
+    cutLists: [null],
+  });
+  await undo.click();
+  await expect(timeline.getByRole("button", { name: "Example clip" })).toHaveCount(0);
+  const undone = await emissions();
+  expect(undone.sequences).toHaveLength(2);
+  expect(undone.sequences[1]).toEqual({
+    durationFrames: 120,
+    tracks: [{ id: "main", label: "Main", placements: [] }],
+  });
+  expect(undone.cutLists).toEqual([null, null]);
+});
+
+test("frame-based actions place without a drag and reject a move invalidated by the host", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(
+    "/iframe.html?id=testing-sequence-pool-handoff--frame-based-actions&viewMode=story",
+  );
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Preview placement move" }).click();
+  await expect(page.getByLabel("Move preview")).toHaveText("Move to 60");
+  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Host locks destination" }).click();
+  await page.getByRole("button", { name: "Release placement move" }).click();
+  await expect(timeline.getByText("Duration: 00:02")).toBeVisible();
+  expect(await emissions()).toEqual(noEdits);
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Place clip without dragging" }).click();
+  await expect(timeline.getByText("Duration: 00:04")).toBeVisible();
+  const placed = await emissions();
+  expect(placed.sequences).toHaveLength(1);
+  expect(placed.sequences[0].tracks[0].placements[1]).toMatchObject({
+    clipId: "clip",
+    sequenceStartFrame: 120,
+  });
+  expect(placed.cutLists).toHaveLength(1);
+  expect(placed.cutLists[0]).not.toBeNull();
+});
+
 test("a pool drop on Cutaways extends the sequence and emits one exact CutList", async ({
   page,
 }) => {

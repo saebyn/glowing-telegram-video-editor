@@ -15,8 +15,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { MediaKind, PlacementTransition, Sequence, SequenceSource, VideoClip } from "@/types";
+import type {
+  FrameRate,
+  MediaKind,
+  PlacementTransition,
+  Sequence,
+  SequenceSource,
+  VideoClip,
+} from "@/types";
 import { getDissolveWindow } from "@/utils/dissolveWindow";
 import { getFadeBounds, type PlacementFadeField } from "@/utils/fadePlacement";
 import {
@@ -26,12 +32,7 @@ import {
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
-import {
-  evaluatePoolDrop,
-  type getSequenceDissolves,
-  getPlacementSourceRange,
-  type PlacementMoveResult,
-} from "@/utils/sequence";
+import { type getSequenceDissolves, getPlacementSourceRange } from "@/utils/sequence";
 import { getTrimmableSourceRange, type PlacementTrimEdge } from "@/utils/trimPlacement";
 import SequenceFadeHandle from "./SequenceFadeHandle";
 import SequencePlayheadGrip from "./SequencePlayheadGrip";
@@ -56,23 +57,67 @@ const EFFECTS = {
   placement: { id: "placement", name: "Placement" },
 };
 
-type SequenceTimelineProps = {
+export interface PlacementMoveIntent {
+  placementId: string;
+  placementIds: readonly string[];
+  trackId: string | null;
+  sequenceFrame: number;
+}
+
+export type PlacementMovePreviewIntent = PlacementMoveIntent & {
+  /** If the anchor is outside the tracks, -1 is just above the first and +1 just below the last. */
+  outsideTrackOffset?: number;
+};
+
+export type PlacementMovePreview = {
+  destinations: readonly {
+    placementId: string;
+    trackId: string | null;
+    sequenceStartFrame: number;
+  }[];
+} & (
+  | { kind: "move" | "unchanged" }
+  | {
+      kind: "blocked";
+      reason:
+        | "overlap"
+        | "outside-tracks"
+        | "negative-frame"
+        | "invalid-placement"
+        | "locked-track";
+      trackId?: string;
+    }
+);
+
+export interface PlaceClipIntent {
+  clipId: string;
+  trackId: string;
+  sequenceFrame: number;
+}
+
+export type ClipPlacementPreview = { sequenceStartFrame: number; duration: number } & (
+  | { kind: "place" }
+  | { kind: "blocked"; reason: "locked" | "overlap" | "gap-too-short" }
+);
+
+export type SequenceTimelinePlacementProps = {
+  frameRate: FrameRate;
   playheadFrame: number;
   onSeek: (sequenceFrame: number) => void;
+  activeClipId?: string;
+  endClipDrag: () => void;
+  previewClipPlacement?: (intent: PlaceClipIntent) => ClipPlacementPreview | null;
+  placeClip?: (intent: PlaceClipIntent) => void;
+  previewPlacementMove?: (intent: PlacementMovePreviewIntent) => PlacementMovePreview;
+  movePlacement?: (intent: PlacementMoveIntent) => void;
+};
+
+type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   sequence: Sequence;
   sources: readonly SequenceSource[];
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   onTrackEdit?: (next: Sequence) => void;
-  poolClipId?: string;
-  onClipDrop?: (clipId: string, trackId: string, sequenceFrame: number) => void;
-  evaluateMove?: (
-    placementId: string,
-    trackIndex: number | null,
-    sequenceFrame: number,
-    placementIds: readonly string[],
-  ) => PlacementMoveResult;
-  onPlacementMove?: (next: Sequence) => void;
   evaluateFade?: (
     id: string,
     field: PlacementFadeField,
@@ -123,6 +168,7 @@ type TrimDraft = {
 };
 
 export default function SequenceTimeline({
+  frameRate,
   playheadFrame,
   onSeek,
   sequence,
@@ -130,10 +176,12 @@ export default function SequenceTimeline({
   clips,
   titles,
   onTrackEdit,
-  poolClipId,
-  onClipDrop,
-  evaluateMove,
-  onPlacementMove,
+  activeClipId,
+  endClipDrag,
+  previewClipPlacement,
+  placeClip,
+  previewPlacementMove,
+  movePlacement,
   evaluateFade,
   onPlacementFade,
   evaluateTrim,
@@ -146,7 +194,6 @@ export default function SequenceTimeline({
   onTransitionSelect,
 }: SequenceTimelineProps) {
   const { durationFrames, tracks } = sequence;
-  const frameRate = useProjectFrameRate();
   const surface = useRef<HTMLDivElement>(null);
   const timeline = useRef<TimelineState>(null);
   const keyboardPlayhead = useRef<HTMLDivElement>(null);
@@ -285,6 +332,10 @@ export default function SequenceTimeline({
     return () => window.removeEventListener("dragend", clearPoolDrag, true);
   }, [clearPoolDrag]);
 
+  useLayoutEffect(() => {
+    if (!activeClipId) clearPoolDrag();
+  }, [activeClipId, clearPoolDrag]);
+
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && (drag.current || trimDrag.current)) {
@@ -399,18 +450,16 @@ export default function SequenceTimeline({
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     const destination = poolDestination(event);
     clearPoolDrag();
-    if (!onClipDrop || !destination) return;
-    const data = event.dataTransfer.getData("application/json");
-    if (!data) return;
+    if (!placeClip || !activeClipId) return;
     event.preventDefault();
-    let clipIds: unknown;
-    try {
-      clipIds = JSON.parse(data);
-    } catch {
-      return;
+    endClipDrag();
+    if (destination) {
+      placeClip({
+        clipId: activeClipId,
+        trackId: tracks[destination.trackIndex].id,
+        sequenceFrame: destination.sequenceFrame,
+      });
     }
-    if (!Array.isArray(clipIds) || clipIds.length !== 1 || typeof clipIds[0] !== "string") return;
-    onClipDrop(clipIds[0], tracks[destination.trackIndex].id, destination.sequenceFrame);
   }
 
   function moveDestination(point: PointerPosition, activeDrag: PlacementDrag): MoveDestination {
@@ -514,13 +563,12 @@ export default function SequenceTimeline({
       draft.sequenceFrame !== sequenceFrame
     )
       return;
-    const result = evaluateMove?.(
-      activeDrag.placementId,
-      trackIndex,
+    movePlacement?.({
+      placementId: activeDrag.placementId,
+      trackId: trackIndex === null ? null : (tracks[trackIndex]?.id ?? null),
       sequenceFrame,
-      activeDrag.placementIds,
-    );
-    if (result?.kind === "move") onPlacementMove?.(result.sequence);
+      placementIds: activeDrag.placementIds,
+    });
   }
 
   const draftItem = draft && items.get(draft.placementId);
@@ -542,7 +590,18 @@ export default function SequenceTimeline({
   const draftTrack = draft?.trackIndex == null ? undefined : tracks[draft.trackIndex];
   const draftResult =
     draft &&
-    evaluateMove?.(draft.placementId, draft.trackIndex, draft.sequenceFrame, draft.placementIds);
+    previewPlacementMove?.({
+      placementId: draft.placementId,
+      trackId: draftTrack?.id ?? null,
+      outsideTrackOffset:
+        draft.trackIndex === null || draftTrack
+          ? undefined
+          : draft.trackIndex < 0
+            ? draft.trackIndex
+            : draft.trackIndex - tracks.length + 1,
+      sequenceFrame: draft.sequenceFrame,
+      placementIds: draft.placementIds,
+    });
   const companionDestinations = draftResult?.destinations.filter(
     ({ placementId }) => placementId !== draft?.placementId,
   );
@@ -559,17 +618,14 @@ export default function SequenceTimeline({
     : null;
   const poolTrack = poolDraft && tracks[poolDraft.trackIndex];
   const poolDrop =
-    poolDraft && poolTrack && poolClipId
-      ? evaluatePoolDrop(
-          sequence,
-          clips,
-          frameRate,
-          poolClipId,
-          poolTrack.id,
-          poolDraft.sequenceFrame,
-        )
+    poolDraft && poolTrack && activeClipId
+      ? previewClipPlacement?.({
+          clipId: activeClipId,
+          trackId: poolTrack.id,
+          sequenceFrame: poolDraft.sequenceFrame,
+        })
       : null;
-  const poolLabel = poolClipId && (titles[poolClipId] ?? `Clip ${poolClipId}`);
+  const poolLabel = activeClipId && (titles[activeClipId] ?? `Clip ${activeClipId}`);
 
   function placementPreview(
     key: string,
@@ -684,16 +740,11 @@ export default function SequenceTimeline({
             if (!moved.current || event.target === event.currentTarget) cancelPlacementDrag(event);
           }}
           onDragOver={(event) => {
-            // Like the other consumers of ProjectClipPool, accept its JSON clip-ID payload.
-            // Native dragover exposes the type, but the payload is only readable on drop.
-            const destination =
-              onClipDrop && event.dataTransfer.types.includes("application/json")
-                ? poolDestination(event)
-                : undefined;
+            const destination = placeClip && activeClipId ? poolDestination(event) : undefined;
             if (!destination && !poolPointer.current) return;
             if (!poolPointer.current) setIsPoolDragging(true);
             poolPointer.current = { clientX: event.clientX, clientY: event.clientY };
-            if (poolClipId) setPoolDraft(destination);
+            if (activeClipId) setPoolDraft(destination);
             if (!destination) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = "copy";
@@ -737,7 +788,7 @@ export default function SequenceTimeline({
               if (drag.current && pointer.current) previewMove(pointer.current, drag.current);
               if (trimDrag.current && pointer.current)
                 setTrimDraft(proposedTrim(pointer.current.clientX, trimDrag.current));
-              if (poolClipId && poolPointer.current)
+              if (activeClipId && poolPointer.current)
                 setPoolDraft(poolDestination(poolPointer.current));
             }}
             rowHeight={ROW_HEIGHT}
@@ -881,7 +932,7 @@ export default function SequenceTimeline({
                         onPointerDown={(event) => {
                           if (
                             onPlacementSplit ||
-                            !onPlacementMove ||
+                            !movePlacement ||
                             !event.isPrimary ||
                             event.button !== 0
                           )
@@ -904,7 +955,7 @@ export default function SequenceTimeline({
                           if (!onPlacementSplit && (event.detail === 0 || !moved.current))
                             onPlacementSelect(id, event.shiftKey);
                         }}
-                        className={`${classes} ${onPlacementSplit ? "cursor-crosshair select-none" : onPlacementMove ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                        className={`${classes} ${onPlacementSplit ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
                       >
                         {content}
                       </button>
@@ -1072,9 +1123,10 @@ export default function SequenceTimeline({
             />
           )}
           {draft &&
-            draftResult?.destinations.map(({ placementId, trackIndex, sequenceStartFrame }) => {
+            draftResult?.destinations.map(({ placementId, trackId, sequenceStartFrame }) => {
               const item = items.get(placementId);
-              if (!item || trackIndex === null || !tracks[trackIndex]) return null;
+              const trackIndex = tracks.findIndex(({ id }) => id === trackId);
+              if (!item || trackIndex < 0) return null;
               return placementPreview(
                 placementId,
                 item.label,
@@ -1135,12 +1187,11 @@ export default function SequenceTimeline({
         )}
         {companionDestinations && companionDestinations.length > 0 && (
           <ul aria-label="Other proposed placements" className="pl-4">
-            {companionDestinations.map(({ placementId, trackIndex, sequenceStartFrame }) => (
+            {companionDestinations.map(({ placementId, trackId, sequenceStartFrame }) => (
               <li key={placementId}>
                 {items.get(placementId)?.label} →{" "}
-                {(trackIndex === null ? null : tracks[trackIndex]?.label) ??
-                  "Outside existing tracks"}{" "}
-                · Sequence frame {sequenceStartFrame}
+                {tracks.find(({ id }) => id === trackId)?.label ?? "Outside existing tracks"} ·
+                Sequence frame {sequenceStartFrame}
               </li>
             ))}
           </ul>

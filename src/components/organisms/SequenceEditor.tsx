@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from "react";
-import ProjectClipPool from "./ProjectClipPool";
+import { useId, useState } from "react";
+import SequenceClipPool from "./SequenceClipPool";
 import SequenceInspector from "./SequenceInspector";
 import SequencePreviewPlaceholder from "./SequencePreviewPlaceholder";
 import SequenceTimeline from "./SequenceTimeline";
@@ -11,21 +11,14 @@ import WorkspacePaneToggles, { type WorkspacePane } from "./WorkspacePaneToggles
 export type SequenceEditorProps = UseSequenceEditorOptions;
 
 export default function SequenceEditor(props: SequenceEditorProps) {
-  const {
-    sequence,
-    clips,
-    sources,
-    thumbnails = {},
-    keyframes = {},
-    titles = {},
-    onSequenceChange,
-  } = props;
+  const { sequence, clips, sources, onSequenceChange } = props;
   const {
     previewProps,
     toolbarProps,
     inspectorProps,
     notices,
-    transport,
+    clipPoolProps,
+    timelineProps,
     selectedIds,
     selectedTransition,
     sequenceDissolves,
@@ -35,18 +28,10 @@ export default function SequenceEditor(props: SequenceEditorProps) {
     selectPlacement,
     selectTransition,
     handleEditorKeyDown,
-    dropClip,
-    proposePlacementMove,
     proposePlacementFade,
     proposeTrim,
   } = useSequenceEditor(props);
-  const [poolClipId, setPoolClipId] = useState<string>();
   const [hiddenPanes, setHiddenPanes] = useState<ReadonlySet<WorkspacePane>>(() => new Set());
-  useEffect(() => {
-    const endPoolDrag = () => setPoolClipId(undefined);
-    window.addEventListener("dragend", endPoolDrag, true);
-    return () => window.removeEventListener("dragend", endPoolDrag, true);
-  }, []);
   const shortcutsHintId = useId();
 
   function togglePane(pane: WorkspacePane) {
@@ -83,37 +68,17 @@ export default function SequenceEditor(props: SequenceEditorProps) {
       <SequenceWorkspace
         hiddenPanes={hiddenPanes}
         preview={<SequencePreviewPlaceholder {...previewProps} />}
-        clipPool={
-          <ProjectClipPool
-            clips={clips}
-            sources={sources}
-            thumbnails={thumbnails}
-            keyframes={keyframes}
-            titles={titles}
-            clipWidth="136px"
-            clipHeight="76px"
-            onDragStart={
-              onSequenceChange
-                ? (ids) => setPoolClipId(ids.length === 1 ? ids[0] : undefined)
-                : undefined
-            }
-          />
-        }
+        clipPool={<SequenceClipPool {...clipPoolProps} />}
         inspector={<SequenceInspector {...inspectorProps} />}
       />
       {!hiddenPanes.has("timeline") && (
         <SequenceTimeline
-          playheadFrame={transport.playheadFrame}
-          onSeek={transport.seek}
+          {...timelineProps}
           sequence={sequence}
           sources={sources}
           clips={clips}
-          titles={titles}
-          poolClipId={poolClipId}
+          titles={clipPoolProps.titles}
           onTrackEdit={onSequenceChange ? commitEdit : undefined}
-          onClipDrop={onSequenceChange ? dropClip : undefined}
-          evaluateMove={onSequenceChange ? proposePlacementMove : undefined}
-          onPlacementMove={onSequenceChange ? commitEdit : undefined}
           evaluateFade={onSequenceChange ? proposePlacementFade : undefined}
           onPlacementFade={onSequenceChange ? commitEdit : undefined}
           evaluateTrim={onSequenceChange ? proposeTrim : undefined}
