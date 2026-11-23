@@ -105,6 +105,9 @@ A compilation failure does not reject the edit. Loading a sequence does not emit
 compilation result. To keep Undo history, feed the same sequence object
 received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
 different sequence object is an independent host replacement and clears history.
+The default editor explains why output is unavailable and lets you jump to the
+first reported gap or inspect a placement with a source issue, without editing
+the sequence.
 
 Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
 with a readonly list of `CutListSource` records (`id` and `s3Location` only).

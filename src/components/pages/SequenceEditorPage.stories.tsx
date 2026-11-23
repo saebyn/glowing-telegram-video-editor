@@ -22,6 +22,7 @@ const meta = {
   argTypes: {
     // Accept nested fixture URL args as well as edits in the Controls panel.
     sequence: { control: "object", type: { name: "object", value: {} } },
+    clips: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
     sources: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
     acceptEdits: { control: "boolean", name: "Accept edits" },
     readOnly: { control: "boolean", name: "Read-only" },

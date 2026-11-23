@@ -281,7 +281,7 @@ test("a gap elsewhere does not block a locally representable layered fade", asyn
     .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0].revealTransition)
     .toEqual({ id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 12 });
   expect((await emissions()).cutListResults).toEqual([blockedOutput]);
-  await expect(page.getByText("CutList unavailable:")).toHaveCount(0);
+  await expect(page.getByText(/^CutList unavailable:.*fade/)).toHaveCount(0);
 });
 
 test("opening a gap preserves both adjoining fades and reports their missing contribution", async ({

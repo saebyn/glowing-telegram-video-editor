@@ -6,6 +6,7 @@ import WorkspacePaneToggles, {
 import SequenceClipPool, {
   type SequenceClipPoolProps,
 } from "@/components/organisms/SequenceClipPool";
+import SequenceCutListIssues from "@/components/organisms/SequenceCutListIssues";
 import SequenceInspector, {
   type SequenceInspectorProps,
 } from "@/components/organisms/SequenceInspector";
@@ -38,6 +39,8 @@ export default function SequenceEditorPage({ slots, ...props }: SequenceEditorPa
     toolbarProps,
     inspectorProps,
     notices,
+    cutListIssues,
+    getCutListInspection,
     clipPoolProps,
     timelineProps,
     handleEditorKeyDown,
@@ -100,6 +103,26 @@ export default function SequenceEditorPage({ slots, ...props }: SequenceEditorPa
           {notice}
         </output>
       ))}
+      <SequenceCutListIssues
+        issues={cutListIssues}
+        frameRate={timelineProps.frameRate}
+        onSeek={timelineProps.onSeek}
+        getInspection={
+          Inspector
+            ? (placementId) => {
+                const inspection = getCutListInspection(placementId);
+                if (!inspection) return;
+                return {
+                  label: inspection.label,
+                  inspect: () => {
+                    if (hiddenPanes.has("inspector")) togglePane("inspector");
+                    inspection.inspect();
+                  },
+                };
+              }
+            : undefined
+        }
+      />
       <SequenceWorkspace
         preview={Preview && !hiddenPanes.has("preview") ? <Preview {...previewProps} /> : null}
         clipPool={ClipPool && !hiddenPanes.has("clipPool") ? <ClipPool {...clipPoolProps} /> : null}

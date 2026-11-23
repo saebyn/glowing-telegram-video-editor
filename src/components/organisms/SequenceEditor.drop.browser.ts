@@ -347,6 +347,8 @@ test("hovering a pool clip over a bounded gap previews the exact fitted placemen
   page,
 }) => {
   const { timeline, startDrag, emissions } = await openDropStory(page, roughCutStoryId);
+  const issues = page.getByRole("region", { name: "CutList issues" });
+  await expect(issues).toContainText("120 inclusive – 240 exclusive");
   const { xAt, y, pixelsPerFrame } = await trackGeometry(timeline, "Main", 360);
   // Lighthouse spans 120 frames. A drop near the center of [120, 240) fits only at 120.
   await startDrag(xAt(180), y);
@@ -410,6 +412,7 @@ test("hovering a pool clip over a bounded gap previews the exact fitted placemen
   });
   await expect(timeline).toContainText("Duration: 00:06");
   await expect(preview).toHaveCount(0);
+  await expect(issues).toHaveCount(0);
 });
 
 test("leaving the tracks clears a pool preview without committing an edit", async ({ page }) => {

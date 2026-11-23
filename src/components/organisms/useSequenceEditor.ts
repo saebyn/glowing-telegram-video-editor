@@ -130,23 +130,18 @@ export function useSequenceEditor({
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [dissolveConflict, setDissolveConflict] = useState(false);
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
+  const cutListIssues = useMemo(
+    () => compileCutList(sequence, clips, sources, frameRate).issues,
+    [sequence, clips, sources, frameRate],
+  );
   const transitionNotices = useMemo(() => {
-    if (
-      !sequence.tracks.some(({ placements }) =>
-        placements.some(
-          ({ entryTransition, revealTransition }) => entryTransition || revealTransition,
-        ),
-      )
-    )
-      return [];
-    const { issues } = compileCutList(sequence, clips, sources, frameRate);
     const messages = new Set<string>();
-    for (const { code } of issues) {
+    for (const { code } of cutListIssues) {
       const message = transitionOutputMessages[code];
       if (message) messages.add(message);
     }
     return [...messages];
-  }, [sequence, clips, sources, frameRate]);
+  }, [cutListIssues]);
   const selectedTracks = sequence.tracks.flatMap((track) => {
     const placements = track.placements.filter(({ id }) => selection.includes(id));
     return placements.length > 0 ? [{ track, placements }] : [];
@@ -215,6 +210,16 @@ export function useSequenceEditor({
     else if (!toggle) setSelection([id]);
     else if (selectedIds.includes(id)) setSelection(selectedIds.filter((other) => other !== id));
     else setSelection([...selectedIds, id]);
+  }
+
+  function getCutListInspection(placementId: string) {
+    const track = findPlacementTrack(sequence, placementId);
+    const placement = track?.placements.find(({ id }) => id === placementId);
+    if (!track || !placement || !clips.some(({ id }) => id === placement.clipId)) return;
+    return {
+      label: `${clipTitle(placement.clipId)} on ${track.label}`,
+      inspect: () => selectPlacement(placementId, false),
+    };
   }
 
   function selectTransition(id: string) {
@@ -733,6 +738,8 @@ export function useSequenceEditor({
     clipPoolProps,
     timelineProps,
     notices,
+    cutListIssues,
+    getCutListInspection,
     handleEditorKeyDown,
   };
 }

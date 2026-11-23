@@ -375,7 +375,9 @@ Compilation collects independent issues, including the inclusive start and
 exclusive end of each sequence gap and IDs for affected placements or
 transitions. If a missing clip prevents the compiler from resolving the layout,
 it does not infer gaps from the placements it could resolve. The default editor
-shows transition notices from the result; hosts decide how to present other issues.
+explains issues from the current host inputs without emitting callbacks. It can
+seek to the first reported gap or select an affected placement for inspection,
+including on locked tracks. Neither action modifies the sequence or its history.
 
 ## Storybook editing setups
 

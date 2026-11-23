@@ -1,6 +1,6 @@
 # 46 — Make `CutList` issues actionable
 
-Status: ready-for-agent
+Resolution: made current CutList issues actionable in the default editor
 
 ## Proposal
 
@@ -39,3 +39,16 @@ editor mainly shows transition notices. Help editors locate what prevents
 Changing the `CutList` format or compiler rules, automatically repairing
 sequences, adding gap overlays to the Timeline, and deciding whether the host
 can save or approve an edit.
+
+## Comments
+
+- Observed red → green for initial gap bounds and keyboard navigation,
+  inspection on a locked track, unresolved clip feedback, and mismatched
+  frame rates. Host replacement clears stale source messages without a
+  callback; an accepted gap-filling drop clears the gap explanation and
+  still reports one sequence and one exact `CutList`.
+- The full 137-test Playwright suite passed in the isolated ticket workspace.
+  The integrated unit and Storybook suites passed (244 tests). Typecheck
+  and lint passed, with the existing VideoPlayer caption warning.
+- Killed four targeted Chromium mutants: jumping to the last gap,
+  skipping inspection, stale source issues, and stale sequence issues.
