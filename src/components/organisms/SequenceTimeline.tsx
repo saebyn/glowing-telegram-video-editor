@@ -26,6 +26,7 @@ import type {
   SequenceSource,
   VideoClip,
 } from "@/types";
+import { getPlacementSourceRange } from "@/utils/clipPlacements";
 import { getDissolveWindow } from "@/utils/dissolveWindow";
 import type { PlacementFadeField } from "@/utils/fadePlacement";
 import {
@@ -35,7 +36,6 @@ import {
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
-import { getPlacementSourceRange } from "@/utils/sequence";
 import type { PlacementTrimEdge } from "@/utils/trimPlacement";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {

@@ -1,7 +1,13 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { expect, it } from "vitest";
+import { compileCutList as publicCompileCutList } from "@/index";
 import type { Sequence, SequenceSource, VideoClip } from "@/types";
-import { compileCutList, getSequenceDissolves, hasTransitionAuthoringConflict } from "./sequence";
+import compileCutList from "./compileCutList";
+import {
+  getFadeOutputIssue,
+  getSequenceDissolves,
+  hasTransitionAuthoringConflict,
+} from "./sequenceTransitions";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clips: readonly VideoClip[] = [
@@ -45,7 +51,7 @@ it("omits a dissolve clipped to zero visible frames at the exclusive sequence en
       },
     ],
   };
-  expect(compileCutList(sequence, clips, sources, frameRate)?.outputTrack).toEqual([
+  expect(publicCompileCutList(sequence, clips, sources, frameRate)?.outputTrack).toEqual([
     { mediaIndex: 0, sectionIndex: 0 },
   ]);
 });
@@ -370,7 +376,7 @@ it("attaches an entry and a reveal fade to the distinct fragments containing the
   expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual(expected);
 });
 
-it("does not split upper cuts at the boundaries of a covered placement", () => {
+it("compiles unsorted placements in frame order without splitting at covered boundaries", () => {
   const sequence: Sequence = {
     durationFrames: 120,
     tracks: [
@@ -378,8 +384,8 @@ it("does not split upper cuts at the boundaries of a covered placement", () => {
         id: "upper",
         label: "Upper",
         placements: [
-          { id: "placement-a", clipId: "a", sequenceStartFrame: 0 },
           { id: "placement-b", clipId: "b", sequenceStartFrame: 100 },
+          { id: "placement-a", clipId: "a", sequenceStartFrame: 0 },
         ],
       },
       {
@@ -428,11 +434,11 @@ it("rejects overlap on one track even when an upper placement covers it", () => 
 });
 
 it.each([
-  ["a straight cut", {}],
-  ["a reveal fade", { revealTransition: fade("gap-reveal", 10) }],
+  ["a straight cut", {}, null],
+  ["a reveal fade", { revealTransition: fade("gap-reveal", 10) }, "gap"],
 ] as const)(
   "does not skip an uncovered gap after %s to reach a placement on another track",
-  (_, transition) => {
+  (_, transition, expectedIssue) => {
     const sequence: Sequence = {
       durationFrames: 140,
       tracks: [
@@ -450,6 +456,7 @@ it.each([
     };
 
     expect(compileCutList(sequence, clips, sources, frameRate)).toBeNull();
+    expect(getFadeOutputIssue(sequence, clips, sources, frameRate)).toBe(expectedIssue);
   },
 );
 

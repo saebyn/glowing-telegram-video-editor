@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Sequence, VideoClip } from "@/types";
-import { evaluatePoolDrop, placeClipInGap } from "./sequence";
+import { evaluatePoolDrop, placeClipInGap } from "./placementDrag";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clip: VideoClip = {
@@ -63,7 +63,7 @@ it("rejects an extending drop over the effective source range of a placement on 
   });
 });
 
-it("rejects a clip longer than the bounded gap instead of backing into the preceding placement", () => {
+it("rejects a clip longer than the bounded gap even when placements are stored out of order", () => {
   const bounded: Sequence = {
     durationFrames: 150,
     tracks: [
@@ -71,8 +71,8 @@ it("rejects a clip longer than the bounded gap instead of backing into the prece
         id: "main",
         label: "Main",
         placements: [
-          ...sequence.tracks[0].placements,
           { id: "later", clipId: "clip", sequenceStartFrame: 104 },
+          ...sequence.tracks[0].placements,
         ],
       },
     ],

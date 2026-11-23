@@ -1,6 +1,6 @@
 import type { ClipPlacement, FrameRate, PlacementTransition, Sequence, VideoClip } from "@/types";
+import { getPlacementSourceRange } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
-import { getPlacementSourceRange } from "./sequence";
 import { findPlacementTrack } from "./sequenceTracks";
 import { getTrimmableSourceRange } from "./trimPlacement";
 

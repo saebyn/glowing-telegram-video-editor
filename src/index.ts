@@ -115,4 +115,4 @@ export {
   secondsToFrame,
 } from "./utils/frames";
 export { default as parseContent } from "./utils/parseData";
-export { compileCutList } from "./utils/sequence";
+export { default as compileCutList } from "./utils/compileCutList";

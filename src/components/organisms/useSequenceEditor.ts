@@ -3,6 +3,8 @@ import { type KeyboardEvent, useMemo, useState } from "react";
 import type { SequencePreviewPlaceholderProps } from "@/components/molecules/SequencePreviewPlaceholder";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
+import { getPlacementSourceRange } from "@/utils/clipPlacements";
+import compileCutList from "@/utils/compileCutList";
 import { evaluatePlacementDissolve } from "@/utils/dissolvePlacement";
 import {
   evaluatePlacementFade,
@@ -11,16 +13,7 @@ import {
   type PlacementFadeField,
 } from "@/utils/fadePlacement";
 import { getProjectFrameCount } from "@/utils/frames";
-import {
-  compileCutList,
-  evaluatePlacementMove,
-  evaluatePoolDrop,
-  getFadeOutputIssue,
-  getPlacementSourceRange,
-  getSequenceDissolves,
-  hasTransitionAuthoringConflict,
-  placeClipInGap,
-} from "@/utils/sequence";
+import { evaluatePlacementMove, evaluatePoolDrop, placeClipInGap } from "@/utils/placementDrag";
 import {
   addSequenceTrack,
   canRemoveSequenceTrack,
@@ -29,6 +22,11 @@ import {
   reorderSequenceTrack,
   toggleSequenceTrackLock,
 } from "@/utils/sequenceTracks";
+import {
+  getFadeOutputIssue,
+  getSequenceDissolves,
+  hasTransitionAuthoringConflict,
+} from "@/utils/sequenceTransitions";
 import { shortenSequence } from "@/utils/shortenSequence";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {

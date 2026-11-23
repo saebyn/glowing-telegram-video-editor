@@ -1,6 +1,6 @@
 import type { ClipPlacement, FrameRate, Sequence, SequenceTrack, VideoClip } from "@/types";
+import { getPlacementSourceRange } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
-import { getPlacementSourceRange } from "./sequence";
 
 export type PlacementTrimEdge = "leading" | "trailing";
 

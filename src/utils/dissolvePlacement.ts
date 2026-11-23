@@ -1,7 +1,7 @@
 import type { ClipPlacement, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
 import { replacePlacementTransition, type PlacementFadeField } from "./fadePlacement";
-import { hasTransitionAuthoringConflict } from "./sequence";
 import { findPlacementTrack } from "./sequenceTracks";
+import { hasTransitionAuthoringConflict } from "./sequenceTransitions";
 
 export function evaluatePlacementDissolve(
   sequence: Sequence,

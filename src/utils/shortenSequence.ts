@@ -1,6 +1,6 @@
 import type { FrameRate, Sequence, VideoClip } from "@/types";
+import { getPlacementSourceRange } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
-import { getPlacementSourceRange } from "./sequence";
 
 export function shortenSequence(
   sequence: Sequence,

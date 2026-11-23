@@ -1,5 +1,5 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
-import { getPlacementSourceRange } from "./sequence";
+import { getPlacementSourceRange } from "./clipPlacements";
 
 function getSplitPoint(
   placement: ClipPlacement,

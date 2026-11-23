@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Sequence, VideoClip } from "@/types";
-import { evaluatePlacementMove } from "./sequence";
+import { evaluatePlacementMove } from "./placementDrag";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clips: readonly VideoClip[] = [
