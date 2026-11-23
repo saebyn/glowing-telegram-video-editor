@@ -30,13 +30,14 @@ export default function AudioChannelNameEditor({
   placeholder = "Channel Name",
   maxLength = 50,
 }: AudioChannelNameEditorProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingName, setEditingName] = useState(name);
+  const [draft, setDraft] = useState<{ originalName: string; value: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isEditing = draft !== null;
 
-  useEffect(() => {
-    setEditingName(name);
-  }, [name]);
+  // An external rename replaces the draft without closing or remounting the input.
+  if (draft && draft.originalName !== name) {
+    setDraft({ originalName: name, value: name });
+  }
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -47,22 +48,16 @@ export default function AudioChannelNameEditor({
 
   const handleStartEdit = () => {
     if (!disabled) {
-      setIsEditing(true);
-      setEditingName(name);
+      setDraft({ originalName: name, value: name });
     }
   };
 
   const handleSave = () => {
-    const trimmedName = editingName.trim();
+    const trimmedName = draft?.value.trim();
     if (trimmedName && trimmedName !== name) {
       onNameChange(trimmedName);
     }
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditingName(name);
-    setIsEditing(false);
+    setDraft(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -71,7 +66,7 @@ export default function AudioChannelNameEditor({
       handleSave();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      handleCancel();
+      setDraft(null);
     }
   };
 
@@ -79,13 +74,13 @@ export default function AudioChannelNameEditor({
     handleSave();
   };
 
-  if (isEditing) {
+  if (draft) {
     return (
       <input
         ref={inputRef}
         type="text"
-        value={editingName}
-        onChange={(e) => setEditingName(e.target.value)}
+        value={draft.value}
+        onChange={(e) => setDraft({ originalName: name, value: e.target.value })}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         maxLength={maxLength}

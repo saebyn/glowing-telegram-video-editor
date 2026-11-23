@@ -28,7 +28,7 @@ interface WaveformDisplayProps {
    */
   playheadColor?: string;
   /**
-   * Callback when user clicks on the waveform
+   * Callback when the user seeks on the waveform
    */
   onSeek?: (sequenceFrame: number) => void;
 }
@@ -88,50 +88,40 @@ export default function WaveformDisplay({
     }
   }, [waveformData, width, height, visibleFrame, durationFrames, color, playheadColor]);
 
-  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!onSeek || durationFrames === 0) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const x = event.clientX - rect.left;
-    onSeek(snapFrame((x / rect.width) * durationFrames, durationFrames));
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
-    if (!onSeek || durationFrames === 0) return;
-
-    // Allow seeking with arrow keys
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      event.preventDefault();
-      const step = Math.max(1, Math.round(durationFrames * 0.05));
-      const offset = event.key === "ArrowLeft" ? -step : step;
-      onSeek(snapFrame(visibleFrame + offset, durationFrames));
-    }
-  };
-
   return (
-    <div className="relative">
+    <div className="relative w-fit rounded has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-500">
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
-        className="bg-gray-100 dark:bg-gray-800 rounded cursor-pointer"
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        tabIndex={onSeek ? 0 : -1}
-        role="slider"
-        aria-label="Waveform timeline"
-        aria-valuemin={0}
-        aria-valuemax={durationFrames}
-        aria-valuenow={visibleFrame}
+        className="block rounded bg-gray-100 dark:bg-gray-800"
+        aria-label="Audio waveform"
       />
       {waveformData.amplitudes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
           No waveform data
         </div>
+      )}
+      {onSeek && durationFrames > 0 && (
+        <input
+          type="range"
+          dir="ltr"
+          min={0}
+          max={durationFrames}
+          step={1}
+          value={visibleFrame}
+          aria-label="Waveform timeline"
+          className="gtve-seek-input absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
+          onChange={(event) => onSeek(event.currentTarget.valueAsNumber)}
+          onKeyDown={(event) => {
+            // Preserve the existing five-percent waveform seek for left and right.
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const step = Math.max(1, Math.round(durationFrames * 0.05));
+            const offset = event.key === "ArrowLeft" ? -step : step;
+            onSeek(snapFrame(visibleFrame + offset, durationFrames));
+          }}
+        />
       )}
     </div>
   );

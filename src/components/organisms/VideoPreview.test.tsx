@@ -149,17 +149,17 @@ describe("Video Preview Components", () => {
     const { container, getByRole, rerender } = render(preview(30));
     const video = container.querySelector("video")!;
     const playhead = () => getByRole("slider", { name: "Waveform timeline" });
-    expect(playhead()).toHaveAttribute("aria-valuenow", "30");
+    expect(playhead()).toHaveValue("30");
     video.currentTime = 2;
     fireEvent.timeUpdate(video);
-    expect(playhead()).toHaveAttribute("aria-valuenow", "60");
+    expect(playhead()).toHaveValue("60");
 
     rerender(preview(60));
     expect(video.currentTime).toBe(2);
-    expect(playhead()).toHaveAttribute("aria-valuenow", "120");
+    expect(playhead()).toHaveValue("120");
 
     video.currentTime = 3;
     fireEvent.timeUpdate(video);
-    expect(playhead()).toHaveAttribute("aria-valuenow", "180");
+    expect(playhead()).toHaveValue("180");
   });
 });

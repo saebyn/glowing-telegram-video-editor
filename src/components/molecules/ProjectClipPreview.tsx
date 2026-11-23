@@ -27,24 +27,32 @@ type ProjectClipPreviewProps = {
     }
 );
 
+function HoverKeyframe({ urls }: { urls: string[] }) {
+  const [keyframe, setKeyframe] = useState(0);
+  const count = urls.length;
+
+  useEffect(() => {
+    if (count <= 1) return;
+
+    const interval = setInterval(() => {
+      setKeyframe((prev) => (prev + 1) % count);
+    }, KEYFRAME_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [count]);
+
+  return (
+    <div
+      className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
+      style={{ backgroundImage: `url(${urls[keyframe]})` }}
+    />
+  );
+}
+
 function ProjectClipPreview(props: ProjectClipPreviewProps) {
   const frameRate = useProjectFrameRate();
   const [hover, setHover] = useState(false);
-  const [keyframe, setKeyframe] = useState(0);
 
   usePreloadImages(props.keyframeUrls);
-
-  useEffect(() => {
-    if (hover && props.keyframeUrls.length > 1) {
-      const interval = setInterval(() => {
-        setKeyframe((prev) => (prev + 1) % props.keyframeUrls.length);
-      }, KEYFRAME_INTERVAL_MS);
-
-      return () => clearInterval(interval);
-    }
-
-    setKeyframe(0);
-  }, [hover, props.keyframeUrls.length]);
 
   const handleClick = () => {
     if (!props.onTitleUpdate) return;
@@ -68,12 +76,9 @@ function ProjectClipPreview(props: ProjectClipPreviewProps) {
         className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
         style={{ backgroundImage: `url(${props.thumbnailUrl})` }}
       />
-      <div
-        className="w-full h-full bg-top bg-no-repeat bg-[length:100%_auto] absolute top-0 left-0"
-        style={{
-          backgroundImage: `url(${hover ? props.keyframeUrls[keyframe] : props.thumbnailUrl})`,
-        }}
-      />
+      {hover && props.keyframeUrls.length > 0 && (
+        <HoverKeyframe key={props.keyframeUrls.length} urls={props.keyframeUrls} />
+      )}
       <div
         className="p-2 absolute top-0 bottom-0 w-full bg-gradient-to-t from-black/70 to-transparent text-white transition-opacity"
         style={{ opacity: overlayVisible ? 1 : 0 }}
