@@ -13,9 +13,6 @@ without introducing another triage status.
 - [46 — Make `CutList` issues actionable](issues/46-make-cutlist-issues-actionable.md):
   explain unavailable output in the default editor and let editors jump to
   the first gap or inspect an affected placement.
-- [47 — Separate render and preview source inputs](issues/47-separate-render-and-preview-source-inputs.md):
-  require host-supplied HLS for video in the editor without requiring it for
-  `CutList` compilation.
 - [48 — Share frame thumbnails across the sequence editor](issues/48-share-frame-thumbnails-across-the-sequence-editor.md):
   use one source collection for clip pool hover previews and timeline strips.
 
@@ -39,6 +36,9 @@ without reopening the completed editing work.
 
 ## Completed in the current burndown
 
+- [47 — Separate render and preview source inputs](issues/47-separate-render-and-preview-source-inputs.md):
+  require host-supplied HLS for video in the editor without requiring it for
+  `CutList` compilation.
 - [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md):
   stable owner-edge identity and selectable fade indicators; verification ends
   at editing behavior and the existing `CutList`.

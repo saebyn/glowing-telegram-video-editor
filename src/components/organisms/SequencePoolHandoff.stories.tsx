@@ -24,7 +24,13 @@ const clips: VideoClip[] = [
     sourceOutFrame: 120,
   },
 ];
-const sources = [{ id: "source", s3Location: "s3://sequence-fixtures/source.mp4" }];
+const sources = [
+  {
+    id: "source",
+    s3Location: "s3://sequence-fixtures/source.mp4",
+    previewHlsUrl: "/fixtures/source.m3u8",
+  },
+];
 const titles = { clip: "Example clip" };
 const original: Sequence = {
   durationFrames: 120,

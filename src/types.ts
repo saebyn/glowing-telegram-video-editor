@@ -132,14 +132,24 @@ export interface SequenceLayout {
 export type MediaKind = "video-only" | "audio-only" | "audio-video";
 
 /** Renderable media identity supplied by the host, separate from a clip's source range. */
-export interface SequenceSource {
+export interface CutListSource {
   id: string;
   s3Location: string;
-  /** When omitted, the editor treats the media kind as unknown. */
-  mediaKind?: MediaKind;
+}
+
+/** Source media and presentation metadata supplied to the sequence editor. */
+export type SequenceSource = CutListSource & {
   /** Optional frame thumbnails at zero-based positions on this source's native frame grid. */
   keyframes?: readonly { sourceFrame: number; url: string }[];
-}
+} & (
+    | { mediaKind: "audio-only"; previewHlsUrl?: string }
+    | {
+        /** When omitted, the editor treats the media kind as unknown. */
+        mediaKind?: Exclude<MediaKind, "audio-only">;
+        /** Playback rendition with the same time zero and elapsed times as the render source. */
+        previewHlsUrl: string;
+      }
+  );
 
 export interface PlacementTransition {
   /** Stable identity within the sequence. */

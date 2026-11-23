@@ -50,9 +50,18 @@ const meta = {
         keyframeSrc: lighthouseThumbnail,
       },
     ],
+    // Preview URLs are placeholders; these stories do not play media.
     sources: [
-      { id: "harbor-recording", s3Location: "s3://sequence-fixtures/harbor.mp4" },
-      { id: "lighthouse-recording", s3Location: "s3://sequence-fixtures/lighthouse.mp4" },
+      {
+        id: "harbor-recording",
+        s3Location: "s3://sequence-fixtures/harbor.mp4",
+        previewHlsUrl: "/fixtures/harbor.m3u8",
+      },
+      {
+        id: "lighthouse-recording",
+        s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+        previewHlsUrl: "/fixtures/lighthouse.m3u8",
+      },
     ],
     titles: { harbor: "Harbor", lighthouse: "Lighthouse" },
     keyframes: { harbor: [harborThumbnail], lighthouse: [lighthouseThumbnail] },

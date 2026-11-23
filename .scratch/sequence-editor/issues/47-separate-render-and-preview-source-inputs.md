@@ -1,6 +1,6 @@
 # 47 — Separate render and preview source inputs
 
-Status: ready-for-agent
+Resolution: separated render-only compiler inputs from editor source metadata
 
 ## Proposal
 
@@ -36,3 +36,14 @@ one location from the other. See [playback rendition in the glossary](../../../G
 and [adding runtime validation for duplicate IDs](51-design-duplicate-source-id-handling.md).
 The sequence editor has not shipped; no compatibility layer or upgrade guide
 is needed.
+
+## Comments
+
+- Observed red → green for the package-root source type contract and for
+  compilation without reading presentation metadata. Minimal and full records
+  produce the same exact trimmed fade output and unsupported-dissolve issues.
+- Passed typecheck, library build, packed package-root declaration checks,
+  lint, formatting, 10 affected Storybook checks, and 14 targeted Playwright
+  checks in Chromium. Five type-contract and three runtime mutations were
+  caught, including letting video omit a URL and using the preview URL for
+  render input.

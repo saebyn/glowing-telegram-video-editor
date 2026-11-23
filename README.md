@@ -89,16 +89,28 @@ Pass positions and durations as whole frames. Positions are zero-based. Source r
 
 ### SequenceEditorPage
 
-The host supplies `sequence`, `clips`, and `sources` (source IDs and `s3Location` values).
+The host supplies `sequence`, `clips`, and one `SequenceSource` record per source ID.
+Each record includes its render `s3Location`. Before mounting the editor, supply
+`previewHlsUrl` for `video-only`, `audio-video`, and sources with no declared
+`mediaKind`. An explicitly `audio-only` source does not require a preview URL;
+its streaming contract is not defined yet. The HLS playback rendition can use
+a different resolution or encoding, but it must contain the same content at
+time zero and at every elapsed time as the render source. The library does not
+derive the URL from `s3Location`.
+
 On an edit, feed `onSequenceChange` back into `sequence`. `onCutListResult` receives the
 compilation result for that same edit. Check `result.ok` before reading `result.cutList`.
 Both branches have an `issues` list: it can be empty on success and is nonempty on failure.
 A compilation failure does not reject the edit. Loading a sequence does not emit a
 compilation result. To keep Undo history, feed the same sequence object
 received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
-different sequence object is an independent host replacement and clears history. Hosts
-can also call `compileCutList(sequence, clips, sources, frameRate)` directly.
-The compiler describes the edit; final rendering is outside the library’s scope.
+different sequence object is an independent host replacement and clears history.
+
+Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
+with a readonly list of `CutListSource` records (`id` and `s3Location` only).
+Full `SequenceSource` records work too; preview metadata does not affect the
+`CutList`. The compiler describes the edit; final rendering is outside the
+library’s scope.
 
 The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
 `timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane

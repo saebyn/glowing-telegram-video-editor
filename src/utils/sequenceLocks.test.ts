@@ -17,7 +17,13 @@ const harbor: VideoClip = {
   sourceOutFrame: 50,
   sourceDurationFrames: 100,
 };
-const sources = [{ id: "harbor-media", s3Location: "s3://media/harbor.mp4" }];
+const sources = [
+  {
+    id: "harbor-media",
+    s3Location: "s3://media/harbor.mp4",
+    previewHlsUrl: "/fixtures/harbor.m3u8",
+  },
+];
 const overlay = { id: "over", clipId: "harbor", sequenceStartFrame: 0 };
 const bed = { id: "under", clipId: "harbor", sequenceStartFrame: 0 };
 const sequence: Sequence = {

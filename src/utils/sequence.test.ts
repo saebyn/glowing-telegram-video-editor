@@ -1,7 +1,7 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { expect, it } from "vitest";
 import { compileCutList } from "@/index";
-import type { Sequence, SequenceSource, VideoClip } from "@/types";
+import type { CutListResult, CutListSource, Sequence, SequenceSource, VideoClip } from "@/types";
 import { getSequenceDissolves, hasTransitionAuthoringConflict } from "./sequenceTransitions";
 
 const frameRate = { numerator: 30, denominator: 1 };
@@ -22,13 +22,13 @@ const clips: readonly VideoClip[] = [
   },
 ];
 const sources: readonly SequenceSource[] = [
-  { id: "source-a", s3Location: "s3://media/a.mp4" },
-  { id: "source-b", s3Location: "s3://media/b.mp4" },
+  { id: "source-a", s3Location: "s3://media/a.mp4", previewHlsUrl: "/fixtures/a.m3u8" },
+  { id: "source-b", s3Location: "s3://media/b.mp4", previewHlsUrl: "/fixtures/b.m3u8" },
 ];
 const fade = (id: string, durationFrames: number) =>
   ({ id, kind: "fade", durationFrames }) as const;
 
-it("reports each sequence gap alongside a visible unsupported dissolve", () => {
+it("reports each sequence gap alongside a visible unsupported dissolve regardless of source presentation", () => {
   const sequence: Sequence = {
     durationFrames: 150,
     tracks: [
@@ -48,14 +48,29 @@ it("reports each sequence gap alongside a visible unsupported dissolve", () => {
     ],
   };
 
-  expect(compileCutList(sequence, clips, sources, frameRate)).toEqual({
+  const expected: CutListResult = {
     ok: false,
     issues: [
       { code: "sequence-gap", startFrame: 0, endFrame: 10 },
       { code: "sequence-gap", startFrame: 130, endFrame: 150 },
       { code: "unsupported-dissolve", transitionId: "blend" },
     ],
-  });
+  };
+  const renderSources: readonly CutListSource[] = [
+    { id: "source-a", s3Location: "s3://media/a.mp4" },
+    { id: "source-b", s3Location: "s3://media/b.wav" },
+  ];
+  const editorSources: readonly SequenceSource[] = [
+    {
+      id: "source-a",
+      s3Location: "s3://media/a.mp4",
+      mediaKind: "video-only",
+      previewHlsUrl: "/fixtures/a.m3u8",
+    },
+    { id: "source-b", s3Location: "s3://media/b.wav", mediaKind: "audio-only" },
+  ];
+  expect(compileCutList(sequence, clips, renderSources, frameRate)).toStrictEqual(expected);
+  expect(compileCutList(sequence, clips, editorSources, frameRate)).toStrictEqual(expected);
 });
 
 it("collects missing references without claiming that an unresolved placement leaves a gap", () => {

@@ -3,7 +3,7 @@ import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
 import { sampleFrameRate } from "@/fixtures/video";
 import type { SequenceSource, VideoClip } from "@/types";
 
-// Local fixtures: the source locations are identifiers only, not playback URLs.
+// Preview URLs are placeholders; these stories do not play media.
 export const sequenceStoryMedia = {
   clips: [
     {
@@ -36,12 +36,14 @@ export const sequenceStoryMedia = {
     {
       id: "harbor-recording",
       s3Location: "s3://sequence-fixtures/harbor.mp4",
+      previewHlsUrl: "/fixtures/harbor.m3u8",
       mediaKind: "audio-video",
       keyframes: [{ sourceFrame: 114, url: harborThumbnail }],
     },
     {
       id: "lighthouse-recording",
       s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+      previewHlsUrl: "/fixtures/lighthouse.m3u8",
       mediaKind: "video-only",
       keyframes: [{ sourceFrame: 501, url: lighthouseThumbnail }],
     },

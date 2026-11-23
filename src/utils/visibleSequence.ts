@@ -1,12 +1,5 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type {
-  CutListIssue,
-  FrameRate,
-  MediaKind,
-  Sequence,
-  SequenceSource,
-  VideoClip,
-} from "@/types";
+import type { CutListIssue, CutListSource, FrameRate, Sequence, VideoClip } from "@/types";
 import { getPlacementSourceRange, inSequenceOrder } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
 
@@ -16,7 +9,7 @@ export type ResolvedPlacement = {
   sequenceEndFrame: number;
   sourceInFrame: number;
   knownSourceEnd: number;
-  mediaKind?: MediaKind;
+  sourceId: string;
   s3Location: string;
   sourceMappingKnown: boolean;
 };
@@ -53,7 +46,7 @@ function isValidRate({ numerator, denominator }: FrameRate) {
 export function resolveVisibleSequence(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly SequenceSource[],
+  sources: readonly CutListSource[],
   frameRate: FrameRate,
   layoutOnly = false,
 ) {
@@ -153,7 +146,7 @@ export function resolveVisibleSequence(
         sequenceEndFrame,
         sourceInFrame,
         knownSourceEnd: clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame),
-        mediaKind: source?.mediaKind,
+        sourceId: clip.sourceId,
         s3Location: source?.s3Location ?? clip.sourceId,
         sourceMappingKnown: source !== undefined && matchingRates,
       };
