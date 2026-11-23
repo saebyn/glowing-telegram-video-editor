@@ -7,6 +7,28 @@ import {
   roughCutStoryId,
 } from "./SequenceEditor.browserHarness";
 
+test("Escape dismisses Split mode only in the editor with focus", async ({ page }) => {
+  await page.goto("/iframe.html?id=testing-sequence-editor-shortcuts--two-editors&viewMode=story");
+  const splitMode = (editor: string) =>
+    page.getByRole("region", { name: editor, exact: true }).getByRole("button", {
+      name: "Split mode",
+      exact: true,
+    });
+  const first = splitMode("First editor");
+  const second = splitMode("Second editor");
+  await first.click({ timeout: 20_000 });
+  await second.click();
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Outside both editors" }).press("Escape");
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await second.press("Escape");
+  await expect(second).toHaveAttribute("aria-pressed", "false");
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+});
+
 test("Split mode cuts only the clicked placement at the pointer and leaves selection and playhead alone", async ({
   page,
 }) => {
@@ -50,7 +72,7 @@ test("Split mode cuts only the clicked placement at the pointer and leaves selec
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(lighthouse).toHaveCount(2);
-  await page.keyboard.press("Escape");
+  await page.getByRole("region", { name: "Sequence editor", exact: true }).press("Escape");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await lighthouse.first().click();
   await expect(lighthouse.first()).toHaveAttribute("aria-pressed", "true");

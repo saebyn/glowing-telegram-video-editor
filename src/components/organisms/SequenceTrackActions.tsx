@@ -1,6 +1,5 @@
 import type { Sequence, SequenceTrack } from "@/types";
 import {
-  addSequenceTrack,
   canRemoveSequenceTrack,
   removeSequenceTrack,
   toggleSequenceTrackLock,
@@ -40,13 +39,13 @@ export function ToggleSequenceTrackLock({
   );
 }
 
-export function AddSequenceTrack({ sequence, onCommit }: TrackActionProps) {
+export interface AddSequenceTrackProps {
+  onAddTrack: () => void;
+}
+
+export function AddSequenceTrack({ onAddTrack }: AddSequenceTrackProps) {
   return (
-    <button
-      type="button"
-      className="rounded border px-3 py-1 text-sm"
-      onClick={() => onCommit(addSequenceTrack(sequence, crypto.randomUUID()))}
-    >
+    <button type="button" className="rounded border px-3 py-1 text-sm" onClick={onAddTrack}>
       Add track
     </button>
   );

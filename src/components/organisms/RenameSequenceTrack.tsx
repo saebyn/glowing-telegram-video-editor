@@ -1,16 +1,15 @@
 import { useId, useRef, useState } from "react";
-import type { Sequence } from "@/types";
 
-interface RenameSequenceTrackProps {
-  sequence: Sequence;
-  onCommit: (next: Sequence) => void;
+export interface RenameSequenceTrackProps {
+  tracks: readonly { id: string; label: string }[];
+  onRename: (trackId: string, label: string) => void;
 }
 
-export default function RenameSequenceTrack({ sequence, onCommit }: RenameSequenceTrackProps) {
+export default function RenameSequenceTrack({ tracks, onRename }: RenameSequenceTrackProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const headingId = useId();
   const [draft, setDraft] = useState<{ trackId: string; label?: string }>();
-  const track = sequence.tracks.find(({ id }) => id === draft?.trackId) ?? sequence.tracks[0];
+  const track = tracks.find(({ id }) => id === draft?.trackId) ?? tracks[0];
   if (!track) return null;
   const label = draft?.trackId === track.id ? (draft.label ?? track.label) : track.label;
 
@@ -39,13 +38,7 @@ export default function RenameSequenceTrack({ sequence, onCommit }: RenameSequen
           onSubmit={(event) => {
             event.preventDefault();
             dialog.current?.close();
-            if (label === track.label) return;
-            onCommit({
-              ...sequence,
-              tracks: sequence.tracks.map((candidate) =>
-                candidate.id === track.id ? { ...candidate, label } : candidate,
-              ),
-            });
+            onRename(track.id, label);
           }}
         >
           <label className="grid gap-1">
@@ -55,7 +48,7 @@ export default function RenameSequenceTrack({ sequence, onCommit }: RenameSequen
               value={track.id}
               onChange={(event) => setDraft({ trackId: event.currentTarget.value })}
             >
-              {sequence.tracks.map(({ id, label }, index) => (
+              {tracks.map(({ id, label }, index) => (
                 <option key={id} value={id}>
                   {index + 1}. {label}
                 </option>
