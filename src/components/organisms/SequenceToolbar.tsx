@@ -17,6 +17,8 @@ export interface SequenceToolbarProps {
   splitAtPlayhead?: () => void;
   splitMode: boolean;
   toggleSplitMode?: () => void;
+  snapEnabled?: boolean;
+  toggleSnap?: () => void;
   undo?: () => void;
   redo?: () => void;
   deleteSelection?: () => void;
@@ -32,6 +34,8 @@ export default function SequenceToolbar({
   splitAtPlayhead,
   splitMode,
   toggleSplitMode,
+  snapEnabled = false,
+  toggleSnap,
   undo,
   redo,
   deleteSelection,
@@ -53,6 +57,16 @@ export default function SequenceToolbar({
           onClick={toggleSplitMode}
         >
           Split mode
+        </button>
+      )}
+      {toggleSnap && (
+        <button
+          type="button"
+          aria-pressed={snapEnabled}
+          className="rounded border px-3 py-1 text-sm aria-pressed:bg-amber-200 aria-pressed:text-amber-950"
+          onClick={toggleSnap}
+        >
+          Snap
         </button>
       )}
       <SequenceEditButton onClick={undo}>Undo</SequenceEditButton>

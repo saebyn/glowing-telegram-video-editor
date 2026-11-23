@@ -7,9 +7,6 @@ without introducing another triage status.
 
 ## Ready for an agent
 
-- [21 — Snap placement moves](issues/21-snap-placement-moves.md):
-  align single or grouped placement moves to the playhead or stationary edges
-  without changing move validation.
 - [46 — Make `CutList` issues actionable](issues/46-make-cutlist-issues-actionable.md):
   explain unavailable output in the default editor and let editors jump to
   the first gap or inspect an affected placement.
@@ -36,6 +33,9 @@ without reopening the completed editing work.
 
 ## Completed in the current burndown
 
+- [21 — Snap placement moves](issues/21-snap-placement-moves.md):
+  align single or grouped placement moves to the playhead or stationary edges
+  without changing move validation.
 - [47 — Separate render and preview source inputs](issues/47-separate-render-and-preview-source-inputs.md):
   require host-supplied HLS for video in the editor without requiring it for
   `CutList` compilation.

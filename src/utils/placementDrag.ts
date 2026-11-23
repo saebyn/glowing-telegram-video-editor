@@ -84,6 +84,12 @@ export function placeClipInGap(
   };
 }
 
+type MoveSnap = {
+  unroundedStartFrame: number;
+  toleranceFrames: number;
+  playheadFrame: number;
+};
+
 /** Move a selection by the grabbed placement's frame and track offsets.
  * A numeric destination is a track index, possibly beyond the existing tracks.
  */
@@ -95,6 +101,55 @@ export function evaluatePlacementMove(
   destinationTrack: string | number | null,
   sequenceStartFrame: number,
   placementIds: readonly string[] = [grabbedId],
+  snap?: MoveSnap,
+): PlacementMoveResult & { snapTargetFrame?: number } {
+  const evaluate = (startFrame: number) =>
+    evaluateMove(sequence, clips, frameRate, grabbedId, destinationTrack, startFrame, placementIds);
+  if (snap) {
+    const moving = new Set(placementIds);
+    const targets = [snap.playheadFrame];
+    const movingEdges: number[] = [];
+    let grabbedStart: number | undefined;
+    for (const { placements } of sequence.tracks) {
+      for (const placement of placements) {
+        const start = placement.sequenceStartFrame;
+        const clip = clips.find(({ id }) => id === placement.clipId);
+        if (!clip) continue;
+        const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
+        if (duration <= 0) continue;
+        if (placement.id === grabbedId) grabbedStart = start;
+        (moving.has(placement.id) ? movingEdges : targets).push(start, start + duration);
+      }
+    }
+    if (grabbedStart !== undefined) {
+      const candidates: { startFrame: number; target: number; distance: number }[] = [];
+      for (const edge of movingEdges) {
+        for (const target of targets) {
+          const startFrame = target - (edge - grabbedStart);
+          const distance = Math.abs(startFrame - snap.unroundedStartFrame);
+          if (distance <= snap.toleranceFrames) candidates.push({ startFrame, target, distance });
+        }
+      }
+      candidates.sort(
+        (a, b) => a.distance - b.distance || a.startFrame - b.startFrame || a.target - b.target,
+      );
+      for (const { startFrame, target } of candidates) {
+        const result = evaluate(startFrame);
+        if (result.kind !== "blocked") return { ...result, snapTargetFrame: target };
+      }
+    }
+  }
+  return evaluate(sequenceStartFrame);
+}
+
+function evaluateMove(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  frameRate: FrameRate,
+  grabbedId: string,
+  destinationTrack: string | number | null,
+  sequenceStartFrame: number,
+  placementIds: readonly string[],
 ): PlacementMoveResult {
   const originIndex = sequence.tracks.findIndex((track) =>
     track.placements.some(({ id }) => id === grabbedId),

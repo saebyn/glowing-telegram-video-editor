@@ -50,6 +50,7 @@ const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
 const CURSOR_GRIP = ".timeline-editor-cursor-area";
 const ROW_HEIGHT = 72;
 const DRAG_THRESHOLD = 4;
+const SNAP_TOLERANCE_PX = 8;
 const SCROLL_EDGE = 32;
 const SCROLL_STEP = 12;
 const COMPACT_TRIM_GRIP_WIDTH = 12;
@@ -67,9 +68,12 @@ export interface PlacementMoveIntent {
 export type PlacementMovePreviewIntent = PlacementMoveIntent & {
   /** If the anchor is outside the tracks, -1 is just above the first and +1 just below the last. */
   outsideTrackOffset?: number;
+  /** Proposed start before rounding, and snap tolerance, both in sequence-frame units. */
+  snap?: { unroundedStartFrame: number; toleranceFrames: number };
 };
 
 export type PlacementMovePreview = {
+  snapTargetFrame?: number;
   destinations: readonly {
     placementId: string;
     trackId: string | null;
@@ -108,6 +112,7 @@ export type SequenceTimelinePlacementProps = {
   endClipDrag: () => void;
   previewClipPlacement?: (intent: PlaceClipIntent) => ClipPlacementPreview | null;
   placeClip?: (intent: PlaceClipIntent) => void;
+  snapEnabled?: boolean;
   previewPlacementMove?: (intent: PlacementMovePreviewIntent) => PlacementMovePreview;
   movePlacement?: (intent: PlacementMoveIntent) => void;
 };
@@ -157,7 +162,11 @@ export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   selectTransition: (id: string) => void;
 };
 
-type MoveDestination = { trackIndex: number | null; sequenceFrame: number };
+type MoveDestination = {
+  trackIndex: number | null;
+  sequenceFrame: number;
+  unroundedStartFrame: number;
+};
 type MoveDraft = MoveDestination & {
   placementId: string;
   placementIds: readonly string[];
@@ -206,6 +215,7 @@ export default function SequenceTimeline({
   endClipDrag,
   previewClipPlacement,
   placeClip,
+  snapEnabled,
   previewPlacementMove,
   movePlacement,
   previewFade,
@@ -507,6 +517,7 @@ export default function SequenceTimeline({
       trackIndex: x >= left && x < right ? trackIndex : null,
       sequenceFrame:
         activeDrag.startFrame + secondsToFrame((delta / scaleWidth) * scale, frameRate),
+      unroundedStartFrame: activeDrag.startFrame + delta / pixelsPerFrame,
     };
   }
 
@@ -601,7 +612,8 @@ export default function SequenceTimeline({
     movePlacement?.({
       placementId: activeDrag.placementId,
       trackId: trackIndex === null ? null : (tracks[trackIndex]?.id ?? null),
-      sequenceFrame,
+      // Apply the displayed destination, without searching again on release.
+      sequenceFrame: previewStartFrame ?? sequenceFrame,
       placementIds: activeDrag.placementIds,
     });
   }
@@ -634,7 +646,16 @@ export default function SequenceTimeline({
             : draft.trackIndex - tracks.length + 1,
       sequenceFrame: draft.sequenceFrame,
       placementIds: draft.placementIds,
+      snap: snapEnabled
+        ? {
+            unroundedStartFrame: draft.unroundedStartFrame,
+            toleranceFrames: SNAP_TOLERANCE_PX / pixelsPerFrame,
+          }
+        : undefined,
     });
+  const previewStartFrame =
+    draftResult?.destinations.find(({ placementId }) => placementId === draft?.placementId)
+      ?.sequenceStartFrame ?? draft?.sequenceFrame;
   const companionDestinations = draftResult?.destinations.filter(
     ({ placementId }) => placementId !== draft?.placementId,
   );
@@ -1185,6 +1206,16 @@ export default function SequenceTimeline({
                 blocked,
               );
             })}
+          {draft && draftResult?.snapTargetFrame !== undefined && (
+            <svg
+              role="img"
+              aria-label={`Snap guide at sequence frame ${draftResult.snapTargetFrame}`}
+              className="pointer-events-none absolute top-0 z-20 h-full w-0.5 fill-amber-300"
+              style={{ left: draftResult.snapTargetFrame * pixelsPerFrame - draft.scrollLeft }}
+            >
+              <rect width="100%" height="100%" />
+            </svg>
+          )}
           {poolDraft &&
             poolDrop &&
             poolLabel &&
@@ -1218,7 +1249,7 @@ export default function SequenceTimeline({
         {draft && draftItem && (
           <output className="mt-1 block">
             {draftItem.label}
-            {draftTrack && ` → ${draftTrack.label}`} · Sequence frame {draft.sequenceFrame}
+            {draftTrack && ` → ${draftTrack.label}`} · Sequence frame {previewStartFrame}
             {blockedMessage && ` · Blocked: ${blockedMessage}`}
           </output>
         )}

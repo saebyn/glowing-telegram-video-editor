@@ -1,6 +1,6 @@
 # 21 — Snap placement moves
 
-Status: ready-for-agent
+Resolution: implemented and verified placement move snapping
 Depends on: [02](02-select-and-move-placements-together.md)
 
 ## Proposal
@@ -51,5 +51,14 @@ and clip-pool drops.
 ## Comments
 
 - Keplar's native drag snapping does not drive our custom placement drag.
-  Guide rendering is a Timeline detail; use the existing frame-based move
-  evaluator to validate snapped destinations.
+   Guide rendering is a Timeline detail; use the existing frame-based move
+   evaluator to validate snapped destinations.
+- Observed red → green at the callable move evaluator and through real
+  Storybook pointer drags. The eight evaluator and four browser tests cover
+  both tie-breakers, a nearer blocked candidate, zoom tolerance, the exact
+  guide and preview, and atomic commit and Undo.
+- Passed 138 unit tests and 34 targeted Playwright tests on static Storybook,
+  with the toggle and guide checked in light and dark mode. Typecheck,
+  focused lint and formatting, and `git diff --check` passed. Killed 19/19
+  targeted mutants (9 evaluator, 10 browser); logs:
+  `/tmp/opencode/sequence-snap-21-mutations/`.

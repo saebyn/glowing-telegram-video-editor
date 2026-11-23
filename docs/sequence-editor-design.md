@@ -291,13 +291,15 @@ and any duration increase together. Undo restores both in one action.
 
 Destinations are always on whole sequence frames. The **Snap** toolbar
 toggle starts off and belongs to the editor session. When enabled for a
-placement drag, either edge of any moving placement can align with the
-playhead or a stationary placement edge on any track within 8 CSS pixels.
-Use the nearest valid alignment, preferring the earlier resulting start of
-the grabbed placement on ties. Apply one frame offset to the group and show
-the winning alignment in the preview. If no alignment is valid, keep the
-unsnapped destination. Ruler ticks, nudges, trims, and clip-pool drops are
-outside this first snapping slice.
+placement drag, either effective edge of any moving placement can align with
+the playhead or a stationary placement edge on any track (even a locked
+track) within 8 CSS pixels at the current zoom. Use the nearest alignment
+that passes the whole-group move rules. On ties, prefer the earlier
+resulting start of the grabbed placement, then the earlier target frame.
+Show a guide at the winning target and commit the previewed group offset
+without changing the requested track shift. If no alignment is valid,
+keep the unsnapped destination and its usual feedback. Ruler ticks, nudges,
+trims, and clip-pool drops do not snap.
 
 ## Playhead without a media preview
 

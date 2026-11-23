@@ -125,6 +125,7 @@ export function useSequenceEditor({
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
+  const [snapEnabled, setSnapEnabled] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string>();
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [dissolveConflict, setDissolveConflict] = useState(false);
@@ -273,6 +274,7 @@ export function useSequenceEditor({
     destinationTrack: string | number | null,
     sequenceFrame: number,
     placementIds: readonly string[],
+    snap?: PlacementMovePreviewIntent["snap"],
   ) {
     return evaluatePlacementMove(
       sequence,
@@ -282,6 +284,7 @@ export function useSequenceEditor({
       destinationTrack,
       sequenceFrame,
       placementIds,
+      snap && { ...snap, playheadFrame: transport.playheadFrame },
     );
   }
 
@@ -291,6 +294,7 @@ export function useSequenceEditor({
     outsideTrackOffset,
     sequenceFrame,
     placementIds,
+    snap,
   }: PlacementMovePreviewIntent): PlacementMovePreview {
     const destination =
       trackId ??
@@ -299,7 +303,13 @@ export function useSequenceEditor({
           ? outsideTrackOffset
           : sequence.tracks.length - 1 + outsideTrackOffset
         : null);
-    const result = proposePlacementMove(placementId, destination, sequenceFrame, placementIds);
+    const result = proposePlacementMove(
+      placementId,
+      destination,
+      sequenceFrame,
+      placementIds,
+      snap,
+    );
     const destinations = result.destinations.map(
       ({ placementId, trackIndex, sequenceStartFrame }) => ({
         placementId,
@@ -309,7 +319,7 @@ export function useSequenceEditor({
     );
     return result.kind === "blocked"
       ? { kind: result.kind, reason: result.reason, trackId: result.trackId, destinations }
-      : { kind: result.kind, destinations };
+      : { kind: result.kind, destinations, snapTargetFrame: result.snapTargetFrame };
   }
 
   function movePlacement({
@@ -401,6 +411,7 @@ export function useSequenceEditor({
     endClipDrag,
     previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
     placeClip: onSequenceChange ? placeClip : undefined,
+    snapEnabled,
     previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
     movePlacement: onSequenceChange ? movePlacement : undefined,
     reorderTrack: onSequenceChange
@@ -597,6 +608,8 @@ export function useSequenceEditor({
     splitAtPlayhead: canSplit ? splitAtPlayhead : undefined,
     splitMode,
     toggleSplitMode: onSequenceChange ? () => setSplitMode((active) => !active) : undefined,
+    snapEnabled,
+    toggleSnap: onSequenceChange ? () => setSnapEnabled((active) => !active) : undefined,
     undo: onSequenceChange ? undo : undefined,
     redo: onSequenceChange ? redo : undefined,
     deleteSelection: onSequenceChange && selectedIds.length > 0 ? deleteSelection : undefined,
