@@ -1,6 +1,5 @@
 # 30 — Author entry and reveal fades on layered edits
 
-Status: ready-for-agent
 Resolution: implemented and verified at the `CutList` and host callback boundaries
 Depends on: [37](37-represent-entry-and-reveal-fades-as-transition-objects.md)
 

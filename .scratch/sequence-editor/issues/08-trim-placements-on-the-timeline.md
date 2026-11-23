@@ -1,6 +1,5 @@
 # 08 — Trim placements on the timeline
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: [03](03-grow-sequence-on-trailing-trim.md)
 

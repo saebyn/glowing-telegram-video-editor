@@ -1,6 +1,5 @@
 # 13 — Add and remove tracks
 
-Status: ready-for-agent
 Resolution: implemented and verified with the controlled Storybook host
 
 ## Proposal

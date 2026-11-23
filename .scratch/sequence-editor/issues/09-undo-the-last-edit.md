@@ -1,6 +1,5 @@
 # 09 — Undo the last edit
 
-Status: ready-for-agent
 Resolution: implemented in `2077dd8`
 
 ## Acceptance criteria

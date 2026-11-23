@@ -1,6 +1,5 @@
 # 27 — Flatten multitrack sequences with transitions
 
-Status: ready-for-agent
 Resolution: implemented and verified at the `CutList` boundary
 
 ## Goal

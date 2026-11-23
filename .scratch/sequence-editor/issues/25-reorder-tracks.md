@@ -1,6 +1,5 @@
 # 25 — Reorder tracks
 
-Status: ready-for-agent
 Resolution: implemented and verified through timeline gestures and host callbacks
 
 ## Acceptance criteria

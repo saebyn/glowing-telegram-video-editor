@@ -1,6 +1,5 @@
 # 24 — Shorten the sequence explicitly
 
-Status: ready-for-agent
 Resolution: implemented in `2077dd8`
 
 ## Proposal

@@ -9,6 +9,24 @@ without introducing another triage status.
 
 No unresolved tickets are currently marked `ready-for-agent`.
 
+## Completed composition batch
+
+Tickets **40–45** implemented the [composition design](../../docs/sequence-editor-design.md#component-tree)
+without reopening the completed editing work.
+
+1. [40 — Shared editing session](issues/40-extract-shared-sequence-editing-session.md)
+   moves state and host edit handling below the page.
+2. [41 — Toolbar and Inspector](issues/41-extract-toolbar-and-inspector-slot-components.md)
+   extracts the two slot components, notices, and root shortcuts.
+3. [42 — Clip Pool and Timeline edits](issues/42-connect-clip-pool-and-timeline-edits.md)
+   handles the drag handoff, moves, and placement.
+4. [43 — Finish the Timeline slot](issues/43-finish-the-timeline-slot-interface.md)
+   moves the other Timeline interactions onto shared actions.
+5. [44 — Export the default page and composition interfaces](issues/44-compose-and-export-the-sequence-editor-page.md)
+   makes all five slots public together and exports the reusable components.
+6. [45 — Prove both composition paths](issues/45-prove-both-sequence-editor-composition-paths.md)
+   adds Storybook examples and host-observable checks.
+
 ## Completed in the current burndown
 
 - [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md):
@@ -63,13 +81,16 @@ This was the suggested implementation order.
 
 ## Needs more information
 
-| Ticket | Decision still needed |
-| --- | --- |
-| [21 — Snapping](issues/21-snap-placement-moves.md) | Initial snap targets, defaults, and how to choose between equally close targets. |
-| [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and destination track selection. |
-| [26 — Sequence markers](issues/26-add-sequence-markers-and-playback-ranges.md) | Marker persistence and behavior when the sequence endpoint changes. |
-| [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md) | Whether to add general diagnostics beyond transition-specific feedback, and where to surface them. Gaps are valid. |
-| [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an accepted edit with a different object. Saved/dirty state and save failures stay with the host. |
-| [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, and how the range interacts with seeking and reverse playback. |
+Keep these follow-ups at `needs-info`. Revisit the design fit before marking
+any of them ready.
+
+| Ticket | Decision still needed | Fit to revisit |
+| --- | --- | --- |
+| [21 — Snapping](issues/21-snap-placement-moves.md) | Targets, defaults, and tie-breaking. | Keep preview and release in agreement at the frame-based move interface; Keplar guides are adapter details. |
+| [23 — Duplicate, copy, paste](issues/23-duplicate-copy-and-paste-placements.md) | Default destination and track. | Use shared edit actions and accepted history, not page-local edit logic. |
+| [26 — Sequence markers](issues/26-add-sequence-markers-and-playback-ranges.md) | Marker persistence and behavior when the sequence endpoint changes. | Separate any persistent marker data from editor UI state and Timeline presentation. |
+| [29 — Explain unavailable `CutList` output](issues/29-explain-why-a-sequence-cannot-compile.md) | Whether to add general diagnostics and where to surface them. Gaps are valid. | Keep diagnostics independent of the default Toolbar and layout. |
+| [34 — Explicit host edit acknowledgement](issues/34-acknowledge-host-edits-without-object-identity.md) | A concrete host need to acknowledge an edit with a different object. | Keep the current shared history contract until that need is established. Saved/dirty state and save failures stay with the host. |
+| [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, seeking, and reverse playback. | Use the shared transport clock even with Preview omitted; keep Keplar's loop overlay in the default Timeline adapter. |
 
 Close-gap and ripple-delete behavior are not in scope.

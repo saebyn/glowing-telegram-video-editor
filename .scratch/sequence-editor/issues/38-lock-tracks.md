@@ -1,6 +1,5 @@
 # 38 — Lock tracks
 
-Status: ready-for-agent
 Resolution: implemented and verified through edit rules and host callbacks
 Depends on: [13](13-add-and-remove-tracks.md), [25](25-reorder-tracks.md), [35](35-split-all-placements-at-the-playhead.md), [36](36-split-a-placement-where-you-click.md), [37](37-represent-entry-and-reveal-fades-as-transition-objects.md)
 

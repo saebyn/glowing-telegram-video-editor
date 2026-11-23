@@ -1,6 +1,5 @@
 # 36 — Split a placement where you click
 
-Status: ready-for-agent
 Resolution: implemented and verified with Storybook pointer gestures
 Depends on: [35](35-split-all-placements-at-the-playhead.md)
 

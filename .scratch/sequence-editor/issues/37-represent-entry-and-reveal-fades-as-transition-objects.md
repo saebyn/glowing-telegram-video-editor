@@ -1,6 +1,5 @@
 # 37 — Represent entry and reveal fades as transition objects
 
-Status: ready-for-agent
 Resolution: implemented and verified at the `CutList` and host callback boundaries
 
 Replace the two fade-duration fields on a clip placement with selectable

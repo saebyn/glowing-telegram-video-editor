@@ -1,6 +1,5 @@
 # 04 — Drop from the clip pool past the endpoint
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: [01](01-preview-and-move-one-placement.md) for reaching beyond the authored endpoint
 

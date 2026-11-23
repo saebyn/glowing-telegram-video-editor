@@ -1,6 +1,5 @@
 # 20 — Step the playhead and nudge placements
 
-Status: ready-for-agent
 Resolution: implemented in `2077dd8`
 Depends on: [06](06-control-the-playhead-without-media.md) for stepping; [02](02-select-and-move-placements-together.md) for nudging
 

@@ -1,6 +1,5 @@
 # 06 — Control the playhead without media
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: None
 

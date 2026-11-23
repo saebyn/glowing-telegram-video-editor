@@ -1,6 +1,5 @@
 # 12 — Show frame thumbnails on taller tracks
 
-Status: ready-for-agent
 Resolution: implemented in `2077dd8`
 
 ## Proposal

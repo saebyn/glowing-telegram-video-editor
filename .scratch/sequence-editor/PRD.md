@@ -1,6 +1,5 @@
 # Sequence editor: practical editing workflows
 
-Status: ready-for-agent
 Resolution: implementation batch completed in `dc35b6b`
 
 See [Triage](TRIAGE.md) for the current queue. This PRD records the first batch.

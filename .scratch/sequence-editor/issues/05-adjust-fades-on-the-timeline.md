@@ -1,6 +1,5 @@
 # 05 — Adjust fades on the timeline
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: None
 

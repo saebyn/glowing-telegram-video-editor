@@ -1,6 +1,5 @@
 # 03 — Grow the sequence on trailing trim
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: None
 

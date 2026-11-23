@@ -1,6 +1,5 @@
 # 35 — Split all placements at the playhead
 
-Status: ready-for-agent
 Resolution: implemented and verified in Storybook and at the `CutList` boundary
 
 [10](10-split-at-the-playhead.md) requires a placement selection. Make the

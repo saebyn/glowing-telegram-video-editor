@@ -1,6 +1,5 @@
 # 32 — Show cut-spanning dissolves and source extensions
 
-Status: ready-for-agent
 Resolution: authored and verified at the `CutList` and host callback boundaries
 Depends on: [37](37-represent-entry-and-reveal-fades-as-transition-objects.md), [31](31-protect-fades-during-moves-and-trims.md)
 

@@ -1,6 +1,5 @@
 # 33 — Inspect one placement without clearing the selection
 
-Status: ready-for-agent
 Resolution: implemented and verified in Storybook
 
 [02](02-select-and-move-placements-together.md) deliberately shows only a

@@ -1,6 +1,5 @@
 # 07 — Consolidate Storybook editing setups
 
-Status: ready-for-agent
 Resolution: implemented in `dc35b6b`
 Depends on: [01](01-preview-and-move-one-placement.md), [02](02-select-and-move-placements-together.md), [03](03-grow-sequence-on-trailing-trim.md), [04](04-drop-from-clip-pool-past-endpoint.md), [05](05-adjust-fades-on-the-timeline.md), [06](06-control-the-playhead-without-media.md), [08](08-trim-placements-on-the-timeline.md)
 

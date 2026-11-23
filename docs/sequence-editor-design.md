@@ -11,29 +11,76 @@ current Storybook stories already support.
 
 ## Component tree
 
+`SequenceEditorPage` is the default assembly, analogous to `VideoSelectionPage`.
+It lives under `components/pages` and replaces the unpublished `SequenceEditor`
+export without an alias. Use the page as-is, replace individual slot components,
+or build a different page using the same editing hook and UI components.
+
 ```text
-SequenceEditor                         controlled by the host
-├─ EditToolbar                         playhead transport and edit actions
-├─ Workspace
-│  ├─ ProjectClipPool                  reuse the existing clip browser
-│  ├─ PreviewPane                      placeholder, no player
-│  └─ SelectionInspector               selection summary and inspected placement or transition
-└─ SequenceTimeline                    our component; speaks sequence frames
-   └─ Timeline                         @keplar-404/react-timeline-editor
-      ├─ Shared ruler and playhead
-      └─ Rows
-         └─ Custom items               placements and transition regions
+SequenceEditorPage                     default layout; calls useSequenceEditor
+├─ toolbar slot → SequenceToolbar      transport, edit actions, and pane toggles
+├─ SequenceWorkspace                   responsive layout and accessible splitters
+│  ├─ clipPool slot → SequenceClipPool  adapts ProjectClipPool
+│  ├─ preview slot → SequencePreviewPlaceholder
+│  └─ inspector slot → SequenceInspector
+└─ timeline slot → SequenceTimeline    adapter that speaks sequence frames
+   └─ Timeline                         one @keplar-404/react-timeline-editor widget
 ```
 
-Use **one widget instance** for the whole sequence, so tracks share a time scale,
-scroll position, and playhead. `SequenceTimeline` projects authored tracks
-onto widget rows and placements onto actions, supplying the item visuals
+### Composition interfaces
+
+The page's `slots` prop accepts React component types with region-specific
+props. An unspecified slot uses its default; `null` omits it, leaving no empty
+pane or visibility toggle for that slot. A wrapper can add UI around a default
+component and forward the props it received, without wiring editing behavior
+again.
+
+One call to `useSequenceEditor` provides one editing session. It takes the
+host-owned sequence, clip and source inputs, and the host callbacks. It reads
+the project frame rate from `ProjectProvider` and passes the resolved rate to
+components that need it. The hook returns `toolbarProps`, `clipPoolProps`,
+`previewProps`, `inspectorProps`, and `timelineProps`, plus notices and an opt-in
+root keyboard handler. The default page renders notices independently of the
+Toolbar and binds shortcuts to its root, including Escape to dismiss Split
+mode. A host-built page can do the same in its own layout.
+
+| Slot | Props from the editing session |
+| --- | --- |
+| Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
+| Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
+| Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The disconnected fallback can ignore it. Media inputs, player callbacks, and playback synchronization are out of scope. |
+| Inspector | Selection summary and inspected placement or transition, with effective source and sequence ranges, edit bounds, and actions to choose what to inspect or edit trims and transitions. |
+| Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
+
+Export the library-owned UI components and their props from the package root,
+including `SequenceWorkspace`, pane toggles, and individual controls. Exports
+do not create additional page slots. Standalone components render from supplied
+props; they do not create or look up an editing session. Keep the lower-level
+history and validation helpers and the Keplar widget itself out of these exports.
+
+### Default layout and timeline
+
+`SequenceWorkspace` takes rendered Clip Pool, Preview, and Inspector nodes.
+It does not depend on the editing hook. Keep the responsive stacking and
+workspace resizing. The default assembly owns pane visibility and preferred
+widths; it does not expose controlled layout props. Hiding a configured pane
+unmounts its component while retaining its preferred width and shared editing
+state. Cancel any drag involving the hidden pane without committing it. Local
+drafts or zoom may reset on remount; unmounting does not emit an edit or stop
+transport. A host-built page can choose its own layout and lifecycle. An
+Inspector height cap is a separate change.
+
+The default `SequenceTimeline` uses **one widget instance** for the whole
+sequence, so tracks share a time scale, scroll position, and playhead. It
+projects authored tracks onto widget rows and placements onto actions, supplying the item visuals
 through `getActionRender`. Like the seam markers in `ProjectClipTimeline`,
 transition indicators are anchored at placement edges. Draw the existing
 entry and reveal fade indicators within the placement, spanning their
 authored duration, without a separate row.
 Convert sequence frames to widget seconds and convert events such as seeking
-back to frames at this boundary.
+back to frames inside the adapter. The slot interface does not expose widget
+rows, seconds, or pointer coordinates. Source ranges and trim bounds on the
+source grid remain in source frames.
 
 Reuse the patterns in [`SourceTimeline`](../src/components/organisms/SourceTimeline.tsx)
 for multiple rows and in [`ProjectClipTimeline`](../src/components/organisms/ProjectClipTimeline.tsx)
@@ -158,10 +205,10 @@ and reports interaction input; its rows are not editor state or compiler input.
   also session-only, unlike authored output audio adjustments.
 
 ```text
-Host sequence + media → SequenceEditor → timeline and inspector
-Timeline or inspector → edit intent → apply edit → next sequence
-                                                       ├─→ host
-                                                       └─→ CutList compiler → host
+Host sequence + media → useSequenceEditor → slot props
+Slot action → validate edit intent → proposed sequence
+                                            ├─→ host
+                                            └─→ CutList compiler → host
 ```
 
 The top-level callbacks are `onSequenceChange(nextSequence)` and
@@ -174,11 +221,13 @@ for the current one. Selection, playhead changes, drag previews, and
 blocked, cancelled, or unchanged drops emit neither callback. Loading or
 replacing the sequence through props does not emit `onCutListChange`.
 
-Toolbar controls, drag gestures, and future keybindings call the same
-editor action for the same operation. Keep validation, availability, and
-undo behavior with that action rather than in each input handler. Start
-with an internal interface; a public command interface and configurable
-keybindings are out of scope.
+Toolbar controls, drag gestures, and shortcuts call the same editor action
+for the same operation. Supply derived state such as edit availability and
+trim bounds in the slot props rather than making each component reproduce
+editing rules. Actions take named, frame-based edit intents, not a modified
+`Sequence`. Revalidate an intent against current state when applying it, even
+if a gesture preview was valid earlier. A generic public command interface and
+configurable keybindings are out of scope.
 
 Undo and Redo step through host-accepted sequences. Feeding back the exact
 proposed sequence object acknowledges the edit. Replacing it with a
@@ -228,6 +277,11 @@ Hovering a clip from the pool over an existing track previews the fitted
 placement using the same rules as release. In a bounded gap the placement
 can start before the pointer to fit; the preview shows that actual start.
 Invalid drops show a blocked preview and do not change the sequence.
+The shared session carries the active clip ID for the lifetime of the drag.
+Native events and payloads remain in the adapters. A replacement Clip Pool can
+report that ID while using native drag with the default Timeline. A replacement
+Timeline can also use a non-drag interaction to preview or place a clip by ID,
+destination track ID, and sequence frame.
 
 For example, if a group move would extend a 160-frame sequence to 190 frames
 but would also cause a same-track collision, neither the placements nor the
@@ -241,16 +295,22 @@ the group offset, not individual placements.
 ## Playhead without a media preview
 
 Click the ruler or drag the playhead to seek. Play forward, play in reverse,
-and pause the sequence playhead even while the preview pane is disconnected.
-The playhead position is session state in sequence frames. Split acts on
-all eligible placements at the playhead, regardless of selection.
+and pause the sequence playhead even when Preview is omitted or disconnected.
+The editing session owns the playback clock and the playhead in sequence
+frames; Preview follows that transport. A disconnected preview is not a
+**No media placeholder**, which indicates expected source media failed to
+load. Split at playhead acts on all eligible placements at the playhead,
+regardless of selection.
+
 Split mode is separate: clicking a placement splits only that placement
 at the pointer's sequence frame, without requiring selection. It does
 not seek or change the placement selection. Split mode stays active
-after a cut until toggled off or dismissed with Escape.
-While active, it takes over placement gestures so they cannot start a
-move or trim. Ruler seeking, playhead dragging, pan, and zoom remain
-available. An empty-track click does nothing.
+after a cut until toggled off or dismissed with Escape inside the editor.
+The Timeline reports a placement activation with its ID and, for a pointer
+activation, the sequence frame under the pointer. The shared session decides
+whether to select or split. The Timeline reads Split mode to change affordances
+and suppress move and trim gestures. Ruler seeking, playhead dragging, pan,
+and zoom remain available. An empty-track click does nothing.
 
 ## `CutList` boundary
 
@@ -301,8 +361,8 @@ anchoring edge is covered.
 
 ## Storybook editing setups
 
-Use a small number of editable stories set up for workflows, not one story
-per gesture. Both should offer the same interactions wherever they apply,
+Keep the two default-page workflows as the baseline, not one story per
+gesture. Both should offer the same interactions wherever they apply,
 including playhead controls.
 
 | Setup | What to explore |
@@ -318,11 +378,20 @@ changes nothing, and a valid extending drop emits one sequence change and one
 sections, track priority and source alignment, and fade type and duration
 without creating a separate story for each case.
 
+Add two composition examples: one that wraps a default slot component and
+replaces the Timeline on `SequenceEditorPage`, and one that calls
+`useSequenceEditor` directly and rearranges public components without the
+default page. Across those examples, verify through the public interfaces
+that seeking emits no edit, a valid edit uses the same host callbacks and
+acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
+nothing. A Preview replacement can display the transport snapshot to verify
+that it receives the same sequence playhead as the Timeline without a player.
+
 The existing source review and range export workflow stays separate. The
 existing [`VideoPreview`](../VideoPreview.md) plays a host-rendered HLS stream
-and is not part of this tree. A future live preview will render from source HLS
-streams in a different component. These stories verify authoring and
-callback output, not decoded picture or sound.
+and is not part of this tree. Designing a live sequence preview is separate
+work. These stories verify authoring and callback output, not decoded picture
+or sound.
 
 Follow-up design can settle mixed-rate cuts and the remaining details of
 split and undo.
