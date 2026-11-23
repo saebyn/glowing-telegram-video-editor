@@ -47,6 +47,11 @@ browser-pointer tests for native gestures such as dragging a clip from the pool.
 
 [`src/index.ts`](../src/index.ts) is the public entry point. [`src/components/`](../src/components) is organized into atoms, molecules, organisms, and pages; stories live alongside components. Shared types are in [`src/types.ts`](../src/types.ts), React providers in [`src/context/`](../src/context), and utility functions in [`src/utils/`](../src/utils). The local harness, [`src/app.tsx`](../src/app.tsx), renders `VideoSelectionPage` with [`src/data.json`](../src/data.json).
 
+Atoms are individual controls or leaf widgets, such as a button or playhead
+grip. Molecules group controls for one task, such as editing a frame value or
+controlling playback. Organisms compose those pieces into larger editor sections,
+such as the toolbar, inspector, or timeline.
+
 ## Library build and package
 
 [`package.json`](../package.json) defines the package exports for `@saebyn/glowing-telegram-video-editor`. `npm run build` produces:

@@ -31,12 +31,16 @@ export {
 } from "./components/organisms/useSequenceEditor";
 export {
   default as SequenceToolbar,
-  SequenceEditButton,
-  SequenceTransportControls,
-  type SequenceEditButtonProps,
   type SequenceToolbarProps,
-  type SequenceTransportControlsProps,
 } from "./components/organisms/SequenceToolbar";
+export {
+  SequenceEditButton,
+  type SequenceEditButtonProps,
+} from "./components/atoms/SequenceEditButton";
+export {
+  SequenceTransportControls,
+  type SequenceTransportControlsProps,
+} from "./components/molecules/SequenceTransportControls";
 export {
   default as SequenceClipPool,
   type SequenceClipPoolProps,
@@ -44,13 +48,15 @@ export {
 export {
   default as SequencePreviewPlaceholder,
   type SequencePreviewPlaceholderProps,
-} from "./components/organisms/SequencePreviewPlaceholder";
+} from "./components/molecules/SequencePreviewPlaceholder";
 export {
   default as SequenceInspector,
-  SequenceFrameForm,
-  type SequenceFrameFormProps,
   type SequenceInspectorProps,
 } from "./components/organisms/SequenceInspector";
+export {
+  SequenceFrameForm,
+  type SequenceFrameFormProps,
+} from "./components/molecules/SequenceFrameForm";
 export {
   default as SequenceTimeline,
   type ClipPlacementPreview,
@@ -71,15 +77,15 @@ export {
   default as WorkspacePaneToggles,
   type WorkspacePane,
   type WorkspacePaneTogglesProps,
-} from "./components/organisms/WorkspacePaneToggles";
+} from "./components/molecules/WorkspacePaneToggles";
 export {
   default as RenameSequenceTrack,
   type RenameSequenceTrackProps,
-} from "./components/organisms/RenameSequenceTrack";
+} from "./components/molecules/RenameSequenceTrack";
 export {
   default as ShortenSequenceForm,
   type ShortenSequenceFormProps,
-} from "./components/organisms/ShortenSequenceForm";
+} from "./components/molecules/ShortenSequenceForm";
 export {
   AddSequenceTrack,
   RemoveSequenceTrack,
@@ -87,19 +93,19 @@ export {
   type AddSequenceTrackProps,
   type RemoveSequenceTrackProps,
   type ToggleSequenceTrackLockProps,
-} from "./components/organisms/SequenceTrackActions";
+} from "./components/atoms/SequenceTrackActions";
 export {
   default as SequenceTrackHeaders,
   type SequenceTrackHeadersProps,
-} from "./components/organisms/SequenceTrackHeaders";
+} from "./components/molecules/SequenceTrackHeaders";
 export {
   default as SequenceFadeHandle,
   type SequenceFadeHandleProps,
-} from "./components/organisms/SequenceFadeHandle";
+} from "./components/atoms/SequenceFadeHandle";
 export {
   default as SequencePlayheadGrip,
   type SequencePlayheadGripProps,
-} from "./components/organisms/SequencePlayheadGrip";
+} from "./components/atoms/SequencePlayheadGrip";
 export { ProjectProvider, type ProjectProviderProps } from "./context/ProjectContext";
 export {
   framesToSeconds,

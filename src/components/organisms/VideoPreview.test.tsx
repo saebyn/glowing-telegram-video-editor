@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import AudioChannelControl from "@/components/atoms/AudioChannelControl";
 import AudioLevelSlider from "@/components/atoms/AudioLevelSlider";
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
+import AudioChannelControl from "@/components/molecules/AudioChannelControl";
 import AudioMixerPanel from "@/components/molecules/AudioMixerPanel";
 import PreviewTimeline from "@/components/molecules/PreviewTimeline";
 import VideoPreview from "@/components/organisms/VideoPreview";

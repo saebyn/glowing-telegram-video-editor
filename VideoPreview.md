@@ -76,10 +76,10 @@ The VideoPreview component follows the atomic design pattern:
 
 ### Atoms
 - `AudioLevelSlider`: Individual volume control slider
-- `AudioChannelControl`: Complete control for a single audio channel
 - `WaveformDisplay`: Canvas-based waveform visualization
 
-### Molecules  
+### Molecules
+- `AudioChannelControl`: Combines name, mute, and volume controls for one audio channel
 - `AudioMixerPanel`: Panel containing all audio channel controls
 - `PreviewTimeline`: Timeline with waveforms and cutlist visualization
 

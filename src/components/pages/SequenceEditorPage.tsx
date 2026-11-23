@@ -1,13 +1,16 @@
 import { type ComponentType, useId, useState } from "react";
+import SequencePreviewPlaceholder, {
+  type SequencePreviewPlaceholderProps,
+} from "@/components/molecules/SequencePreviewPlaceholder";
+import WorkspacePaneToggles, {
+  type WorkspacePane,
+} from "@/components/molecules/WorkspacePaneToggles";
 import SequenceClipPool, {
   type SequenceClipPoolProps,
 } from "@/components/organisms/SequenceClipPool";
 import SequenceInspector, {
   type SequenceInspectorProps,
 } from "@/components/organisms/SequenceInspector";
-import SequencePreviewPlaceholder, {
-  type SequencePreviewPlaceholderProps,
-} from "@/components/organisms/SequencePreviewPlaceholder";
 import SequenceTimeline, {
   type SequenceTimelineProps,
 } from "@/components/organisms/SequenceTimeline";
@@ -17,9 +20,6 @@ import {
   useSequenceEditor,
   type UseSequenceEditorOptions,
 } from "@/components/organisms/useSequenceEditor";
-import WorkspacePaneToggles, {
-  type WorkspacePane,
-} from "@/components/organisms/WorkspacePaneToggles";
 
 export interface SequenceEditorSlots {
   toolbar?: ComponentType<SequenceToolbarProps> | null;

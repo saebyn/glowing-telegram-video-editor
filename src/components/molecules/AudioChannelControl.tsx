@@ -1,7 +1,7 @@
+import AudioChannelNameEditor from "@/components/atoms/AudioChannelNameEditor";
+import AudioLevelSlider from "@/components/atoms/AudioLevelSlider";
+import IconButton from "@/components/atoms/IconButton";
 import type { AudioChannel } from "@/types";
-import AudioChannelNameEditor from "./AudioChannelNameEditor";
-import AudioLevelSlider from "./AudioLevelSlider";
-import IconButton from "./IconButton";
 
 interface AudioChannelControlProps {
   /**

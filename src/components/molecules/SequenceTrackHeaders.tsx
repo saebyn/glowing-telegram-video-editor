@@ -1,5 +1,8 @@
 import { type PointerEvent, useCallback, useLayoutEffect, useRef, useState } from "react";
-import { RemoveSequenceTrack, ToggleSequenceTrackLock } from "./SequenceTrackActions";
+import {
+  RemoveSequenceTrack,
+  ToggleSequenceTrackLock,
+} from "@/components/atoms/SequenceTrackActions";
 
 export type SequenceTrackHeadersProps = {
   tracks: readonly Readonly<{ id: string; label: string; locked?: boolean }>[];

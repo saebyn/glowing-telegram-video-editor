@@ -4,9 +4,9 @@ import type { AudioChannel } from "@/types";
 import AudioChannelControl from "./AudioChannelControl";
 
 export default {
-  title: "Atoms/AudioChannelControl",
+  title: "Molecules/AudioChannelControl",
   component: AudioChannelControl,
-  tags: ["atoms"],
+  tags: ["molecules"],
 };
 
 const mockChannel: AudioChannel = {

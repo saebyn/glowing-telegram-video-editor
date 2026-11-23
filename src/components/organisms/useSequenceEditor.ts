@@ -1,5 +1,6 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useMemo, useState } from "react";
+import type { SequencePreviewPlaceholderProps } from "@/components/molecules/SequencePreviewPlaceholder";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
 import { evaluatePlacementDissolve } from "@/utils/dissolvePlacement";
@@ -37,7 +38,6 @@ import {
   getTrimmableSourceRange,
   type PlacementTrimEdge,
 } from "@/utils/trimPlacement";
-import type { SequencePreviewPlaceholderProps } from "./SequencePreviewPlaceholder";
 import type { SequenceInspectorProps } from "./SequenceInspector";
 import type { SequenceClipPoolProps } from "./SequenceClipPool";
 import type {

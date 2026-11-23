@@ -8,11 +8,11 @@ import {
   useRef,
   useState,
 } from "react";
-import VideoPlayerControls, { type PlaybackOptions } from "@/components/atoms/VideoPlayerControls";
 import VideoPlayerProgressBar from "@/components/atoms/VideoPlayerProgressBar";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { FrameRate } from "@/types";
 import { framesToSeconds, secondsToFrame, snapFrame } from "@/utils/frames";
+import VideoPlayerControls, { type PlaybackOptions } from "./VideoPlayerControls";
 
 export interface VideoPlayerProps {
   videoUrl: string;

@@ -15,6 +15,9 @@ import {
   useRef,
   useState,
 } from "react";
+import SequenceFadeHandle from "@/components/atoms/SequenceFadeHandle";
+import SequencePlayheadGrip from "@/components/atoms/SequencePlayheadGrip";
+import SequenceTrackHeaders from "@/components/molecules/SequenceTrackHeaders";
 import type {
   FrameRate,
   MediaKind,
@@ -34,9 +37,6 @@ import {
 } from "@/utils/frames";
 import { getPlacementSourceRange } from "@/utils/sequence";
 import type { PlacementTrimEdge } from "@/utils/trimPlacement";
-import SequenceFadeHandle from "./SequenceFadeHandle";
-import SequencePlayheadGrip from "./SequencePlayheadGrip";
-import SequenceTrackHeaders from "./SequenceTrackHeaders";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
