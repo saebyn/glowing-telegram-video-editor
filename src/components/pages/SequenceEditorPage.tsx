@@ -1,7 +1,5 @@
 import { type ComponentType, useId, useState } from "react";
-import SequencePreviewPlaceholder, {
-  type SequencePreviewPlaceholderProps,
-} from "@/components/molecules/SequencePreviewPlaceholder";
+import SequencePreview, { type SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import WorkspacePaneToggles, {
   type WorkspacePane,
 } from "@/components/molecules/WorkspacePaneToggles";
@@ -24,7 +22,7 @@ import {
 export interface SequenceEditorSlots {
   toolbar?: ComponentType<SequenceToolbarProps> | null;
   clipPool?: ComponentType<SequenceClipPoolProps> | null;
-  preview?: ComponentType<SequencePreviewPlaceholderProps> | null;
+  preview?: ComponentType<SequencePreviewProps> | null;
   inspector?: ComponentType<SequenceInspectorProps> | null;
   timeline?: ComponentType<SequenceTimelineProps> | null;
 }
@@ -49,7 +47,7 @@ export default function SequenceEditorPage({ slots, ...props }: SequenceEditorPa
   const {
     toolbar: Toolbar = SequenceToolbar,
     clipPool: ClipPool = SequenceClipPool,
-    preview: Preview = SequencePreviewPlaceholder,
+    preview: Preview = SequencePreview,
     inspector: Inspector = SequenceInspector,
     timeline: Timeline = SequenceTimeline,
   } = slots ?? {};

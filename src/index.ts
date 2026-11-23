@@ -46,9 +46,9 @@ export {
   type SequenceClipPoolProps,
 } from "./components/organisms/SequenceClipPool";
 export {
-  default as SequencePreviewPlaceholder,
-  type SequencePreviewPlaceholderProps,
-} from "./components/molecules/SequencePreviewPlaceholder";
+  default as SequencePreview,
+  type SequencePreviewProps,
+} from "./components/molecules/SequencePreview";
 export {
   default as SequenceInspector,
   type SequenceInspectorProps,

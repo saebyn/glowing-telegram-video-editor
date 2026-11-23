@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
-import SequencePreviewPlaceholder from "@/components/molecules/SequencePreviewPlaceholder";
+import SequencePreview from "@/components/molecules/SequencePreview";
 import { sampleFrameRate } from "@/fixtures/video";
 import SequenceWorkspace from "./SequenceWorkspace";
 
@@ -22,7 +22,7 @@ const meta = {
   args: {
     clipPool: <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">Clip pool slot</div>,
     preview: (
-      <SequencePreviewPlaceholder
+      <SequencePreview
         frameRate={sampleFrameRate}
         playheadFrame={90}
         durationFrames={360}

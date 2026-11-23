@@ -14,7 +14,7 @@ See [Storybook editing setups](../../../docs/sequence-editor-design.md#storybook
 
 - One controlled-host story uses `SequenceEditorPage`, wraps a default
   component by forwarding its slot props, and meaningfully replaces Timeline
-  without importing private modules. Exercise a Preview replacement that
+  without importing private modules. Exercise a custom Preview slot that
   displays the same sequence playhead as Timeline without a player.
 - Another controlled-host story calls `useSequenceEditor` directly and
   rearranges public components, reusing `SequenceWorkspace` without

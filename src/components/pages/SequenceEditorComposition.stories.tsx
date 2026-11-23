@@ -5,7 +5,7 @@ import {
   SequenceClipPool,
   SequenceEditorPage,
   SequenceInspector,
-  SequencePreviewPlaceholder,
+  SequencePreview,
   SequenceTimeline,
   SequenceToolbar,
   SequenceWorkspace,
@@ -14,7 +14,7 @@ import {
   type SequenceEditorPageProps,
   type SequenceEditorSlots,
   type SequenceInspectorProps,
-  type SequencePreviewPlaceholderProps,
+  type SequencePreviewProps,
   type SequenceTimelineProps,
   type VideoClip,
 } from "@/index";
@@ -63,11 +63,7 @@ const original: Sequence = {
   ],
 };
 
-function PreviewSnapshot({
-  playheadFrame,
-  durationFrames,
-  playback,
-}: SequencePreviewPlaceholderProps) {
+function PreviewSnapshot({ playheadFrame, durationFrames, playback }: SequencePreviewProps) {
   return (
     <div>
       <h2 className="font-semibold">Preview transport snapshot</h2>
@@ -243,7 +239,7 @@ function HookExample() {
       <SequenceTimeline {...timelineProps} />
       <SequenceWorkspace
         inspector={<SequenceInspector {...inspectorProps} />}
-        preview={<SequencePreviewPlaceholder {...previewProps} />}
+        preview={<SequencePreview {...previewProps} />}
         clipPool={<SequenceClipPool {...clipPoolProps} />}
       />
     </section>

@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
 import { sampleFrameRate } from "@/fixtures/video";
-import SequencePreviewPlaceholder from "./SequencePreviewPlaceholder";
+import SequencePreview from "./SequencePreview";
 
 const meta = {
-  title: "Molecules/SequencePreviewPlaceholder",
-  component: SequencePreviewPlaceholder,
+  title: "Molecules/SequencePreview",
+  component: SequencePreview,
   decorators: [
     (Story) => (
       <div className="flex min-h-40 flex-col items-center justify-center rounded-lg bg-slate-900 p-4 text-center text-slate-100">
@@ -19,7 +19,7 @@ const meta = {
     durationFrames: 360,
     playback: "paused",
   },
-} satisfies Meta<typeof SequencePreviewPlaceholder>;
+} satisfies Meta<typeof SequencePreview>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

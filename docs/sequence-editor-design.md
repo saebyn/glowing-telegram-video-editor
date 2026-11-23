@@ -4,7 +4,7 @@ Build a React editor for describing a multi-track edit and compiling it to
 `CutList` from `@saebyn/glowing-telegram-types`. Start with the component tree in
 Storybook, then wire and test one editing action at a time. The host application
 owns persistent state. The library provides the model, editing UI, and `CutList`
-compiler. Saving projects and rendering the authored sequence are outside its scope.
+compiler. Saving projects and final rendering are outside its scope.
 
 This document describes the intended behavior, not a checklist of what the
 current Storybook stories already support.
@@ -21,7 +21,7 @@ SequenceEditorPage                     default layout; calls useSequenceEditor
 ├─ toolbar slot → SequenceToolbar      transport, edit actions, and pane toggles
 ├─ SequenceWorkspace                   responsive layout and accessible splitters
 │  ├─ clipPool slot → SequenceClipPool  adapts ProjectClipPool
-│  ├─ preview slot → SequencePreviewPlaceholder
+│  ├─ preview slot → SequencePreview
 │  └─ inspector slot → SequenceInspector
 └─ timeline slot → SequenceTimeline    adapter that speaks sequence frames
    └─ Timeline                         one @keplar-404/react-timeline-editor widget
@@ -48,7 +48,7 @@ mode. A host-built page can do the same in its own layout.
 | --- | --- |
 | Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
-| Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The disconnected fallback can ignore it. Media inputs, player callbacks, and playback synchronization are out of scope. |
+| Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The default `SequencePreview` displays that state today; media playback is follow-up work. |
 | Inspector | Selection summary and inspected placement or transition, with effective source and sequence ranges, edit bounds, and actions to choose what to inspect or edit trims and transitions. |
 | Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
 
@@ -295,12 +295,15 @@ the group offset, not individual placements.
 ## Playhead without a media preview
 
 Click the ruler or drag the playhead to seek. Play forward, play in reverse,
-and pause the sequence playhead even when Preview is omitted or disconnected.
+and pause the sequence playhead even when the Preview slot is omitted or
+`SequencePreview` has no media playback.
 The editing session owns the playback clock and the playhead in sequence
-frames; Preview follows that transport. A disconnected preview is not a
-**No media placeholder**, which indicates expected source media failed to
-load. Split at playhead acts on all eligible placements at the playhead,
-regardless of selection.
+frames; `SequencePreview` follows that transport. It currently shows only
+transport state. Implement sequence media playback in this same default
+component, without requiring a host to supply a custom Preview slot. A
+**No media placeholder** is different: it indicates expected source media
+failed to load. Split at playhead acts on all eligible placements at the
+playhead, regardless of selection.
 
 Split mode is separate: clicking a placement splits only that placement
 at the pointer's sequence frame, without requiring selection. It does
@@ -332,10 +335,10 @@ frame rates, if lower placement A covers sequence `[0, 100)` using source
 `[500, 520)`, emit A `[100, 140)`, B `[500, 520)`, then A `[160, 200)`.
 Express authored entry and reveal fades using `transitionIn` and
 `transitionOut`, respectively, on the corresponding output section edges
-when the schema can carry them. The library contract ends at the emitted
-`CutList`: verify section order, source-frame ranges, and transition fields
-and durations. Downstream renderer behavior and rendered-media verification
-are outside this project's scope.
+when the schema can carry them. Final export stops at the emitted `CutList`:
+verify section order, source-frame ranges, and transition fields and durations.
+Downstream renderer behavior and rendered-media verification are outside this
+project's scope.
 
 The compiler requires matching source and project rates; it does not round
 mixed-rate cuts. Intersecting entry and reveal regions within a placement,
@@ -384,12 +387,12 @@ replaces the Timeline on `SequenceEditorPage`, and one that calls
 default page. Across those examples, verify through the public interfaces
 that seeking emits no edit, a valid edit uses the same host callbacks and
 acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
-nothing. A Preview replacement can display the transport snapshot to verify
+nothing. A custom Preview slot can display the transport snapshot to verify
 that it receives the same sequence playhead as the Timeline without a player.
 
 The existing source review and range export workflow stays separate. The
 existing [`VideoPreview`](../VideoPreview.md) plays a host-rendered HLS stream
-and is not part of this tree. Designing a live sequence preview is separate
+and is not part of this tree. Media playback in `SequencePreview` is follow-up
 work. These stories verify authoring and callback output, not decoded picture
 or sound.
 

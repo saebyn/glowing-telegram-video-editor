@@ -1,17 +1,17 @@
 import type { FrameRate } from "@/types";
 
-export interface SequencePreviewPlaceholderProps {
+export interface SequencePreviewProps {
   readonly playheadFrame: number;
   readonly frameRate: Readonly<FrameRate>;
   readonly durationFrames: number;
   readonly playback: "paused" | "forward" | "reverse";
 }
 
-export default function SequencePreviewPlaceholder({
+export default function SequencePreview({
   playheadFrame,
   durationFrames,
   playback,
-}: SequencePreviewPlaceholderProps) {
+}: SequencePreviewProps) {
   const status =
     playback === "forward"
       ? "Playing forward"

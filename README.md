@@ -96,11 +96,14 @@ sequence does not emit a `CutList`. To keep Undo history, feed the same sequence
 received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
 different sequence object is an independent host replacement and clears history. Hosts
 can also call `compileCutList(sequence, clips, sources, frameRate)` directly.
-The editor and compiler do not render the sequence; their output contract ends at the `CutList`.
+The compiler describes the edit; final rendering is outside the library’s scope.
 
 The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
 `timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane
-toggle. You can wrap any default by forwarding its props:
+toggle. The default `SequencePreview` currently shows transport state without
+playing media. Sequence media playback is planned for this component; hosts
+won’t need to supply a custom preview to use it. You can wrap any default by
+forwarding its props:
 
 ```tsx
 import {

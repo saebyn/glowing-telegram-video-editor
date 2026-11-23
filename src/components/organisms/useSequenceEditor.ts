@@ -1,6 +1,6 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import { type KeyboardEvent, useMemo, useState } from "react";
-import type { SequencePreviewPlaceholderProps } from "@/components/molecules/SequencePreviewPlaceholder";
+import type { SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type { ClipPlacement, Sequence, SequenceSource, VideoClip } from "@/types";
 import { getPlacementSourceRange } from "@/utils/clipPlacements";
@@ -112,7 +112,7 @@ export function useSequenceEditor({
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
-  const previewProps: SequencePreviewPlaceholderProps = {
+  const previewProps: SequencePreviewProps = {
     playheadFrame: transport.playheadFrame,
     frameRate,
     durationFrames: sequence.durationFrames,

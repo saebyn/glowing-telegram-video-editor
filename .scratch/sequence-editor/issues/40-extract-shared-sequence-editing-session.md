@@ -19,9 +19,10 @@ See [Composition interfaces and Model and ownership](../../../docs/sequence-edit
 - One hook call owns the shared playhead, playback, placement and transition
   selection, and accepted-edit history. The default UI uses that same session.
   Forward, reverse, pause, and seek work without media or authored edits.
-- Render the disconnected placeholder as `SequencePreviewPlaceholder`. Its
-  read-only slot props contain the sequence playhead, project frame rate,
-  sequence duration, and playback state. No player wiring or media is required.
+- Render the default Preview with `SequencePreview`. Its read-only slot props
+  contain the sequence playhead, project frame rate, sequence duration, and
+  playback state. Show transport state for this ticket; implement media
+  playback in the same component as follow-up work.
 - Preserve the host callback and history contract. With both callbacks
   supplied, one valid edit emits one sequence proposal and its `CutList`
   result, including `null` when unsupported. Only feeding back the exact
@@ -32,7 +33,7 @@ See [Composition interfaces and Model and ownership](../../../docs/sequence-edit
 
 ## Comments
 
-- The Preview check first failed after a ruler seek (the placeholder showed
+- The Preview check first failed after a ruler seek (`SequencePreview` showed
   no transport state). It now observes the same frame and playback direction
   as the editor; seek, playback, pause, and selection do not propose edits.
 - TypeScript, formatting, lint (existing warnings), and all 127 Vitest tests

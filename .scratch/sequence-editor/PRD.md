@@ -115,9 +115,9 @@ needed; the duration change and placement changes commit as one edit.
 
 ## Out of Scope
 
-- Media preview, downstream renderer behavior and rendered-media verification,
-  and changes to the source review workflow. Compiler verification ends at the
-  emitted `CutList`.
+- Adding media playback to the default `SequencePreview` is follow-up work.
+- Downstream renderer behavior, rendered-media verification, and changes to the
+  source review workflow. Compiler verification ends at the emitted `CutList`.
 - Optional snapping modes, marquee selection, and bulk Inspector edits.
 - Mixed-rate trim and compilation, new compositing rules, and a policy for
   trimming through transition regions.
