@@ -92,7 +92,11 @@ and reports interaction input; its rows are not editor state or compiler input.
 ## Model and ownership
 
 - **Source and clip:** A source identifies the media. A clip is a reusable
-  range within a source, available in the clip pool.
+  range within a source, available in the clip pool. The editor's clip pool and
+  timeline share each source's `frameThumbnails`. The pool uses the clip's
+  reusable range; the timeline uses the placement's effective range, including
+  its trim. Both use inclusive in and exclusive out on the native source grid.
+  These thumbnails are presentation only and do not affect compilation.
 - **Sequence and placement:** A sequence has ordered tracks. A placement has
   its own identity, references a clip, and has a track, a sequence position,
   and signed source-frame trim offsets from the clip's in and out points.

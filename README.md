@@ -190,9 +190,13 @@ The timeline shows its centered window and the Inspector shows the contributing 
 beyond each placement trim. An active dissolve is retained and reported as a
 compilation issue; the published format cannot carry its timing and contributions.
 
-To show frame thumbnails on the timeline, supply `keyframes: [{ sourceFrame, url }]`
-on a source. The strip uses only native source frames in the placement’s effective
-range, including any part outside the reusable clip’s original in and out points.
+Supply `frameThumbnails: [{ sourceFrame, url }]` on a source to show the same
+collection in clip pool hover previews and timeline strips. Use zero-based frames
+at the source’s native rate. The pool shows the frames in the reusable clip’s range,
+in source order, or keeps its static thumbnail when none qualify. The timeline uses
+the placement’s effective range, including trims beyond the reusable clip’s bounds.
+Both ranges include the in point and exclude the out point. Thumbnails do not
+affect compilation.
 Optional source `mediaKind` values (`video-only`, `audio-only`, `audio-video`) label
 clips in the pool and on the timeline. Omit `mediaKind` for a neutral appearance.
 

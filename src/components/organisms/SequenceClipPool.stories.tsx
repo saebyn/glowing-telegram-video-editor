@@ -11,7 +11,6 @@ const meta = {
     ...sequenceStoryMedia,
     frameRate: sampleFrameRate,
     thumbnails: {},
-    keyframes: {},
     beginClipDrag: fn(),
     endClipDrag: fn(),
   },

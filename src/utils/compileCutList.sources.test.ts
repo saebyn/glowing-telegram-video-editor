@@ -46,7 +46,7 @@ it("compiles the same fade from render-only and full source records without load
       s3Location: "s3://archive/harbor.mp4",
       mediaKind: "video-only",
       previewHlsUrl: "https://preview.example/harbor/index.m3u8",
-      keyframes: [{ sourceFrame: 32, url: "https://preview.example/harbor/32.jpg" }],
+      frameThumbnails: [{ sourceFrame: 32, url: "https://preview.example/harbor/32.jpg" }],
     },
   ];
   const expected: CutListResult = {
@@ -67,7 +67,7 @@ it("compiles the same fade from render-only and full source records without load
     (source) =>
       new Proxy(source, {
         get(target, key, receiver) {
-          if (key === "mediaKind" || key === "previewHlsUrl" || key === "keyframes") {
+          if (key === "mediaKind" || key === "previewHlsUrl" || key === "frameThumbnails") {
             throw new Error(`Render-only compilation cannot load preview metadata: ${key}`);
           }
           return Reflect.get(target, key, receiver);

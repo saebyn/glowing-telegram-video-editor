@@ -7,8 +7,7 @@ without introducing another triage status.
 
 ## Ready for an agent
 
-- [48 — Share frame thumbnails across the sequence editor](issues/48-share-frame-thumbnails-across-the-sequence-editor.md):
-  use one source collection for clip pool hover previews and timeline strips.
+No unresolved `ready-for-agent` tickets.
 
 ## Completed composition batch
 
@@ -39,6 +38,8 @@ without reopening the completed editing work.
 - [47 — Separate render and preview source inputs](issues/47-separate-render-and-preview-source-inputs.md):
   require host-supplied HLS for video in the editor without requiring it for
   `CutList` compilation.
+- [48 — Share frame thumbnails across the sequence editor](issues/48-share-frame-thumbnails-across-the-sequence-editor.md):
+  use one source collection for clip pool hover previews and timeline strips.
 - [37 — Transition objects](issues/37-represent-entry-and-reveal-fades-as-transition-objects.md):
   stable owner-edge identity and selectable fade indicators; verification ends
   at editing behavior and the existing `CutList`.

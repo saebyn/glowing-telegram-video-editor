@@ -31,8 +31,8 @@ test("the timeline distinguishes audio-only placements from video without thumbn
   await openMediaKinds(page, [
     "sources[0].mediaKind:video-only",
     "sources[1].mediaKind:audio-only",
-    "sources[1].keyframes[0].sourceFrame:515",
-    "sources[1].keyframes[0].url:source-preview-thumb",
+    "sources[1].frameThumbnails[0].sourceFrame:515",
+    "sources[1].frameThumbnails[0].url:source-preview-thumb",
   ]);
 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -51,10 +51,10 @@ test("the timeline distinguishes audio-only placements from video without thumbn
 test("the timeline keeps thumbnails without inferring a media kind", async ({ page }) => {
   await openMediaKinds(page, [
     "sources[0].mediaKind:audio-video",
-    "sources[0].keyframes[0].sourceFrame:120",
-    "sources[0].keyframes[0].url:source-preview-thumb",
-    "sources[1].keyframes[0].sourceFrame:515",
-    "sources[1].keyframes[0].url:source-preview-thumb",
+    "sources[0].frameThumbnails[0].sourceFrame:120",
+    "sources[0].frameThumbnails[0].url:source-preview-thumb",
+    "sources[1].frameThumbnails[0].sourceFrame:515",
+    "sources[1].frameThumbnails[0].url:source-preview-thumb",
   ]);
 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });

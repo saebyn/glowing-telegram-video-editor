@@ -1,11 +1,42 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useArgs, useMemo } from "storybook/preview-api";
 import { fn } from "storybook/test";
+import harborDepartureThumbnail from "@/fixtures/sequence-harbor-departure.svg?no-inline";
 import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
 import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
-import type { SequenceTrack } from "@/types";
+import type { SequenceSource, SequenceTrack, VideoClip } from "@/types";
 import SequenceEditorPage, { type SequenceEditorPageProps } from "./SequenceEditorPage";
+
+const harbor: VideoClip = {
+  id: "harbor",
+  sourceId: "harbor-recording",
+  sourceFrameRate: sampleFrameRate,
+  sourceDurationFrames: 1_000,
+  sourceInFrame: 114,
+  sourceOutFrame: 234,
+  keyframeSrc: harborThumbnail,
+};
+const lighthouse: VideoClip = {
+  id: "lighthouse",
+  sourceId: "lighthouse-recording",
+  sourceFrameRate: sampleFrameRate,
+  sourceDurationFrames: 1_000,
+  sourceInFrame: 501,
+  sourceOutFrame: 621,
+  keyframeSrc: lighthouseThumbnail,
+};
+// Preview URLs are placeholders; these stories do not play media.
+const harborSource: SequenceSource = {
+  id: "harbor-recording",
+  s3Location: "s3://sequence-fixtures/harbor.mp4",
+  previewHlsUrl: "/fixtures/harbor.m3u8",
+};
+const lighthouseSource: SequenceSource = {
+  id: "lighthouse-recording",
+  s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+  previewHlsUrl: "/fixtures/lighthouse.m3u8",
+};
 
 type EditingHostArgs = SequenceEditorPageProps & {
   acceptEdits?: boolean;
@@ -31,41 +62,9 @@ const meta = {
   },
   args: {
     acceptEdits: true,
-    clips: [
-      {
-        id: "harbor",
-        sourceId: "harbor-recording",
-        sourceFrameRate: sampleFrameRate,
-        sourceDurationFrames: 1_000,
-        sourceInFrame: 114,
-        sourceOutFrame: 234,
-        keyframeSrc: harborThumbnail,
-      },
-      {
-        id: "lighthouse",
-        sourceId: "lighthouse-recording",
-        sourceFrameRate: sampleFrameRate,
-        sourceDurationFrames: 1_000,
-        sourceInFrame: 501,
-        sourceOutFrame: 621,
-        keyframeSrc: lighthouseThumbnail,
-      },
-    ],
-    // Preview URLs are placeholders; these stories do not play media.
-    sources: [
-      {
-        id: "harbor-recording",
-        s3Location: "s3://sequence-fixtures/harbor.mp4",
-        previewHlsUrl: "/fixtures/harbor.m3u8",
-      },
-      {
-        id: "lighthouse-recording",
-        s3Location: "s3://sequence-fixtures/lighthouse.mp4",
-        previewHlsUrl: "/fixtures/lighthouse.m3u8",
-      },
-    ],
+    clips: [harbor, lighthouse],
+    sources: [harborSource, lighthouseSource],
     titles: { harbor: "Harbor", lighthouse: "Lighthouse" },
-    keyframes: { harbor: [harborThumbnail], lighthouse: [lighthouseThumbnail] },
   },
 } satisfies Meta<EditingHostArgs>;
 
@@ -93,11 +92,27 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
+          "Hover Harbor and Departure in the Clip Pool to see stills from different ranges of the same source. The last Harbor placement reaches into Departure’s range and shows its still in the timeline. Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
       },
     },
   },
   args: {
+    clips: [
+      harbor,
+      lighthouse,
+      { ...harbor, id: "departure", sourceInFrame: 234, sourceOutFrame: 294 },
+    ],
+    sources: [
+      {
+        ...harborSource,
+        frameThumbnails: [
+          { sourceFrame: 114, url: harborThumbnail },
+          { sourceFrame: 237, url: harborDepartureThumbnail },
+        ],
+      },
+      lighthouseSource,
+    ],
+    titles: { harbor: "Harbor", lighthouse: "Lighthouse", departure: "Departure" },
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },
     onSequenceChange: fn(),

@@ -38,14 +38,14 @@ export const sequenceStoryMedia = {
       s3Location: "s3://sequence-fixtures/harbor.mp4",
       previewHlsUrl: "/fixtures/harbor.m3u8",
       mediaKind: "audio-video",
-      keyframes: [{ sourceFrame: 114, url: harborThumbnail }],
+      frameThumbnails: [{ sourceFrame: 114, url: harborThumbnail }],
     },
     {
       id: "lighthouse-recording",
       s3Location: "s3://sequence-fixtures/lighthouse.mp4",
       previewHlsUrl: "/fixtures/lighthouse.m3u8",
       mediaKind: "video-only",
-      keyframes: [{ sourceFrame: 501, url: lighthouseThumbnail }],
+      frameThumbnails: [{ sourceFrame: 501, url: lighthouseThumbnail }],
     },
     {
       id: "harbor-audio",

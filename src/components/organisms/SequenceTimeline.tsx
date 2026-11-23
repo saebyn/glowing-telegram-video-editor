@@ -29,6 +29,7 @@ import type {
 import { getPlacementSourceRange } from "@/utils/clipPlacements";
 import { getDissolveWindow } from "@/utils/dissolveWindow";
 import type { PlacementFadeField } from "@/utils/fadePlacement";
+import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
 import {
   formatFrames,
   framesToSeconds,
@@ -408,7 +409,7 @@ export default function SequenceTimeline({
         trackIndex: number;
         trimRange: { sourceInFrame: number; sourceOutFrame: number } | undefined;
         mediaKind: MediaKind | undefined;
-        thumbnails: SequenceSource["keyframes"];
+        thumbnails: SequenceSource["frameThumbnails"];
       }
     >();
     const sourcesById = new Map(sources.map((source) => [source.id, source]));
@@ -433,12 +434,7 @@ export default function SequenceTimeline({
           thumbnails:
             source?.mediaKind === "audio-only"
               ? undefined
-              : source?.keyframes
-                  ?.filter(
-                    ({ sourceFrame }) =>
-                      sourceFrame >= range.sourceInFrame && sourceFrame < range.sourceOutFrame,
-                  )
-                  .sort((first, second) => first.sourceFrame - second.sourceFrame),
+              : frameThumbnailsInRange(source?.frameThumbnails, range),
         });
         return {
           id: placement.id,

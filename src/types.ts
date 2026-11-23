@@ -140,7 +140,7 @@ export interface CutListSource {
 /** Source media and presentation metadata supplied to the sequence editor. */
 export type SequenceSource = CutListSource & {
   /** Optional frame thumbnails at zero-based positions on this source's native frame grid. */
-  keyframes?: readonly { sourceFrame: number; url: string }[];
+  frameThumbnails?: readonly { sourceFrame: number; url: string }[];
 } & (
     | { mediaKind: "audio-only"; previewHlsUrl?: string }
     | {

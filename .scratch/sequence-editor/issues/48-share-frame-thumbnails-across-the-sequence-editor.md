@@ -1,6 +1,6 @@
 # 48 — Share frame thumbnails across the sequence editor
 
-Status: ready-for-agent
+Resolution: shared native source frame thumbnails between clip pool and timeline
 
 ## Proposal
 
@@ -35,3 +35,19 @@ still asks the host for untimed URL lists keyed by clip ID.
 [Changing standalone project clip interfaces](52-revisit-standalone-project-clip-thumbnails.md).
 The sequence editor has not shipped; replace its old fields directly without
 aliases or a migration.
+
+## Comments
+
+- Observed red → green for the timeline using the renamed collection and for
+  the clip pool's real hover gesture. Harbor and Departure use adjoining
+  ranges from the same source even at a different project frame rate. A
+  placement extending past the reusable range shows the extra eligible
+  still; trimming back across it removes that still without changing the pool.
+- Passed 26 targeted Chromium tests, light and dark Storybook checks, typecheck,
+  lint, formatting, and the compiler regression. Killed all eight targeted
+  mutations covering source lookup, in/out bounds, sort order, and placement
+  trims. Mutation summary: `/tmp/opencode/sequence48-mutation.log`.
+- Final verification: 244 Vitest checks and all 144 Chromium tests against
+  static Storybook passed. The static fallback assertion accepts hyphens in
+  built asset hashes. A development-server navigation timeout in an existing
+  fade test did not reproduce in three isolated reruns.

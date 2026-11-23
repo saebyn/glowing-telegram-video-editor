@@ -59,7 +59,6 @@ export interface UseSequenceEditorOptions {
   clips: VideoClip[];
   sources: readonly SequenceSource[];
   thumbnails?: Record<string, string>;
-  keyframes?: Record<string, string[]>;
   titles?: Record<string, string>;
   /** The host owns the sequence and feeds accepted edits back as props. Omit for read-only. */
   onSequenceChange?: (sequence: Sequence) => void;
@@ -108,7 +107,6 @@ export function useSequenceEditor({
   clips,
   sources,
   thumbnails = emptyThumbnails,
-  keyframes = emptyKeyframes,
   titles = emptyThumbnails,
   onSequenceChange,
   onCutListResult,
@@ -349,7 +347,6 @@ export function useSequenceEditor({
     sources,
     titles,
     thumbnails,
-    keyframes,
     beginClipDrag: onSequenceChange
       ? (id) => setActiveClipId(clips.some((clip) => clip.id === id) ? id : undefined)
       : undefined,
@@ -745,4 +742,3 @@ export function useSequenceEditor({
 }
 
 const emptyThumbnails: Record<string, string> = {};
-const emptyKeyframes: Record<string, string[]> = {};
