@@ -11,7 +11,9 @@ npm ci
 | Task | Command |
 | --- | --- |
 | Type-check | `npm run typecheck` |
-| Run Vitest once | `npm test -- --run` |
+| Run unit and Storybook tests once | `npm test -- --run` |
+| Run unit tests without Chromium | `npm test -- --run --project unit` |
+| Run only the Storybook Vitest project | `npm test -- --run --project storybook` |
 | Run browser tests against Storybook | `npm run test:browser` |
 | Open the Vitest UI (uses the URL printed on startup) | `npm run test:ui` |
 | Lint with Oxlint | `npm run lint` |
@@ -24,12 +26,18 @@ npm ci
 | Start Storybook at [localhost:6006](http://localhost:6006) | `npm run storybook` |
 | Build static Storybook | `npm run build-storybook` |
 
-[Unit-test CI](../.github/workflows/unittest.yml) runs `npm ci`, `npm run lint:ci`, `npm run format:check`, and `npm test` on pushes and pull requests to `main`. [Chromatic](../.github/workflows/chromatic.yml) checks Storybook on pushes. For UI changes, exercise the affected stories in the browser and check light and dark modes where applicable.
+[Test CI](../.github/workflows/unittest.yml) installs dependencies and Chromium,
+then runs lint, formatting, and Vitest on pushes and pull requests to `main`.
+[Chromatic](../.github/workflows/chromatic.yml) checks Storybook on pushes.
+For UI changes, exercise the affected stories in the browser and check light
+and dark modes where applicable.
 
-The browser test starts its own Storybook on port 6007. Install Chromium with
-`npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`
-to a compatible local Chromium executable (for example on NixOS). The
-`SequenceEditorPage` workflow stories use local fixtures and make no media service requests.
+Both the Storybook Vitest project and the separate Playwright suite require
+Chromium. Install it with `npx playwright install chromium`, or set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible local Chromium
+executable (for example on NixOS). The Playwright suite starts its own
+Storybook on port 6007. The `SequenceEditorPage` workflow stories use local
+fixtures and make no media service requests.
 
 Prefer Storybook args and Controls for fixture state and Actions for callback payloads.
 Use story `play` functions for interactions they can exercise faithfully; keep real
