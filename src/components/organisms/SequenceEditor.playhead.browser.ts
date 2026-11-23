@@ -148,7 +148,8 @@ test("forward playback crosses the gap without media; pause and ruler-seek hold 
   page,
 }) => {
   const { ruler, frameReadout, edits } = await openSequence(page);
-  await expect(page.getByText("Preview is not connected.")).toBeVisible();
+  const preview = page.getByRole("region", { name: "Preview", exact: true });
+  await expect(preview.getByText("Preview is not connected.")).toBeVisible();
   const start = new Date("2025-01-01T00:00:00Z");
   await page.clock.install({ time: start });
   await page.clock.pauseAt(new Date("2025-01-01T00:00:01Z"));
@@ -157,13 +158,16 @@ test("forward playback crosses the gap without media; pause and ruler-seek hold 
   if (!box) throw new Error("Expected a visible sequence ruler");
   await page.mouse.click(box.x + box.width / 4, box.y + box.height / 2);
   await expect(frameReadout).toHaveText("Sequence frame 90");
+  await expect(preview).toContainText("Paused · Sequence frame 90 of 360");
   await page.getByRole("button", { name: "Play", exact: true }).click({ timeout: 5_000 });
   await page.clock.runFor(800);
   // At 60 sequence frames per second, 800 ms advances 48 frames into the gap.
   const pausedFrame = await readPlaybackFrame(frameReadout, 138, 137);
+  await expect(preview).toContainText(`Playing forward · Sequence frame ${pausedFrame} of 360`);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page.clock.runFor(800);
   await expect(frameReadout).toHaveText(`Sequence frame ${pausedFrame}`);
+  await expect(preview).toContainText(`Paused · Sequence frame ${pausedFrame} of 360`);
 
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.clock.runFor(800);
@@ -177,6 +181,7 @@ test("forward playback crosses the gap without media; pause and ruler-seek hold 
 test("Space pauses reverse playback while Play reverse has focus", async ({ page }) => {
   const { frameReadout, edits } = await openSequence(page);
   const transport = page.getByRole("group", { name: "Sequence transport" });
+  const preview = page.getByRole("region", { name: "Preview", exact: true });
   const forward = transport.getByRole("button", { name: "Forward", exact: true });
   const reverse = transport.getByRole("button", { name: "Play reverse", exact: true });
   await forward.click();
@@ -189,6 +194,7 @@ test("Space pauses reverse playback while Play reverse has focus", async ({ page
   await page.keyboard.press("Space");
   await page.clock.runFor(800);
   const frame = await readPlaybackFrame(frameReadout, 72, 73);
+  await expect(preview).toContainText(`Playing reverse · Sequence frame ${frame} of 360`);
   await expect(reverse).toBeFocused();
   await expect(reverse).toHaveAttribute("aria-pressed", "true");
 
@@ -199,6 +205,7 @@ test("Space pauses reverse playback while Play reverse has focus", async ({ page
   await expect(reverse).toHaveAttribute("aria-pressed", "false");
   await page.clock.runFor(800);
   await expect(frameReadout).toHaveText(`Sequence frame ${frame}`);
+  await expect(preview).toContainText(`Paused · Sequence frame ${frame} of 360`);
   expect(await edits()).toEqual([]);
 });
 

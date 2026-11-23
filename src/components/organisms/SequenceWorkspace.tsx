@@ -15,10 +15,12 @@ type Drag = {
 
 export default function SequenceWorkspace({
   clipPool,
+  preview,
   inspector,
   hiddenPanes,
 }: {
   clipPool: ReactNode;
+  preview: ReactNode;
   inspector: ReactNode;
   hiddenPanes: ReadonlySet<WorkspacePane>;
 }) {
@@ -37,12 +39,7 @@ export default function SequenceWorkspace({
       pane: "preview",
       className:
         "flex min-h-40 flex-col items-center justify-center rounded-lg bg-slate-900 p-4 text-center text-slate-100",
-      content: (
-        <>
-          <h2 className="text-lg font-semibold">Preview</h2>
-          <p className="text-sm text-slate-300">Preview is not connected.</p>
-        </>
-      ),
+      content: preview,
     },
     {
       pane: "inspector",
