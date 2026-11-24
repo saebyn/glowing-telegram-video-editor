@@ -62,10 +62,6 @@
   pointer-events: auto;
 }
 
-.gtve-sequence-empty {
-  top: var(--gtve-ruler-height);
-}
-
 .gtve-sequence-transport {
   display: flex;
   align-items: flex-start;

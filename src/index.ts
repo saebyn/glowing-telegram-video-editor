@@ -5,17 +5,13 @@ import AudioChannelNameEditor from "@/components/atoms/AudioChannelNameEditor";
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import ProjectClipPool from "@/components/organisms/ProjectClipPool";
-import ProjectClipTimeline from "@/components/organisms/ProjectClipTimeline";
-import VideoPreview from "@/components/organisms/VideoPreview";
 import VideoSelectionPage from "@/components/pages/VideoSelectionPage";
 
 export {
   VideoSelectionPage,
-  VideoPreview,
   AudioChannelNameEditor,
   WaveformDisplay,
   ProjectClipPool,
-  ProjectClipTimeline,
   ProjectClipPreview,
 };
 

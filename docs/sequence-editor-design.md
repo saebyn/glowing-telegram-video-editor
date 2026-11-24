@@ -73,8 +73,7 @@ Inspector height cap is a separate change.
 The default `SequenceTimeline` uses **one widget instance** for the whole
 sequence, so tracks share a time scale, scroll position, and playhead. It
 projects authored tracks onto widget rows and placements onto actions, supplying the item visuals
-through `getActionRender`. Like the seam markers in `ProjectClipTimeline`,
-transition indicators are anchored at placement edges. Draw the existing
+through `getActionRender`. Transition indicators are anchored at placement edges. Draw the existing
 entry and reveal fade indicators within the placement, spanning their
 authored duration, without a separate row.
 Convert sequence frames to widget seconds and convert events such as seeking
@@ -82,12 +81,11 @@ back to frames inside the adapter. The slot interface does not expose widget
 rows, seconds, or pointer coordinates. Source ranges and trim bounds on the
 source grid remain in source frames.
 
-Reuse the patterns in [`SourceTimeline`](../src/components/organisms/SourceTimeline.tsx)
-for multiple rows and in [`ProjectClipTimeline`](../src/components/organisms/ProjectClipTimeline.tsx)
-for custom clip rendering and trim controls. Do not carry over the latter's
-gapless layout: it calculates start positions from clip order, while the new
-timeline displays explicit placement positions. The widget displays the edit
-and reports interaction input; its rows are not editor state or compiler input.
+As in [`SourceTimeline`](../src/components/organisms/SourceTimeline.tsx), one
+widget displays multiple rows. `SequenceTimeline` renders placement contents
+and trim controls at explicit positions rather than deriving positions from
+clip order. The widget displays the edit and reports interaction input; its
+rows are not editor state or compiler input.
 
 ## Model and ownership
 
@@ -423,11 +421,9 @@ acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
 nothing. A custom Preview slot can display the transport snapshot to verify
 that it receives the same sequence playhead as the Timeline without a player.
 
-The existing source review and range export workflow stays separate. The
-existing [`VideoPreview`](../VideoPreview.md) plays a host-rendered HLS stream
-and is not part of this tree. Media playback in `SequencePreview` is follow-up
-work. These stories verify authoring and callback output, not decoded picture
-or sound.
+The source review and range export workflow stays separate. Media playback in
+`SequencePreview` is follow-up work. These stories verify authoring and callback
+output, not decoded picture or sound.
 
 Follow-up design can settle mixed-rate cuts and the remaining details of
 split and undo.

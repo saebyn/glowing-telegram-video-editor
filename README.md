@@ -18,7 +18,7 @@ This is part of the larger glowing-telegram tool: https://github.com/saebyn/glow
 - **Video Review and Clip Selection**: Browse AI-generated highlights, attentions, and transcription errors with synchronized video playback
 - **Interactive Timeline**: Color-coded markers for different event types with zoom/pan functionality
 - **Clip Management**: Select, reorder, and trim video clips with drag-and-drop interface
-- **Audio Mixing**: Multi-channel audio control with per-channel muting and level adjustment
+- **Standalone Audio Controls**: Inline audio channel renaming and waveform visualization with optional seeking
 - **Live Transcript**: Real-time transcript and chat history display synchronized with video playback
 - **Keyboard Shortcuts**: Efficient navigation with keyboard controls for playback and seeking
 - **HLS Video Support**: Built-in support for HLS streaming with HLS.js
@@ -75,9 +75,7 @@ The library exports the following components:
 
 - **`VideoSelectionPage`** - Main page component for video review and clip selection
 - **`ProjectProvider`** - Supplies the project frame rate to sequence components without taking ownership of the edit
-- **`VideoPreview`** - Plays a host-rendered stream with audio monitoring controls
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
-- **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
 - **`SequenceEditorPage`** - Controlled editor for explicit clip placements, with `CutList` output
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
@@ -85,7 +83,7 @@ The library exports the following components:
 
 ## Component Usage
 
-Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, and `ProjectClipPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
 
 ### SequenceEditorPage
 
@@ -295,66 +293,6 @@ function App() {
 | `Shift+ArrowLeft` | Seek back about one second on the source grid |
 | `Shift+ArrowRight` | Seek forward about one second on the source grid |
 
-### VideoPreview
-
-Component for previewing a host-rendered HLS stream with an audio mixer and waveforms. The Selected Clips row shows ranges at their original source times.
-
-**Props:**
-
-```typescript
-interface VideoPreviewProps {
-  settings: PreviewSettings;           // Preview configuration
-  previewVideoUrl: string;             // HLS stream URL
-  playheadFrame?: number;              // Initial sequence playhead
-  durationFrames: number;              // Length of the rendered stream in project frames
-  onSettingsChange?: (settings: PreviewSettings) => void;
-  onRegenerate?: (settings: PreviewSettings) => void;
-  onSave?: (settings: PreviewSettings) => void;
-  regenerating?: boolean;
-  saving?: boolean;
-}
-```
-
-**Example:**
-
-```jsx
-import { useState } from 'react';
-import { ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
-
-const frameRate = { numerator: 30, denominator: 1 };
-const source = { sourceId: 'stream', sourceFrameRate: { numerator: 60, denominator: 1 } };
-
-function PreviewPage() {
-  const [settings, setSettings] = useState({
-    cutlist: [
-      { ...source, id: '1', sourceInFrame: 0, sourceOutFrame: 1800 },
-      { ...source, id: '2', sourceInFrame: 3600, sourceOutFrame: 7200 }
-    ],
-    audioChannels: [
-      { id: 'ch1', name: 'Game Audio', level: 0.8, muted: false },
-      { id: 'ch2', name: 'Microphone', level: 0.6, muted: false }
-    ],
-    waveformData: []
-  });
-
-  // The host's preview stream is three minutes long at 30 fps.
-  const durationFrames = 3 * 60 * 30;
-  return (
-    <ProjectProvider frameRate={frameRate}>
-      <VideoPreview
-        settings={settings}
-        previewVideoUrl="https://example.com/preview.m3u8"
-        durationFrames={durationFrames}
-        onSettingsChange={setSettings}
-        onRegenerate={(settings) => console.log('Regenerate with:', settings)}
-        onSave={(settings) => console.log('Save:', settings)}
-      />
-    </ProjectProvider>
-  );
-}
-```
-
-See [VideoPreview.md](VideoPreview.md) for the renderer handoff.
 ### ProjectClipPool
 
 A pool of available video clips that can be dragged to a timeline.
@@ -403,67 +341,6 @@ function ClipManager() {
         titles={{ 'clip1': 'Introduction', 'clip2': 'Highlights' }}
         showCheckboxes
         onClipSelect={(id, selected) => console.log(id, selected)}
-      />
-    </ProjectProvider>
-  );
-}
-```
-
-### ProjectClipTimeline
-
-Interactive timeline for arranging clips in sequence with drag-and-drop reordering and trimming.
-
-**Props:**
-
-```typescript
-interface ProjectClipTimelineProps {
-  clips: VideoClip[];                    // Clips on the timeline
-  thumbnails: Record<string, string>;
-  keyframes: Record<string, string[]>;
-  titles: Record<string, string>;
-  playheadFrame?: number;
-  height?: string;
-  onClipsReorder?: (clips: VideoClip[]) => void;
-  onClipRemove?: (clipId: string) => void;
-  onTitleUpdate?: (clipId: string, newTitle: string) => void;
-  onSeek?: (sequenceFrame: number) => void;
-  onClipsAdd?: (clipIds: string[], insertionIndex: number) => void;
-  onClipTrim?: (clipId: string, sourceInFrame: number, sourceOutFrame: number) => void;
-  renderTransition?: (leftClipId: string, rightClipId: string) => React.ReactNode;
-}
-```
-
-> `renderTransition` is called between each adjacent pair of clips and lets you render a custom transition indicator on the timeline.
-
-The duration is derived from the ordered `clips`; there is no separate duration prop. Supply a distinct `id` for each timeline entry. Arrow keys on a trim handle adjust the native cut by one source frame; mouse trims snap a sequence offset before converting it to a native source offset.
-
-**Example:**
-
-```jsx
-import { useState } from 'react';
-import { ProjectClipTimeline, ProjectProvider } from '@saebyn/glowing-telegram-video-editor';
-
-const frameRate = { numerator: 60, denominator: 1 };
-const source = { sourceId: 'stream', sourceFrameRate: frameRate };
-
-function Timeline() {
-  const [clips, setClips] = useState([
-    { ...source, id: 'clip1', sourceInFrame: 0, sourceOutFrame: 1800 },
-    { ...source, id: 'clip2', sourceInFrame: 1800, sourceOutFrame: 3600 }
-  ]);
-
-  return (
-    <ProjectProvider frameRate={frameRate}>
-      <ProjectClipTimeline
-        clips={clips}
-        thumbnails={{}}
-        keyframes={{}}
-        titles={{}}
-        onClipsReorder={setClips}
-        onClipRemove={(id) => setClips(current => current.filter(c => c.id !== id))}
-        onClipTrim={(id, sourceInFrame, sourceOutFrame) => {
-          setClips(current => current.map(c => c.id === id ? { ...c, sourceInFrame, sourceOutFrame } : c));
-        }}
       />
     </ProjectProvider>
   );
@@ -642,11 +519,15 @@ Use `parseContent(rawMetadata)` from the package to convert ISO durations to the
 
 When upgrading to 0.6.0, pass editor positions and durations as whole frames instead of milliseconds or seconds.
 
+- **Removed components (breaking):** `ProjectClipTimeline` and `VideoPreview` are no longer exported. Use `SequenceEditorPage` to edit explicit clip placements. `SequencePreview` does not play a host-rendered HLS stream; provide that playback UI in the host. `AudioChannelNameEditor` and `WaveformDisplay` remain available independently.
+
 - **Source review:** Supply `sourceId` and the native `frameRate` in the metadata. If you build `VideoMetadata` directly, replace `length` with `durationFrames` and parsed event timestamps with `sourceFrame` and, for ranges, `sourceOutFrame`. Raw ISO 8601 durations still work with `parseContent`.
 - **Clips:** Replace `start` and `end` with `sourceInFrame` and `sourceOutFrame`. Include `sourceId` and `sourceFrameRate`, and keep these bounds at the source rate even when the project uses a different rate.
-- **Sequence and preview:** Supply the project rate through `ProjectProvider`. Replace `playheadPosition` with `playheadFrame` and preview or waveform `duration` with `durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`. Remove the `duration` prop from `ProjectClipTimeline`; it derives the length from the clips.
+- **Sequence and waveforms:** Supply the project rate through `ProjectProvider` for the sequence editor. Replace waveform `playheadPosition` with `playheadFrame` and `waveformData.duration` with `waveformData.durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`.
 
-To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
+To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`.
+
+For an ordered, gapless edit, `layoutSequence(clips, frameRate)` returns the project rate, total `durationFrames`, and each placement's `sequenceStartFrame`, project `durationFrames`, and original clip. Preserve the original source in and out points rather than recalculating them from rounded project durations. For an explicit multi-track sequence, use `compileCutList` instead.
 
 ## Development
 
