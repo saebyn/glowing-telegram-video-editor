@@ -20,6 +20,10 @@ a `Resolution:` line closes it even if an old `Status:` line remains.
   make the Material Symbols font load in a consumer of the published package.
 - [64 — Investigate the viewport-fit drag test flake](issues/64-investigate-viewport-fit-drag-flake.md):
   determine whether the test races viewport layout or the editor uses stale geometry.
+- [66 — Reuse decoders across sequential Preview reads](issues/66-reuse-sequential-preview-decoders.md):
+  compare persistent decode readers with the bounded window cache.
+- [67 — Reduce main-thread work during warm Preview playback](issues/67-profile-warm-preview-playback.md):
+  profile ready-frame work separately from decode stalls before optimizing.
 
 ## Needs more information
 
