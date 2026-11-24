@@ -1,1 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+
+/* Keep this scan on library code; Storybook imports Tailwind separately. */
+@source "./{components,context,hooks,utils}/**/*.{ts,tsx}";
+@source not "./**/*.{stories,test,test-d,spec,spec-d,browser,browserHarness}.*";
