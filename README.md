@@ -125,10 +125,14 @@ in its optional source record, and `ProjectClipPool` only uses `mediaKind`.
 
 The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
 `timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane
-toggle. The default `SequencePreview` currently shows transport state without
-playing media. Sequence media playback is planned for this component; hosts
-won’t need to supply a custom preview to use it. You can wrap any default by
-forwarding its props:
+toggle. The default `SequencePreview` presents the current edit using the
+supplied HLS playback renditions, without requiring a successful `CutList`
+compile. Use finite, seekable playlists whose media is aligned to source
+elapsed time. Playlist and segment requests must be accessible to the browser
+(including CORS for cross-origin media), and the browser must support decoding
+the rendition codecs through WebCodecs. Forward playback includes sound;
+reverse playback is picture-only. You can wrap any default by forwarding its
+props:
 
 ```tsx
 import {

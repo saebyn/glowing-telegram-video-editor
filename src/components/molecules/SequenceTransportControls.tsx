@@ -1,8 +1,8 @@
 import { TransportBar } from "@keplar-404/react-timeline-editor";
+import type { SequenceTransportSnapshot } from "@/types";
 import { formatTimecode, framesToSeconds, secondsToFrame } from "@/utils/frames";
-import type { SequencePreviewProps } from "./SequencePreview";
 
-export interface SequenceTransportControlsProps extends SequencePreviewProps {
+export interface SequenceTransportControlsProps extends SequenceTransportSnapshot {
   seek: (sequenceFrame: number) => void;
   playForward: () => void;
   playReverse: () => void;

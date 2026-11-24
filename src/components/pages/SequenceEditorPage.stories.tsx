@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useArgs, useMemo, useState } from "storybook/preview-api";
 import { fn } from "storybook/test";
+import SequencePreview, { type SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { ProjectProvider } from "@/context/ProjectContext";
 import harborDepartureThumbnail from "@/fixtures/sequence-harbor-departure.svg?no-inline";
 import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
@@ -27,7 +28,7 @@ const lighthouse: VideoClip = {
   sourceOutFrame: 621,
   keyframeSrc: lighthouseThumbnail,
 };
-// Preview URLs are placeholders; these stories do not play media.
+// These workflows exercise authoring independently of preview media.
 const harborSource: SequenceSource = {
   s3Location: "s3://sequence-fixtures/harbor.mp4",
   previewHlsUrl: "/fixtures/harbor.m3u8",
@@ -190,6 +191,10 @@ export const RearrangeALayeredEdit: Story = {
   render: renderEditingHost,
 };
 
+function TransportOnlyPreview({ media: _media, ...transport }: SequencePreviewProps) {
+  return <SequencePreview {...transport} />;
+}
+
 function renderEditingHost({
   acceptEdits = true,
   readOnly = false,
@@ -228,7 +233,7 @@ function renderEditingHost({
       )}
       <SequenceEditorPage
         {...args}
-        {...(omitPreview ? { slots: { preview: null } } : {})}
+        slots={{ ...args.slots, preview: omitPreview ? null : TransportOnlyPreview }}
         sequence={startWithoutTracks ? empty : args.sequence}
         onSequenceChange={
           readOnly

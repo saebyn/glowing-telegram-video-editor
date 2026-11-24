@@ -43,6 +43,30 @@ Prefer Storybook args and Controls for fixture state and Actions for callback pa
 Use story `play` functions for interactions they can exercise faithfully; keep real
 browser-pointer tests for native gestures such as dragging a clip from the pool.
 
+### Manual sequence Preview checks
+
+Open **Pages / SequenceEditorPreview** in Storybook. **Local Dissolve** uses a
+local MPEG-TS fixture with alternating tones and incremental brightness. Play
+through the dissolve, seek and single-step around frame 15, then play in
+reverse. Reverse should be silent; seeking and stepping to the same frame
+should show the same picture. The uncovered tail should be black and silent,
+including at the sequence endpoint. Try accepting a split or placement move
+while Preview is active. Check in both light and dark mode.
+
+With the browser's network throttling enabled, play while Preview is loading.
+Verify the playhead holds, then resumes. Repeat, but pause, seek, hide Preview,
+or change the rendition before the request finishes. Old requests should not
+restore old picture, sound, or play intent. **Missing Expected Sound** should
+diagnose missing sound when playing forward without confusing it with a gap.
+**Molecules / SequencePreview / Public HLS Smoke** exercises the component
+directly with three placements from the public Mux sample. Scrub the
+read-only timeline to compare the opening fade (0–1s), dissolve (3–5s),
+hard cut (8s), and closing fade (11–12s). In **Controls → Media**, you can replace
+the sequence, clips, or `sources.<sourceId>.previewHlsUrl` (keep the trim and
+duration within the new source). A finite MPEG-TS playlist and its segments
+must be accessible from the Storybook origin. The Mux story is a
+network-dependent smoke check, not a timing assertion.
+
 ## Source layout
 
 [`src/index.ts`](../src/index.ts) is the public entry point. [`src/components/`](../src/components) is organized into atoms, molecules, organisms, and pages; stories live alongside components. Shared types are in [`src/types.ts`](../src/types.ts), React providers in [`src/context/`](../src/context), and utility functions in [`src/utils/`](../src/utils). The local harness, [`src/app.tsx`](../src/app.tsx), renders `VideoSelectionPage` with [`src/data.json`](../src/data.json).

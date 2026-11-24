@@ -197,6 +197,27 @@ export interface Sequence {
   tracks: readonly SequenceTrack[];
 }
 
+export interface SequenceTransportSnapshot {
+  readonly playheadFrame: number;
+  readonly frameRate: Readonly<FrameRate>;
+  readonly durationFrames: number;
+  readonly playback: "paused" | "forward" | "reverse";
+}
+
+export interface SequencePreviewMedia {
+  readonly sequence: Sequence;
+  readonly clips: readonly VideoClip[];
+  readonly sources: SourcesById<SequenceSource>;
+}
+
+/** A mounted Preview can hold the session clock at a frame until its media is ready. */
+export interface SequencePreviewGate {
+  readiness(frame: number, direction: 1 | -1): "ready" | "loading" | "failed";
+  /** Schedule already prepared sound relative to the current transport tick. */
+  presentSound?(frame: number, delaySeconds: number): void;
+  unlockSound?(): void;
+}
+
 export type CutListIssue =
   | { code: "empty-sequence" }
   /** Zero-based sequence-frame range, with an exclusive end. */

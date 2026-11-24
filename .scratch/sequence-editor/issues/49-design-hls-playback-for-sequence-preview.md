@@ -88,3 +88,78 @@ selection are intentionally deferred.
   source contributions, not merely stitch compatible HLS segments. The
   host confirmed full-source `.ts` playlists and that the rendition may
   differ in quality or frame cadence from the original.
+- Implemented the reviewable preview in `SequencePreview` itself. The
+  session owns play intent and gates advancement on the current mounted
+  preview. Preview does not require or change `CutList`. Audio-only delivery
+  and source timing metadata remain in #50.
+- Mediabunny 1.66.3 passed the Chromium 158 local H.264/AAC MPEG-TS probe:
+  non-keyframe seek across a segment boundary, shared source time for
+  adjacent requests, and concurrent reads of distinct picture and audio
+  positions of one rendition. Cold seek was 45–309 ms in repeated runs;
+  18 reverse requests with bounded lookbehind took 15–17 ms, fetched each
+  fixture segment once, and retained at most five decoded 64×36 pictures
+  (about 45 KiB as RGBA, not total browser memory). The production reader
+  bounds its decoded lookbehind and loads the decoder in a deferred chunk.
+- Passed typecheck, formatting, library and static Storybook builds, 214
+  Vitest checks, the 164-test Chromium regression run and all seven final
+  targeted Preview browser checks. Six targeted presentation mutations
+  were caught (elapsed-time mapping, channel priority, dissolve phase,
+  fade extension, same-cut conflict, and mixed-rate audio trim). Lint has
+  the existing `VideoPlayer` captions warning. A separate Vite consumer
+  installed from `npm pack` decoded the local fixture and played to the
+  sequence endpoint.
+- Manual test surface: **Pages / SequenceEditorPreview** has **Local
+  Dissolve**, **Missing Expected Sound**, and **Undefined Dissolve**.
+  **Molecules / SequencePreview / Public HLS Smoke** started playback and
+  switched direction in desktop Chromium. See the
+  [manual checklist](../../../docs/development.md#manual-sequence-preview-checks)
+  for listening, scrubbing, and using network throttling.
+- Still open: no representative host playlist was available. Use a
+  browser-accessible, finite MPEG-TS rendition from the host to verify its
+  timestamp alignment, codec compatibility, and sustained playback.
+  Listening and longer-duration performance checks are still pending;
+  the short fixture timings are not a sustained playback guarantee.
+- Manual review found a hold every 30 sequence frames at 60 fps in the
+  Mux story, and audible corruption. Chromium measurements showed that
+  cold half-second windows were decoding the 1920px variant (~0.7–1s per
+  window). Preview now prefers a variant sized for its canvas and warms
+  future decode windows during forward playback. A rerun reached frame
+  591 in ~10 seconds, crossed a segment boundary, and showed only the
+  initial loading indicator. The Mux story now exposes an editable
+  **Controls → Media** object.
+- Audio had gaps and overlaps when blocks were scheduled from animation
+  ticks. The transport now schedules ready sound ahead of the picture, and
+  contiguous blocks share the same Web Audio clock. The Mux trace had
+  288 gaps and five overlaps larger than 1ms before the fix and none in
+  the first 300 blocks afterward. The local 60-fps browser regression
+  records the mixed audio output and checks the 440Hz tone for dropouts and
+  incorrect pitch. Host rendition compatibility remains unverified.
+- Follow-up verification: 215 Vitest and 20 targeted Chromium checks
+  passed, along with typecheck, formatting, library and Storybook builds,
+  and playback in a freshly packed consumer. Four targeted mutations
+  were caught: ignoring the Media control, choosing the oversized
+  variant, removing decode lookahead, and waiting to queue audio.
+- Public HLS Smoke now demonstrates three placements with an opening fade,
+  a centered dissolve, a hard cut, and a closing fade. A read-only timeline
+  shows the transition windows and scrubs the Preview. The local tone
+  story remains a separate, single-placement audio reference. Chromium
+  verified the timeline without network media and played the Mux edit
+  to its endpoint without a Preview diagnostic.
+- Reproduced stutter through the same-source dissolve. The two positions
+  and their lookahead evicted each other's decoded windows. With a bounded
+  six-window cache, Chromium configured 14 decoders during the dissolve
+  instead of 94; the 12-second Mux edit finished in 12.2s instead of 14.0s
+  with no mid-playback loading in that run. All 13 Preview browser tests
+  passed, and reducing the cache back to three failed the regression.
+- On a slower display clock, a ready decoded window was not enough:
+  Preview prepared only the next sequence frame, so a tick crossing
+  multiple frames would stall on the first frame it hadn't prepared.
+  Preview now prepares a short contiguous run as well as the existing
+  decode lookahead. The 60 fps local fixture finishes on a simulated
+  ~30 Hz display clock; reverting to one prepared frame fails the test.
+  This doesn't increase the decoded-window limit. At 4× CPU throttling,
+  the Mux edit still showed decode-window stalls, so the slower-display
+  regression does not guarantee smooth playback on a heavily loaded CPU.
+- The maintainer is satisfied with current performance. Further optimization
+  is deferred to [#66](66-reuse-sequential-preview-decoders.md) and
+  [#67](67-profile-warm-preview-playback.md), not required to close #49.

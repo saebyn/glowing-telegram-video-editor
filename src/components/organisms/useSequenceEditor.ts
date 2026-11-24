@@ -8,6 +8,7 @@ import type {
   PlacementEdge,
   Sequence,
   SequenceSource,
+  SequenceTransportSnapshot,
   SourcesById,
   TransitionDraft,
   TransitionEditProblem,
@@ -104,11 +105,17 @@ export function useSequenceEditor({
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
   const transport = useSequenceTransport(sequence.durationFrames, frameRate);
-  const previewProps: SequencePreviewProps = {
+  const snapshot: SequenceTransportSnapshot = {
     playheadFrame: transport.playheadFrame,
     frameRate,
     durationFrames: sequence.durationFrames,
     playback: transport.isReversing ? "reverse" : transport.isPlaying ? "forward" : "paused",
+  };
+  const previewProps: SequencePreviewProps = {
+    ...snapshot,
+    media: { sequence, clips, sources },
+    registerPreview: transport.registerPreview,
+    stoppedOnSound: transport.stoppedOn === 1,
   };
   const [selection, setSelection] = useState<readonly string[]>([]);
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
@@ -579,7 +586,7 @@ export function useSequenceEditor({
 
   const toolbarProps: SequenceToolbarProps = {
     transport: {
-      ...previewProps,
+      ...snapshot,
       seek: transport.seek,
       pause: transport.pause,
       playForward: () => {

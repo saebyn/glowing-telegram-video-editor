@@ -11,7 +11,9 @@
   "type": "module",
   "files": [
     "dist",
-    "src"
+    "src",
+    "THIRD_PARTY_NOTICES.md",
+    "!dist/preview-fixtures"
   ],
   "module": "dist/glowing-telegram-video-editor.js",
   "exports": {
@@ -48,6 +50,7 @@
     "@saebyn/glowing-telegram-types": "0.14.0",
     "@tailwindcss/postcss": "^4.3.5",
     "hls.js": "^1.7.4",
+    "mediabunny": "1.66.3",
     "tailwindcss": "^4.3.5",
     "tailwindcss-animate": "^1.0.7",
     "temporal-polyfill": "^1.0.8"

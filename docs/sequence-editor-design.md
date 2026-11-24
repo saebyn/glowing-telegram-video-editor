@@ -48,7 +48,7 @@ mode. A host-built page can do the same in its own layout.
 | --- | --- |
 | Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
-| Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The default `SequencePreview` displays that state today; media playback is follow-up work. |
+| Preview | Transport snapshot and latest sequence, clip, and source inputs. The default `SequencePreview` registers readiness while mounted; the session still owns the clock and play intent. |
 | Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, duration bounds by kind, and actions to apply type and duration together or remove the transition). The Inspector owns labels, drafts, and form rendering. |
 | Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
 
@@ -368,8 +368,7 @@ and zoom remain available. An empty-track click does nothing.
 
 ## Sequence preview target
 
-The default `SequencePreview` currently shows only transport state. Its
-target is to simulate the latest host-supplied Sequence at the current
+The default `SequencePreview` simulates the latest host-supplied Sequence at the current
 playhead, without a custom slot, pre-rendered sequence, or successful
 `CutList` compile. Match the authored timing and picture and sound
 contributions, not the downstream render's pixels or audio samples.
@@ -502,9 +501,9 @@ acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
 nothing. A custom Preview slot can display the transport snapshot to verify
 that it receives the same sequence playhead as the Timeline without a player.
 
-The source review and range export workflow stays separate. Media playback in
-`SequencePreview` is follow-up work. These stories verify authoring and callback
-output, not decoded picture or sound.
+The source review and range export workflow stays separate. These editing
+stories verify authoring and callback output. The separate Preview stories
+exercise browser playback without validating downstream rendered media.
 
 Follow-up design can settle mixed-rate cuts and the remaining details of
 split and undo.
