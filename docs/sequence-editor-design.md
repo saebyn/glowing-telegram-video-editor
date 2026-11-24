@@ -73,9 +73,13 @@ Inspector height cap is a separate change.
 The default `SequenceTimeline` uses **one widget instance** for the whole
 sequence, so tracks share a time scale, scroll position, and playhead. It
 projects authored tracks onto widget rows and placements onto actions, supplying the item visuals
-through `getActionRender`. Transition indicators are anchored at placement edges. Draw the existing
-entry and reveal fade indicators within the placement, spanning their
-authored duration, without a separate row.
+through `getActionRender`. Draw entry fades, reveal fades, and centered
+dissolves over roughly the top 80% of their track. Keep each indicator at
+its true projected position and width, including windows that extend past
+the owning edge or overlap, and draw the selected indicator on top in the
+same lane. The bottom strip remains available for selecting and moving the
+placement, with trim grips in its corners. In Split mode the indicators are
+visible but don't intercept the blade or prevent inspection from the Inspector.
 Convert sequence frames to widget seconds and convert events such as seeking
 back to frames inside the adapter. The slot interface does not expose widget
 rows, seconds, or pointer coordinates. Source ranges and trim bounds on the
@@ -277,8 +281,10 @@ of normal editor integration. The editor handles compilation for its edits.
   placement. When accepted, it selects just the owning placement; Undo
   restores the transition without changing that selection. Zero duration is
   not removal. Read-only and locked tracks allow inspection, but not
-  transition edits. Timeline placement edges still trim and the separate fade
-  handles still resize fades.
+  transition edits. Timeline placement edges still trim, and separate resize
+  grips adjust authored fades. Empty edges and dissolves have no transition
+  grips; creation starts only in Placement Properties. Short or obscured
+  transitions can still be inspected from their owning edges.
 - A move proposes the IDs of the placements being moved and the grabbed placement's
   destination track and sequence frame. Every placement gets the same signed
   sequence-frame offset and the same shift in track order. Source ranges and

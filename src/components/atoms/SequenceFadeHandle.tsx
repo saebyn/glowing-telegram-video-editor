@@ -29,10 +29,7 @@ export default function SequenceFadeHandle({
   const [draft, setDraft] = useState<number | "blocked" | "conflict" | null>(null);
   const feedbackId = useId();
   const blocked = draft === "blocked" || draft === "conflict";
-  const percent = Math.min(
-    100,
-    (100 * (typeof draft === "number" ? draft : frames)) / placementFrames,
-  );
+  const percent = (100 * (typeof draft === "number" ? draft : frames)) / placementFrames;
   const isEntry = edge === "leading";
   const styleEdge = isEntry ? "left" : "right";
   const fade = isEntry ? "entry fade" : "reveal fade";
@@ -61,16 +58,18 @@ export default function SequenceFadeHandle({
 
   return (
     <>
-      {(percent > 0 || onSelect) && (
+      {frames > 0 && (
         <Indicator
           type={onSelect ? "button" : undefined}
           aria-label={onSelect ? `Select ${fade}: ${label}` : undefined}
           aria-pressed={onSelect ? selected : undefined}
-          className={`absolute h-3 overflow-hidden indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "top-0 rounded-r" : "top-3 rounded-l"} ${
-            selected ? "bg-amber-500 inset-ring-2 inset-ring-amber-900" : "bg-amber-300"
+          className={`absolute top-0 h-full overflow-hidden indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "rounded-r" : "rounded-l"} ${
+            selected
+              ? "z-[2] bg-amber-500/95 inset-ring-2 inset-ring-amber-900"
+              : "z-[1] bg-amber-300/85"
           } ${
             onSelect
-              ? "min-w-1 cursor-pointer focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2"
+              ? "pointer-events-auto cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2"
               : "pointer-events-none"
           }`}
           style={{ [styleEdge]: 0, width: `${percent}%` }}
@@ -87,16 +86,19 @@ export default function SequenceFadeHandle({
           {isEntry ? "Fade in" : "Fade out"}
         </Indicator>
       )}
-      {edit && (
+      {edit && frames > 0 && (
         <button
           type="button"
           aria-label={name}
           aria-describedby={blocked ? feedbackId : undefined}
           data-state={blocked ? "blocked" : undefined}
           title={name}
-          // Keep the center of each indicator clickable, even for a one-frame fade.
-          className={`absolute z-10 h-2 w-3 cursor-ew-resize touch-none overflow-hidden rounded-sm border border-amber-100 bg-amber-700 text-[8px]/[6px] font-bold text-white select-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white data-[state=blocked]:bg-rose-700 ${isEntry ? "top-2 -translate-x-1/2" : "top-5 translate-x-1/2"}`}
-          style={{ [styleEdge]: `clamp(6px, ${percent}%, calc(100% - 6px))` }}
+          // Adjacent fades can share a frame boundary. Keep their grips on separate lines,
+          // away from the middle of the indicator and the placement's trim corners.
+          className={`pointer-events-auto absolute z-[3] h-2 w-3 max-w-full cursor-ew-resize touch-none overflow-hidden rounded-sm bg-amber-700 text-[8px]/[6px] font-bold text-white inset-ring inset-ring-amber-100 select-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white data-[state=blocked]:bg-rose-700 ${isEntry ? "top-2 -translate-x-1/2" : "top-4 translate-x-1/2"}`}
+          style={{
+            [styleEdge]: `clamp(min(6px, 50%), ${percent}%, calc(100% - min(6px, 50%)))`,
+          }}
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => {
             event.stopPropagation();

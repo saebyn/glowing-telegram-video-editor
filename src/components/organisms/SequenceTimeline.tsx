@@ -49,6 +49,10 @@ const RULER = ".timeline-editor-time-area-interact";
 const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
 const CURSOR_GRIP = ".timeline-editor-cursor-area";
 const ROW_HEIGHT = 72;
+const PLACEMENT_INSET_Y = 4;
+const TRIM_GRIP_HEIGHT = 12;
+// Cover the upper ~80% of the placement, stopping just above the trim corners.
+const TRANSITION_HEIGHT = ROW_HEIGHT - 2 * PLACEMENT_INSET_Y - TRIM_GRIP_HEIGHT;
 const DRAG_THRESHOLD = 4;
 const SNAP_TOLERANCE_PX = 8;
 const SCROLL_EDGE = 32;
@@ -929,10 +933,10 @@ export default function SequenceTimeline({
                   ? "bg-violet-950 text-violet-100 border-violet-400 inset-ring-violet-400"
                   : "bg-sky-950 text-sky-100 border-sky-400 inset-ring-sky-400"
               } ${compactTrim ? "inset-ring" : "border px-2"} ${
-                hasThumbnails
-                  ? "items-end pb-3"
-                  : entryTransition || revealTransition
-                    ? "items-end pb-0.5"
+                entryTransition || revealTransition
+                  ? "items-end pb-0.5"
+                  : hasThumbnails
+                    ? "items-end pb-3"
                     : "items-center"
               }`;
               const trimGrips =
@@ -1032,37 +1036,6 @@ export default function SequenceTimeline({
                         {content}
                       </div>
                     )}
-                    {(["leading", "trailing"] as const).map((edge) => {
-                      const transition = item[transitionFields[edge]];
-                      if (transition?.kind === "dissolve") return null;
-                      return (
-                        <SequenceFadeHandle
-                          key={edge}
-                          label={label}
-                          edge={edge}
-                          frames={transition?.durationFrames ?? 0}
-                          placementFrames={item.duration}
-                          pixelsPerFrame={pixelsPerFrame}
-                          selected={!!transition && transition.id === selectedTransitionId}
-                          onSelect={
-                            transition && !splitEnabled
-                              ? () => selectTransition(transition.id)
-                              : undefined
-                          }
-                          edit={
-                            !splitEnabled && previewFade && editFade && fadePlacementIds.has(id)
-                              ? {
-                                  evaluate: (durationFrames) =>
-                                    previewFade({ placementId: id, edge, durationFrames }),
-                                  commit: (durationFrames) =>
-                                    editFade({ placementId: id, edge, durationFrames }),
-                                  locked: tracks[item.trackIndex].locked,
-                                }
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
                     {!compactTrim && trimGrips}
                   </div>
                   {compactTrim && trimGrips}
@@ -1073,7 +1046,7 @@ export default function SequenceTimeline({
           {splitEnabled && width > 0 && tracks.length > 0 && (
             // Leave the ruler and playhead reachable above the overlay.
             <div
-              className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height)"
+              className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height) z-[6]"
               onPointerDown={(event) => {
                 if (!event.isPrimary || event.button !== 0) return;
                 splitPointerOrigin.current = { clientX: event.clientX, clientY: event.clientY };
@@ -1125,55 +1098,97 @@ export default function SequenceTimeline({
               />
             </div>
           )}
-          {Array.from(items.values()).flatMap((item) =>
-            (["leading", "trailing"] as const).flatMap((edge) => {
-              const transition = item[transitionFields[edge]];
-              if (transition?.kind !== "dissolve") return [];
-              const cut = item.sequenceFrame + (edge === "leading" ? 0 : item.duration);
-              const { startFrame, endFrame } = getDissolveWindow(
-                cut,
-                transition.durationFrames,
-                durationFrames,
-              );
-              const details = dissolveDetails.get(transition.id);
-              const extensions = [details?.outgoingExtension, details?.incomingExtension]
-                .map(
-                  (range, index) =>
-                    range &&
-                    `${index === 0 ? "Outgoing" : "Incoming"} extension: source frames [${range.startFrame}, ${range.endFrame})`,
-                )
-                .filter(Boolean);
-              const left = startFrame * pixelsPerFrame - visibleScrollLeft;
-              const right = endFrame * pixelsPerFrame - visibleScrollLeft;
-              const isEmptyWindow = startFrame === endFrame;
-              if (isEmptyWindow ? left < 0 || left > width : right <= 0 || left >= width) return [];
-              return [
-                <button
-                  key={transition.id}
-                  type="button"
-                  aria-label={`Select centered dissolve: ${item.label}`}
-                  aria-pressed={transition.id === selectedTransitionId}
-                  title={[
-                    `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
-                    ...extensions,
-                  ].join("\n")}
-                  disabled={splitEnabled}
-                  className={`absolute z-[5] h-5 min-w-1 overflow-hidden rounded-sm border border-violet-900 bg-violet-200 text-[9px] text-violet-950 aria-pressed:bg-violet-500 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-white ${splitEnabled ? "pointer-events-none" : ""}`}
-                  style={{
-                    left: isEmptyWindow ? Math.min(left, Math.max(0, width - 4)) : left,
-                    top: RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + 4,
-                    width: right - left,
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    selectTransition(transition.id);
-                  }}
-                >
-                  Dissolve
-                </button>,
-              ];
-            }),
-          )}
+          {/* All transition bodies share a stacking context, even when a window
+              extends outside its owner's widget action. The underlay still receives
+              placement and trim gestures outside the interactive transition bodies. */}
+          <div className="pointer-events-none absolute inset-0 z-[5]">
+            {[...items].flatMap(([id, item]) =>
+              (["leading", "trailing"] as const).flatMap((edge) => {
+                const transition = item[transitionFields[edge]];
+                if (!transition) return [];
+                const top = RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + PLACEMENT_INSET_Y;
+                const selected = transition.id === selectedTransitionId;
+                if (transition.kind === "fade") {
+                  return [
+                    <div
+                      key={transition.id}
+                      className="absolute"
+                      style={{
+                        left: item.sequenceFrame * pixelsPerFrame - visibleScrollLeft,
+                        width: item.duration * pixelsPerFrame,
+                        top,
+                        height: TRANSITION_HEIGHT,
+                      }}
+                    >
+                      <SequenceFadeHandle
+                        label={item.label}
+                        edge={edge}
+                        frames={transition.durationFrames}
+                        placementFrames={item.duration}
+                        pixelsPerFrame={pixelsPerFrame}
+                        selected={selected}
+                        onSelect={splitEnabled ? undefined : () => selectTransition(transition.id)}
+                        edit={
+                          !splitEnabled && previewFade && editFade && fadePlacementIds.has(id)
+                            ? {
+                                evaluate: (durationFrames) =>
+                                  previewFade({ placementId: id, edge, durationFrames }),
+                                commit: (durationFrames) =>
+                                  editFade({ placementId: id, edge, durationFrames }),
+                                locked: tracks[item.trackIndex].locked,
+                              }
+                            : undefined
+                        }
+                      />
+                    </div>,
+                  ];
+                }
+                const cut = item.sequenceFrame + (edge === "leading" ? 0 : item.duration);
+                const { startFrame, endFrame } = getDissolveWindow(
+                  cut,
+                  transition.durationFrames,
+                  durationFrames,
+                );
+                const details = dissolveDetails.get(transition.id);
+                const extensions = [details?.outgoingExtension, details?.incomingExtension]
+                  .map(
+                    (range, index) =>
+                      range &&
+                      `${index === 0 ? "Outgoing" : "Incoming"} extension: source frames [${range.startFrame}, ${range.endFrame})`,
+                  )
+                  .filter(Boolean);
+                const left = startFrame * pixelsPerFrame - visibleScrollLeft;
+                const right = endFrame * pixelsPerFrame - visibleScrollLeft;
+                if (right <= left || right <= 0 || left >= width) return [];
+                return [
+                  <button
+                    key={transition.id}
+                    type="button"
+                    aria-label={`Select centered dissolve: ${item.label}`}
+                    aria-pressed={selected}
+                    title={[
+                      `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
+                      ...extensions,
+                    ].join("\n")}
+                    disabled={splitEnabled}
+                    className={`absolute overflow-hidden rounded-sm bg-violet-200/85 text-[9px] text-violet-950 inset-ring inset-ring-violet-900 aria-pressed:bg-violet-500/95 aria-pressed:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${selected ? "z-[2]" : "z-[1]"} ${splitEnabled ? "" : "pointer-events-auto cursor-pointer"}`}
+                    style={{
+                      left,
+                      top,
+                      width: right - left,
+                      height: TRANSITION_HEIGHT,
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      selectTransition(transition.id);
+                    }}
+                  >
+                    Dissolve
+                  </button>,
+                ];
+              }),
+            )}
+          </div>
           {activeTrimPreview && trimDraft && trimItem && (
             <figure
               aria-label={`Proposed trim: ${trimItem.label}`}

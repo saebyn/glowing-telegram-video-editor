@@ -189,8 +189,12 @@ Use **Inspect transition** on an occupied edge or click its timeline indicator
 to see **Transition Properties**. Choose **Fade** or **Centered dissolve**
 and enter the duration in sequence frames; **Apply** submits both together.
 **Remove transition** clears that edge and returns to Placement Properties
-once the host accepts the edit. Fade duration can also be adjusted on the
-timeline. Hosts store transitions on placements as
+once the host accepts the edit. On the timeline, transition indicators cover
+the top of the track at their actual time span. Click or drag the strip below
+to select or move the placement. Separate timeline grips adjust authored
+fades; there are no grips on empty edges or dissolves. Use the owning edge in
+**Placement Properties** to inspect a short or obscured transition.
+Hosts store transitions on placements as
 `entryTransition` or `revealTransition`, with `{ id, kind, durationFrames }`.
 Split keeps each transition's ID and duration at its original edge, even if that split
 makes it unrepresentable in the `CutList`.

@@ -317,7 +317,8 @@ test("a conflicting Add does not shorten the default to fit or clear the selecti
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   const inspector = page.getByRole("region", { name: "Inspector" });
-  await harbor.click();
+  const rect = (await harbor.boundingBox())!;
+  await harbor.click({ position: { x: rect.width / 2, y: rect.height - 4 } });
   await lighthouse.click({ modifiers: ["Shift"] });
   await expect(inspector.getByRole("combobox", { name: "Inspect placement" })).toHaveValue(
     "harbor-open",

@@ -271,7 +271,7 @@ test("adding at the end edge caps the reveal fade at the placement duration with
     2,
   );
   // The default is capped to fill, but not extend, this 24-frame placement.
-  expect(Math.abs(fadeBox.width - placementBox.width)).toBeLessThan(2);
+  expect(fadeBox.width).toBeCloseTo(placementBox.width + 2, 0);
 });
 
 for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
