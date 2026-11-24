@@ -82,6 +82,10 @@ test("resubmitting the current source out point produces no edit", () => {
   expect(applyTrailingTrim(sequence, [clip], frameRate, "open", 140)).toBeNull();
 });
 
+test("a trailing trim cannot end between whole source frames", () => {
+  expect(applyTrailingTrim(sequence, [clip], frameRate, "open", 130.5)).toBeNull();
+});
+
 test("a trailing trim can shorten a placement below its fade without changing either transition", () => {
   const faded = {
     ...placement,
@@ -101,10 +105,16 @@ test("a trailing trim can shorten a placement below its fade without changing ei
   });
 });
 
-test("a trailing trim is blocked when the source and project frame rates differ", () => {
-  const differentRate = { numerator: 24, denominator: 2 };
-  expect(applyTrailingTrim(sequence, [clip], differentRate, "open", 190)).toBeNull();
-});
+test.each([
+  ["leading", applyLeadingTrim, 110],
+  ["trailing", applyTrailingTrim, 190],
+] as const)(
+  "a %s trim is blocked when the source and project frame rates differ",
+  (_edge, applyTrim, sourceFrame) => {
+    const differentRate = { numerator: 24, denominator: 2 };
+    expect(applyTrim(sequence, [clip], differentRate, "open", sourceFrame)).toBeNull();
+  },
+);
 
 test("a trailing trim can touch but cannot cross the next same-track edge", () => {
   const later = { id: "later", clipId: "harbor", sequenceStartFrame: 150 };
@@ -310,4 +320,21 @@ test("a leading trim can reach sequence frame zero without crossing it", () => {
     ],
   });
   expect(applyLeadingTrim(sequence, [clip], frameRate, "open", 79)).toBeNull();
+});
+
+test("a leading trim can leave the last source frame but cannot reach the exclusive out point", () => {
+  const shortened = { ...placement, sourceOutOffsetFrames: -10 };
+  const track = { ...sequence.tracks[0], placements: [shortened] };
+  const withShortenedPlacement = { ...sequence, tracks: [track] };
+
+  expect(applyLeadingTrim(withShortenedPlacement, [clip], frameRate, "open", 129)).toStrictEqual({
+    durationFrames: 60,
+    tracks: [
+      {
+        ...track,
+        placements: [{ ...shortened, sequenceStartFrame: 49, sourceInOffsetFrames: 29 }],
+      },
+    ],
+  });
+  expect(applyLeadingTrim(withShortenedPlacement, [clip], frameRate, "open", 130)).toBeNull();
 });
