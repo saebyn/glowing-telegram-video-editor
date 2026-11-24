@@ -96,10 +96,11 @@ Replace the record when updating metadata.
 Each source value includes its render `s3Location`. Before mounting the editor, supply
 `previewHlsUrl` for `video-only`, `audio-video`, and sources with no declared
 `mediaKind`. An explicitly `audio-only` source does not require a preview URL;
-its streaming contract is not defined yet. The HLS playback rendition can use
-a different resolution or encoding, but it must contain the same content at
-time zero and at every elapsed time as the render source. The library does not
-derive the URL from `s3Location`.
+its streaming contract is not defined yet. The HLS playback rendition must
+be seekable across the whole source and aligned to its elapsed time. It
+can use a different resolution, encoding, or frame cadence. The library
+does not derive the URL from `s3Location`. See the
+[sequence preview target](docs/sequence-editor-design.md#sequence-preview-target).
 
 On an edit, feed `onSequenceChange` back into `sequence`. `onCutListResult` receives the
 compilation result for that same edit. Check `result.ok` before reading `result.cutList`.

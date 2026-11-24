@@ -135,14 +135,14 @@ rows are not editor state or compiler input.
   leave a trailing gap; these edits never shorten the sequence. Duration
   growth does not bypass same-track collision checks or source bounds for
   trims.
-- **Track overlap:** Ordinary audiovisual placements can overlap across
-  tracks, not within a track. Where they overlap, the upper active placement
-  supplies picture and sound. When it ends, the placement underneath resumes
-  at the source position corresponding to the current sequence frame; it
-  does not resume from where it was covered. Future track roles may combine
-  picture or sound from lower to higher tracks. Explicit overlay tracks are
-  a possible follow-up, not part of the first pass; more flexible compositing
-  would need a future `CutList` format.
+- **Track overlap:** Placements can overlap across tracks, not within a
+  track. Resolve picture and sound separately: the uppermost active
+  placement that supplies each contribution wins. Audio-only over
+  audiovisual takes over sound but not picture; video-only over audiovisual
+  does the opposite. Lower sound is not mixed under the winning sound.
+  When a lower contribution is uncovered, resume it at the source position
+  corresponding to the current sequence time, not where it was covered.
+  Explicit overlay roles and more flexible compositing are follow-up work.
 - **Transition objects:** A transition has its own
   identity and can be selected separately. It is anchored to one edge of one
   placement. Start with at most one transition per placement edge. The
@@ -161,7 +161,10 @@ rows are not editor state or compiler input.
   placement stays even if its counterpart was deleted.
 - **Covered transitions:** A fully covered transition stays authored
   and selectable, but does not affect playback or prevent export.
-  This applies to entry fades, reveal fades, and dissolves.
+  Evaluate playback coverage and conflicts separately for picture and sound.
+  If a transition is partially covered but otherwise valid, preserve its
+  original blend phase when the contribution becomes visible or audible
+  again. These rules apply to both fades and dissolves.
 - **Cut-spanning dissolve:** Center the transition on the cut. It can be
   attached to either the trailing edge of the outgoing placement or the
   leading edge of the incoming placement, but not to both. Show the owning
@@ -179,9 +182,9 @@ rows are not editor state or compiler input.
   other side can come from a different track if it is visible at the cut.
   If a higher track hides the cut, the dissolve stays authored and
   selectable but does not affect output. If a different visible cut
-  interrupts the blend window, the first version preserves the object
-  and reports the arrangement as unsupported. A split that preserves
-  continuous playback of the same source does not interrupt the blend.
+  interrupts the blend window, preserve the object and report the
+  arrangement as unsupported. A split that preserves continuous
+  playback of the same source does not interrupt the blend.
   Where a side has no picture, it contributes black; where an audio
   transition has no audio on a side, that side contributes silence. A gap
   behaves the same whether it was already there when the transition was
@@ -197,10 +200,24 @@ rows are not editor state or compiler input.
   in preview instead of treating the failure as a gap. Final export
   reports a media error rather than baking in the placeholder.
 - **Entry and reveal fade windows:** Entry starts at the placement's
-  leading edge; reveal ends at its trailing edge. If a trim makes the
-  placement shorter than its fade, keep the anchored duration and use
-  available footage beyond the trim. Report a visible cut that interrupts
+  leading edge; reveal ends at its trailing edge. Use the preceding
+  contribution at the leading edge for an entry fade and the following
+  contribution at the trailing edge for a reveal fade, independently for
+  picture and sound. For example, if B ends over A as C starts on top,
+  B reveals C, not A. Resolve the counterpart at the edge, then sample it
+  at the corresponding sequence time, using a transition source extension
+  where needed. If there is no counterpart at the edge, blend with black
+  or silence; do not search past a gap. If a trim makes the placement
+  shorter than its fade, keep the anchored duration and use available
+  recorded material beyond the trim. Report a visible cut that interrupts
   the window rather than shortening the fade or hiding the cut.
+- **Blend phase:** Both fades and dissolves blend picture and sound
+  linearly. Evaluate the picture weight at the center of the sequence
+  frame and the audio weight continuously across the same window. A
+  one-frame transition therefore shows a half blend. Clipping a window
+  at sequence bounds or hiding part of it does not retime it. Where a
+  needed extension runs past the recorded source, only the absent portion
+  contributes black or silence.
 - **Time:** Source in/out points are zero-based whole frames on the native
   source grid, inclusive in and exclusive out. Sequence positions use the
   project frame rate. Keep both distinct from physical-media timestamps. See
@@ -335,11 +352,8 @@ Click the ruler or drag the playhead to seek. Play forward, play in reverse,
 and pause the sequence playhead even when the Preview slot is omitted or
 `SequencePreview` has no media playback.
 The editing session owns the playback clock and the playhead in sequence
-frames; `SequencePreview` follows that transport. It currently shows only
-transport state. Implement sequence media playback in this same default
-component, without requiring a host to supply a custom Preview slot. A
-**No media placeholder** is different: it indicates expected source media
-failed to load. Split at playhead acts on all eligible placements at the
+frames. When the Preview slot is hidden or omitted, transport does not wait
+for media. Split at playhead acts on all eligible placements at the
 playhead, regardless of selection.
 
 Split mode is separate: clicking a placement splits only that placement
@@ -351,6 +365,57 @@ activation, the sequence frame under the pointer. The shared session decides
 whether to select or split. The Timeline reads Split mode to change affordances
 and suppress move and trim gestures. Ruler seeking, playhead dragging, pan,
 and zoom remain available. An empty-track click does nothing.
+
+## Sequence preview target
+
+The default `SequencePreview` currently shows only transport state. Its
+target is to simulate the latest host-supplied Sequence at the current
+playhead, without a custom slot, pre-rendered sequence, or successful
+`CutList` compile. Match the authored timing and picture and sound
+contributions, not the downstream render's pixels or audio samples.
+
+- **Resolve the edit before decoding.** Keep presentation rules in a
+  browser-independent module. Given the Sequence, clips, project rate, and
+  resolved source metadata, determine the contributors, source times,
+  blend weights, and undefined spans. The player consumes that result;
+  neither an HLS playlist nor a `CutList` defines the edit. Media fetching,
+  compositing, and audio scheduling are separate from resolving the edit.
+- **Playback renditions.** Use host-supplied, finite, seekable HLS proxies
+  covering the whole source, including material outside current trims.
+  The intended host uses MPEG-TS segments. Normalize media timestamps to
+  source elapsed time; playlist and container timestamps need not start
+  at zero. The browser must be able to fetch the playlist and referenced
+  resources. Never derive a playback URL from `s3Location`.
+- **Source contributions.** A declared media kind determines whether a
+  source supplies picture, sound, or both. Probe the rendition when the
+  kind is unknown; do not prematurely fall through to a lower track.
+  A declared contribution missing from the rendition is a media error,
+  not permission to substitute a lower contribution. Playback delivery
+  and timing metadata for audio-only sources remain follow-up work.
+- **Time and samples.** Map sequence elapsed time from the placement's
+  own start, not from the beginning of its visible span, and add it to
+  the effective source in point in native seconds. Seek and step at the
+  authored frame position and use the rendition picture covering the
+  resulting source time. In a lower-cadence rendition, adjacent sequence
+  frames may display the same picture. If mixed-rate duration rounding
+  leaves a fractional tail beyond the trim, hold the last in-range
+  picture and emit silence there; only transitions use source extensions.
+- **Transport.** The session keeps ownership of the clock and playhead.
+  While Preview is active and required media is loading, hold the
+  playhead and resume automatically when ready if the play intent is
+  still current. A pause, seek, or direction change supersedes the old
+  intent. Edits and rendition URL replacements invalidate stale results
+  and resolve again at the current playhead without resetting transport.
+  Reverse playback is picture-only; seeking, stepping, and pausing at
+  the same frame show the same picture. At the exclusive sequence end,
+  hold the last authored frame without sound, even if it is black.
+- **Gaps and failures.** Uncovered time contributes black and silence
+  except where an authored transition contributes. A missing expected
+  rendition or terminal media failure shows the No media placeholder.
+  An undefined transition span shows a distinct diagnostic. In either
+  case playback stops at the affected position, the edit is intact, and
+  the user can seek elsewhere. Diagnose unsupported browser or codec
+  combinations explicitly rather than substituting an approximation.
 
 ## `CutList` boundary
 
@@ -365,9 +430,11 @@ defines schema version `"1.0.0"`:
 | `audioMixing` | Optional channel routing and volume keyframes; no controls planned in the first slice |
 
 The main output track has no explicit placement starts or general track stack,
-so `CutList` is a compiled result, not the editable sequence. For straight
-cuts, flatten covered intervals to the upper active placement. At matching
-frame rates, if lower placement A covers sequence `[0, 100)` using source
+so `CutList` is a compiled result, not the editable sequence. The current
+compiler flattens straight cuts to the upper active placement; it does not
+resolve picture and sound independently. That limitation does not define
+Preview behavior. At matching frame rates, if lower placement A covers
+sequence `[0, 100)` using source
 `[100, 200)`, and upper placement B covers sequence `[40, 60)` using source
 `[500, 520)`, emit A `[100, 140)`, B `[500, 520)`, then A `[160, 200)`.
 Express authored entry and reveal fades using `transitionIn` and

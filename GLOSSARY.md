@@ -12,7 +12,7 @@ _Avoid_: “Video” when it could also mean the preview or rendered output.
 The host-assigned identifier for one source in the supplied source collection, distinct from its media URLs. Multiple clips can reference the same source ID.
 
 **Playback rendition**:
-A version of a source used in a sequence preview, with the same content at the same elapsed time as the source. It is distinct from the media used to render the sequence.
+A version of a source used in a sequence preview, aligned to the source's elapsed time. It can differ in quality or frame cadence from the media used to render the sequence.
 
 **Source frame**:
 Zero-based frame index within a specific video source.
@@ -39,6 +39,9 @@ The collection of clips available to place in a sequence.
 **Sequence**:
 An edit that arranges clip placements on ordered tracks. An empty sequence may have no tracks.
 _Avoid_: “Timeline” for the edit itself.
+
+**Sequence preview**:
+A presentation of a sequence’s authored picture and sound that follows the sequence playhead. It is distinct from the rendered output.
 
 **Sequence duration**:
 The full length of the edit in sequence frames, including any uncovered frames. It can extend beyond the last placement.
@@ -92,6 +95,9 @@ The timeline representation of a transition, not the change in picture or sound 
 **Transition source extension**:
 Recorded material used by a transition before a placement’s in point or after its out point. It is not part of the placement trim.
 
+**Fade**:
+A transition that blends picture and sound over a window starting at a placement’s leading edge or ending at its trailing edge. Unlike a cut-spanning dissolve, its window is not centered on the cut.
+
 **Cut-spanning dissolve**:
 A transition that blends the outgoing and incoming picture and sound over a span centered on a cut. It can belong to either placement at the cut.
 
@@ -99,10 +105,10 @@ A transition that blends the outgoing and incoming picture and sound over a span
 A visible stand-in for source media that failed to load, distinct from black picture contributed by a sequence gap or absent footage.
 
 **Entry transition**:
-A transition toward a placement’s picture or sound, attached to its leading edge.
+A transition from the preceding picture or sound at a placement’s leading edge toward that placement’s contribution.
 
 **Reveal transition**:
-A transition from a placement’s picture or sound toward what would play without it, attached to its trailing edge.
+A transition from a placement’s picture or sound toward what follows at its trailing edge.
 
 **Host application**:
 The application that uses the library and owns the persistent clips and sequences.
