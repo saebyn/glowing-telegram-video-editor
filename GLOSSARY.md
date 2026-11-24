@@ -8,6 +8,9 @@
 Media used for review or editing. A source with video has a native **source frame rate**.
 _Avoid_: “Video” when it could also mean the preview or rendered output.
 
+**Source ID**:
+The host-assigned identifier for one source in the supplied source collection, distinct from its media URLs. Multiple clips can reference the same source ID.
+
 **Playback rendition**:
 A version of a source used in a sequence preview, with the same content at the same elapsed time as the source. It is distinct from the media used to render the sequence.
 

@@ -7,7 +7,48 @@ without introducing another triage status.
 
 ## Ready for an agent
 
-No unresolved `ready-for-agent` tickets.
+- [51 — Key source metadata by source ID](issues/51-design-duplicate-source-id-handling.md):
+  approved switch from source arrays to a keyed record in the editor and compiler.
+
+### Transition editing
+
+1. [53 — Separate placement and transition properties](issues/53-separate-placement-and-transition-properties.md):
+   split the Inspector views and add or inspect transitions by placement edge.
+2. [54 — Change transition type and duration, or remove it](issues/54-change-transition-type-duration-and-remove.md):
+   edit one authored transition and make removal undoable; depends on 53.
+3. [55 — Make timeline transition indicators taller](issues/55-make-timeline-transition-indicators-taller.md):
+   improve selection targets and retire empty-edge fade grips; depends on 53.
+4. [65 — Rename placement fields to `transitionIn` and `transitionOut`](issues/65-rename-placement-transition-fields.md):
+   approved public placement-field rename; keep `CutList` output unchanged.
+
+### Production bundle cleanup
+
+1. [56 — Remove unused legacy editor views](issues/56-remove-unused-legacy-editor-views.md):
+   retire `ProjectClipTimeline` and `VideoPreview`; retain the standalone audio controls.
+2. [57 — Share placement trim machinery](issues/57-share-placement-trim-machinery.md):
+   share lookup and replacement while keeping the two edge rules explicit.
+3. [58 — Share timeline gesture geometry](issues/58-share-timeline-gesture-geometry.md):
+   share geometry, not gesture policy.
+4. [59 — Limit Tailwind scanning to shipped UI](issues/59-limit-tailwind-production-sources.md):
+   check whether development-only utilities enter the published stylesheet.
+5. [60 — Profile runtime dependency and entry costs](issues/60-profile-dependency-bundle-costs.md):
+   measure what ships and what consumers can already tree-shake.
+
+**Measure bundle size, not lines.** Run `npm run build` before and after with
+the same Node version, lockfile, and build settings except for the change being
+evaluated. Record the baseline revision, raw bytes (`wc -c`), and gzip bytes
+(`gzip -n -9 -c < file | wc -c`) for the shipped JS and both CSS exports.
+Use gzip bytes as the primary comparison. Exclude source maps, declarations,
+and Storybook output. Report `styles.css` and `custom-only.css` separately
+because they are alternatives; include referenced assets when a change
+affects them. If there are multiple JS chunks, count them all for the release
+total, and report initial and deferred bytes separately for consumer fixtures.
+
+**Apply SOLID to extractions.** Share behavior only when it has one reason to
+change and fits behind a small interface with the same contract for each
+caller. Keep editing rules independent of UI adapters and don't introduce
+extension hooks without a real caller. An extraction that only moves code or
+saves source lines without saving bundle bytes isn't a win for this batch.
 
 ## Completed composition batch
 
@@ -105,7 +146,6 @@ any of them ready.
 | [39 — Loop points with Keplar](issues/39-add-loop-points-with-keplar.md) | Persistence, endpoint changes, seeking, and reverse playback. | Use the shared transport clock even with Preview omitted; keep Keplar's loop overlay in the default Timeline adapter. |
 | [49 — HLS playback in `SequencePreview`](issues/49-design-hls-playback-for-sequence-preview.md) | First playback slice, transport sync, and load failures. | Follow the shared transport using host-supplied HLS; don't use the rendered preview. |
 | [50 — Audio-only playback](issues/50-design-audio-only-sequence-preview.md) | Streaming format, source metadata, and overlap behavior. | Keep audio-only inputs valid without a preview URL. |
-| [51 — Duplicate source IDs](issues/51-design-duplicate-source-id-handling.md) | Validation point and failure behavior. | Keep editor and compiler source resolution consistent. |
 | [52 — Standalone project clip thumbnails](issues/52-revisit-standalone-project-clip-thumbnails.md) | Whether standalone callers would benefit from timed source thumbnails. | Don't require playback or render metadata just to display images. |
 
 Close-gap and ripple-delete behavior are not in scope.

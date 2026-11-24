@@ -1,6 +1,6 @@
 # 61 — Isolate the compiler package entry from UI dependencies
 
-Status: needs-triage
+Resolution: Closed without implementation; there is no current need for a compiler-only package entry.
 
 ## Proposal
 
