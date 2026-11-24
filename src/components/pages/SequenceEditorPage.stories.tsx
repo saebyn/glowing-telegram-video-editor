@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useArgs, useMemo } from "storybook/preview-api";
+import { useArgs, useMemo, useState } from "storybook/preview-api";
 import { fn } from "storybook/test";
+import { ProjectProvider } from "@/context/ProjectContext";
 import harborDepartureThumbnail from "@/fixtures/sequence-harbor-departure.svg?no-inline";
 import harborThumbnail from "@/fixtures/sequence-harbor.svg?no-inline";
 import lighthouseThumbnail from "@/fixtures/sequence-lighthouse.svg?no-inline";
-import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
-import type { SequenceSource, SequenceTrack, VideoClip } from "@/types";
+import { sampleFrameRate } from "@/fixtures/video";
+import type { FrameRate, Sequence, SequenceSource, SequenceTrack, VideoClip } from "@/types";
 import SequenceEditorPage, { type SequenceEditorPageProps } from "./SequenceEditorPage";
 
 const harbor: VideoClip = {
@@ -41,6 +42,8 @@ const lighthouseSource: SequenceSource = {
 type EditingHostArgs = SequenceEditorPageProps & {
   acceptEdits?: boolean;
   readOnly?: boolean;
+  reviewEdits?: boolean;
+  projectRate?: FrameRate;
   startWithoutTracks?: boolean;
   omitPreview?: boolean;
 };
@@ -48,7 +51,13 @@ type EditingHostArgs = SequenceEditorPageProps & {
 const meta = {
   title: "Pages/SequenceEditorPage",
   component: SequenceEditorPage,
-  decorators: [withSampleProject],
+  decorators: [
+    (Story, { args }) => (
+      <ProjectProvider frameRate={args.projectRate ?? sampleFrameRate}>
+        <Story />
+      </ProjectProvider>
+    ),
+  ],
   parameters: { layout: "fullscreen" },
   argTypes: {
     // Accept nested fixture URL args as well as edits in the Controls panel.
@@ -57,11 +66,14 @@ const meta = {
     sources: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
     acceptEdits: { control: "boolean", name: "Accept edits" },
     readOnly: { control: "boolean", name: "Read-only" },
+    reviewEdits: { control: "boolean", name: "Review proposals before applying" },
+    projectRate: { control: "object", type: { name: "object", value: {} } },
     startWithoutTracks: { control: "boolean", name: "Start without tracks" },
     omitPreview: { control: "boolean", name: "Omit Preview" },
   },
   args: {
     acceptEdits: true,
+    projectRate: sampleFrameRate,
     clips: [harbor, lighthouse],
     sources: [harborSource, lighthouseSource],
     titles: { harbor: "Harbor", lighthouse: "Lighthouse" },
@@ -92,7 +104,7 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Hover Harbor and Departure in the Clip Pool to see stills from different ranges of the same source. The last Harbor placement reaches into Departure’s range and shows its still in the timeline. Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Click an authored fade indicator to inspect the transition and its owner separately. Use the Inspector for exact source out and fade values. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
+          "Hover Harbor and Departure in the Clip Pool to see stills from different ranges of the same source. The last Harbor placement reaches into Departure’s range and shows its still in the timeline. Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Select a placement to edit its source out in Placement Properties or use Add transition on an empty edge. Inspect an occupied edge from Placement Properties or click its timeline indicator to edit duration in Transition Properties. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state.",
       },
     },
   },
@@ -183,36 +195,62 @@ export const RearrangeALayeredEdit: Story = {
 function renderEditingHost({
   acceptEdits = true,
   readOnly = false,
+  reviewEdits = false,
+  projectRate: _projectRate,
   startWithoutTracks = false,
   omitPreview = false,
   ...args
 }: EditingHostArgs) {
   const [, updateArgs] = useArgs<EditingHostArgs>();
+  const [proposal, setProposal] = useState<Sequence | undefined>(undefined);
   const durationFrames = args.sequence.durationFrames;
   const empty = useMemo(() => ({ durationFrames, tracks: [] }), [durationFrames]);
 
+  function accept(next: Sequence) {
+    updateArgs({ sequence: next, startWithoutTracks: false });
+  }
+
   return (
-    <SequenceEditorPage
-      {...args}
-      {...(omitPreview ? { slots: { preview: null } } : {})}
-      sequence={startWithoutTracks ? empty : args.sequence}
-      onSequenceChange={
-        readOnly
-          ? undefined
-          : (next) => {
-              args.onSequenceChange?.(next);
-              if (acceptEdits) updateArgs({ sequence: next, startWithoutTracks: false });
-              window.dispatchEvent(
-                new CustomEvent("sequence-editor:sequence-change", { detail: next }),
-              );
-            }
-      }
-      onCutListResult={(result) => {
-        args.onCutListResult?.(result);
-        window.dispatchEvent(
-          new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
-        );
-      }}
-    />
+    <>
+      {reviewEdits && proposal && (
+        <div className="flex gap-2 p-2">
+          <button
+            type="button"
+            onClick={() => {
+              setProposal(undefined);
+              accept(proposal);
+            }}
+          >
+            Accept proposed edit
+          </button>
+          <button type="button" onClick={() => setProposal(undefined)}>
+            Reject proposed edit
+          </button>
+        </div>
+      )}
+      <SequenceEditorPage
+        {...args}
+        {...(omitPreview ? { slots: { preview: null } } : {})}
+        sequence={startWithoutTracks ? empty : args.sequence}
+        onSequenceChange={
+          readOnly
+            ? undefined
+            : (next) => {
+                args.onSequenceChange?.(next);
+                if (reviewEdits) setProposal(next);
+                else if (acceptEdits) accept(next);
+                window.dispatchEvent(
+                  new CustomEvent("sequence-editor:sequence-change", { detail: next }),
+                );
+              }
+        }
+        onCutListResult={(result) => {
+          args.onCutListResult?.(result);
+          window.dispatchEvent(
+            new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
+          );
+        }}
+      />
+    </>
   );
 }

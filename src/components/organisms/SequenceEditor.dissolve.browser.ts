@@ -8,17 +8,26 @@ import {
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
 
-test("an incoming edge owns an odd centered dissolve without changing the cut or trims", async ({
+test("Transition Properties resolves an authored odd dissolve and can resize it without changing the cut or trims", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, straightCutArgs);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 7,
+  });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
-  await lighthouse.click();
+  const indicator = timeline.getByRole("button", { name: "Select centered dissolve: Lighthouse" });
+  await indicator.click();
   const before = (await lighthouse.boundingBox())!;
   const inspector = page.getByRole("region", { name: "Inspector" });
-  await inspector.getByText("Centered dissolves", { exact: true }).click();
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(inspector.getByLabel("Leading dissolve duration (sequence frames)")).toHaveValue(
+    "7",
+  );
   await inspector.getByLabel("Leading dissolve duration (sequence frames)").fill("9");
   expect(await emissions()).toEqual(noEdits);
   await inspector.getByRole("button", { name: "Apply leading dissolve" }).click();
@@ -37,7 +46,7 @@ test("an incoming edge owns an odd centered dissolve without changing the cut or
                 clipId: "lighthouse",
                 sequenceStartFrame: 120,
                 entryTransition: {
-                  id: expect.stringMatching(/\S/),
+                  id: "incoming-dissolve",
                   kind: "dissolve",
                   durationFrames: 9,
                 },
@@ -50,21 +59,10 @@ test("an incoming edge owns an odd centered dissolve without changing the cut or
     cutListResults: [
       {
         ok: false,
-        issues: [{ code: "unsupported-dissolve", transitionId: expect.stringMatching(/\S/) }],
+        issues: [{ code: "unsupported-dissolve", transitionId: "incoming-dissolve" }],
       },
     ],
   });
-  const { sequences, cutListResults } = await emissions();
-  expect(cutListResults[0]).toStrictEqual({
-    ok: false,
-    issues: [
-      {
-        code: "unsupported-dissolve",
-        transitionId: sequences[0].tracks[0].placements[1].entryTransition?.id,
-      },
-    ],
-  });
-  const indicator = timeline.getByRole("button", { name: "Select centered dissolve: Lighthouse" });
   await expect(indicator).toHaveAttribute(
     "title",
     /Outgoing extension: source frames \[234, 239\)/,
@@ -73,7 +71,6 @@ test("an incoming edge owns an odd centered dissolve without changing the cut or
     "title",
     /Incoming extension: source frames \[497, 501\)/,
   );
-  await indicator.click();
   await expect(indicator).toHaveAttribute("aria-pressed", "true");
   await expect(inspector.getByText("Owner: Lighthouse — Main, sequence frame 120")).toBeVisible();
   await expect(inspector.getByText("Dissolve window: 116 inclusive – 125 exclusive")).toBeVisible();
@@ -89,7 +86,9 @@ test("an incoming edge owns an odd centered dissolve without changing the cut or
   expect(await lighthouse.boundingBox()).toMatchObject({ x: before.x, width: before.width });
 });
 
-test("the outgoing edge cannot add a second dissolve to the same cut", async ({ page }) => {
+test("adding a fade at a cut already owned by a dissolve explains the conflict without switching views", async ({
+  page,
+}) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
@@ -100,12 +99,47 @@ test("the outgoing edge cannot add a second dissolve to the same cut", async ({ 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
   const inspector = page.getByRole("region", { name: "Inspector" });
-  await inspector.getByText("Centered dissolves", { exact: true }).click();
+  await inspector
+    .getByRole("group", { name: "End edge" })
+    .getByRole("button", { name: "Add transition" })
+    .click();
+  await expect(inspector.getByRole("alert")).toContainText("competes with another transition");
+  await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
+  await expect(timeline.getByRole("button", { name: "Harbor", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(await emissions()).toEqual(noEdits);
+  await expect(timeline.getByRole("button", { name: /Select centered dissolve/ })).toHaveCount(1);
+});
+
+test("resizing a host-authored dissolve cannot commit while another dissolve owns the same cut", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[0].revealTransition.id": "outgoing-dissolve",
+    "sequence.tracks[0].placements[0].revealTransition.kind": "dissolve",
+    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 8,
+    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 9,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  await inspector
+    .getByRole("group", { name: "End edge" })
+    .getByRole("button", { name: "Inspect transition" })
+    .click();
+  await expect(inspector.getByText("Owner: Harbor — Main, sequence frame 0")).toBeVisible();
   await inspector.getByLabel("Trailing dissolve duration (sequence frames)").fill("10");
   await inspector.getByRole("button", { name: "Apply trailing dissolve" }).click();
   await expect(inspector.getByRole("alert")).toContainText("competes with another transition");
-  expect(await emissions()).toEqual(noEdits);
-  await expect(timeline.getByRole("button", { name: /Select centered dissolve/ })).toHaveCount(1);
+  await expect(inspector.getByText("8 sequence frames", { exact: true })).toBeVisible();
+  await expect(timeline.getByRole("button", { name: /Select centered dissolve/ })).toHaveCount(2);
+  expect(await emissions()).toStrictEqual(noEdits);
 });
 
 test("a dissolve clipped at the start retains its phase and supplies black and silence", async ({

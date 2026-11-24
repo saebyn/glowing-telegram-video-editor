@@ -58,14 +58,20 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
   await openWorkflow(page, layeredEditStoryId, paddedStraightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
+  await edgeAction(page, "Start", "Add transition").click();
   const entry = page.getByLabel("Entry fade duration (sequence frames)");
-  await expect(entry).toBeVisible();
+  await expect(entry).toHaveValue("30");
+  const initial = await emissions();
+  expect(initial.sequences).toHaveLength(1);
+  const id = initial.sequences[0].tracks[1].placements[1].entryTransition?.id;
+  expect(id).toEqual(expect.stringMatching(/\S/));
   await entry.fill("24");
+  expect(await emissions()).toStrictEqual(initial);
   await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
 
   const next = structuredClone(paddedStraightCut);
   Object.assign(next.tracks[1].placements[1], {
-    entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 24 },
+    entryTransition: { id, kind: "fade", durationFrames: 24 },
   });
   const cutList: CutList = {
     version: "1.0.0",
@@ -75,10 +81,22 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
       { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 24 } },
     ],
   };
-  await expect
-    .poll(emissions)
-    .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
+  await expect.poll(emissions).toStrictEqual({
+    sequences: [...initial.sequences, next],
+    cutListResults: [...initial.cutListResults, compiled(cutList)],
+  });
 });
+
+function edgeAction(
+  page: Page,
+  edge: "Start" | "End",
+  action: "Add transition" | "Inspect transition",
+) {
+  return page
+    .getByRole("region", { name: "Inspector" })
+    .getByRole("group", { name: `${edge} edge` })
+    .getByRole("button", { name: action });
+}
 
 async function dragFade(page: Page, handle: Locator, dx: number) {
   await expect(handle).toBeVisible();
@@ -172,10 +190,8 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
   const inspector = page.getByRole("region", { name: "Inspector" });
-  const reveal = inspector.getByLabel("Reveal fade duration (sequence frames)");
-  await expect(reveal).toBeVisible();
-  await reveal.fill("12");
-  await inspector.getByRole("button", { name: "Apply reveal fade" }).click();
+  await edgeAction(page, "End", "Add transition").click();
+  await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("30");
   const cutList: CutList = {
     version: "1.0.0",
     inputMedia: [
@@ -189,7 +205,7 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
       },
     ],
     outputTrack: [
-      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 12 } },
+      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 30 } },
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
@@ -210,7 +226,7 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
                 revealTransition: {
                   id: expect.stringMatching(/\S/),
                   kind: "fade",
-                  durationFrames: 12,
+                  durationFrames: 30,
                 },
               },
             ],
@@ -423,8 +439,9 @@ test("Harbor's separate reveal handle previews 48 frames from the trailing edge 
   await expect
     .poll(emissions)
     .toStrictEqual({ sequences: [next], cutListResults: [compiled(cutList)] });
+  await edgeAction(page, "End", "Inspect transition").click();
   await expect(page.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("48");
-  await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("");
+  await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveCount(0);
   expect(await harbor.boundingBox()).toMatchObject({ x: before.x, width: before.width });
 });
 
@@ -437,11 +454,13 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
   const before = (await lighthouse.boundingBox())!;
   await dragFade(page, timeline.getByLabel("Adjust entry fade: Lighthouse"), before.width / 4);
   await page.mouse.up();
+  await edgeAction(page, "Start", "Inspect transition").click();
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   const afterFade = await emissions();
   expect(afterFade.sequences).toHaveLength(1);
   const entryId = afterFade.sequences[0].tracks[0].placements[1].entryTransition?.id;
   expect(entryId).toEqual(expect.stringMatching(/\S/));
+  await lighthouse.click();
 
   const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
   await leading.scrollIntoViewIfNeeded();
@@ -478,6 +497,7 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
     sequences: [...afterFade.sequences, trimmed],
     cutListResults: [...afterFade.cutListResults, blockedOutput],
   });
+  await edgeAction(page, "Start", "Inspect transition").click();
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   const placement = (await lighthouse.boundingBox())!;
   const fade = (await timeline.getByText("Fade in", { exact: true }).boundingBox())!;
@@ -488,35 +508,35 @@ test("a placement stays trimmable after authoring a fade on the timeline", async
 
 test("a trim preserves both fades and reports unsupported overlapping output", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, straightCutArgs);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].revealTransition.id": "lighthouse-reveal",
+    "sequence.tracks[0].placements[1].revealTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].revealTransition.durationFrames": 20,
+  });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   await lighthouse.click();
-  await page.getByLabel("Entry fade duration (sequence frames)").fill("30");
-  await page.getByRole("button", { name: "Apply entry fade" }).click();
-  await page.getByLabel("Reveal fade duration (sequence frames)").fill("20");
-  await page.getByRole("button", { name: "Apply reveal fade" }).click();
-  const initial = await emissions();
-  expect(initial.sequences).toHaveLength(2);
-
   const width = (await lighthouse.boundingBox())!.width;
   const leading = timeline.getByRole("button", { name: "Trim leading edge: Lighthouse" });
   await leading.scrollIntoViewIfNeeded();
   await dragFade(page, leading, (71 * width) / 120);
   await expect(timeline.getByRole("status")).toHaveText("Lighthouse · Sequence frame 191");
-  expect(await emissions()).toStrictEqual(initial);
+  expect(await emissions()).toStrictEqual(noEdits);
   await page.mouse.up();
-  const { entryTransition, revealTransition } = initial.sequences[1].tracks[0].placements[1];
   const next = structuredClone(straightCut);
   Object.assign(next.tracks[0].placements[1], {
     sequenceStartFrame: 191,
     sourceInOffsetFrames: 71,
-    entryTransition,
-    revealTransition,
+    entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+    revealTransition: { id: "lighthouse-reveal", kind: "fade", durationFrames: 20 },
   });
   await expect.poll(emissions).toStrictEqual({
-    sequences: [...initial.sequences, next],
-    cutListResults: [...initial.cutListResults, blockedOutput],
+    sequences: [next],
+    cutListResults: [blockedOutput],
   });
   await expect(page.getByText("CutList unavailable: authored fades overlap.")).toBeVisible();
 });
@@ -560,15 +580,23 @@ test("adjacent fades leave both handles usable, but a resize cannot make them co
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   await harbor.click();
   const before = (await harbor.boundingBox())!;
+  await edgeAction(page, "Start", "Add transition").click();
+  await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   await page.getByLabel("Entry fade duration (sequence frames)").fill("72");
   await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  await expect(timeline.getByRole("button", { name: "Select entry fade: Harbor" })).toContainText(
+    "Fade in",
+  );
+  await harbor.click();
+  await edgeAction(page, "End", "Add transition").click();
+  await expect(page.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("30");
   await page.getByLabel("Reveal fade duration (sequence frames)").fill("48");
   await page.getByRole("button", { name: "Apply reveal fade", exact: true }).click();
-  await expect(page.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("48");
+  await expect(page.getByText("48 sequence frames", { exact: true })).toBeVisible();
   const initial = (await emissions())!;
-  expect(initial.cutListResults).toHaveLength(2);
-  expect(initial.cutListResults[1]).toHaveProperty("ok", true);
-  const { entryTransition, revealTransition } = initial.sequences[1].tracks[0].placements[0];
+  expect(initial.cutListResults).toHaveLength(4);
+  expect(initial.cutListResults[3]).toHaveProperty("ok", true);
+  const { entryTransition, revealTransition } = initial.sequences[3].tracks[0].placements[0];
   expect(entryTransition?.id).toEqual(expect.stringMatching(/\S/));
   expect(revealTransition?.id).toEqual(expect.stringMatching(/\S/));
   expect(entryTransition?.id).not.toBe(revealTransition?.id);
@@ -583,6 +611,8 @@ test("adjacent fades leave both handles usable, but a resize cannot make them co
   expect(await emissions()).toStrictEqual(initial);
   await page.mouse.up();
   expect(await emissions()).toStrictEqual(initial);
+  await harbor.click();
+  await edgeAction(page, "Start", "Inspect transition").click();
   await expect(page.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("72");
 });
 
@@ -594,11 +624,11 @@ test("a fade drag outside the Inspector's bounds leaves the authored fade and cu
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   await lighthouse.click();
+  await edgeAction(page, "Start", "Add transition").click();
   const input = page.getByLabel("Entry fade duration (sequence frames)");
   await expect(input).toHaveAttribute("min", "1");
   await expect(input).toHaveAttribute("max", "120");
-  await input.fill("30");
-  await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  await expect(input).toHaveValue("30");
   const indicator = timeline.getByText("Fade in", { exact: true });
   await expect(indicator).toBeVisible();
   const initial = (await emissions())!;

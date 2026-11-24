@@ -50,8 +50,12 @@ export {
   type SequencePreviewProps,
 } from "./components/molecules/SequencePreview";
 export {
+  PlacementProperties,
   default as SequenceInspector,
+  TransitionProperties,
+  type PlacementPropertiesProps,
   type SequenceInspectorProps,
+  type TransitionPropertiesProps,
 } from "./components/organisms/SequenceInspector";
 export {
   SequenceFrameForm,

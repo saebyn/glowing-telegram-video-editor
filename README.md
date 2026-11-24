@@ -124,13 +124,21 @@ forwarding its props:
 
 ```tsx
 import {
+  PlacementProperties,
   SequenceEditorPage,
   SequenceInspector,
   type SequenceInspectorProps,
 } from "@saebyn/glowing-telegram-video-editor";
 
-function CustomInspector(props: SequenceInspectorProps) {
-  return <aside><SequenceInspector {...props} /></aside>;
+function CustomInspector({ inspection }: SequenceInspectorProps) {
+  return (
+    <aside>
+      <p>Project notes</p>
+      {inspection.kind === "placement" && inspection.selection.length === 1
+        ? <PlacementProperties {...inspection.properties} />
+        : <SequenceInspector inspection={inspection} />}
+    </aside>
+  );
 }
 
 <SequenceEditorPage
@@ -169,24 +177,28 @@ Drag a clip from the pool to preview where it would land. Drop it onto an existi
 to fill a gap or extend the sequence.
 
 The **Inspector** shows one selected placement’s effective source in/out and
-sequence start/end on their respective frame grids. With multiple placements selected,
+sequence start/end in **Placement Properties**. With multiple placements selected,
 use **Inspect placement** to switch which placement the fields show and edit without
 changing the selection. At matching frame rates, drag
 either placement edge to trim it in place, or enter a precise trailing trim in the
 Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, even if the
 trim makes them overlap or leaves a placement shorter than its fade. A valid trailing
-trim can grow the sequence but never shortens it. Adjust entry and reveal fades on any
-track using their timeline handles or the Inspector. Click a transition indicator to
-select it and see which placement owns it. Hosts store transitions on placements as
+trim can grow the sequence but never shortens it. In Placement Properties, use
+**Add transition** on an empty edge to add an entry or reveal fade of half a
+second (rounded to sequence frames and capped at the placement's duration).
+Use **Inspect transition** on an occupied edge or click its timeline indicator
+to see **Transition Properties**, including the owner, edge, kind, and duration
+controls where editing is allowed. Fade duration can also be adjusted on the
+timeline. Hosts store transitions on placements as
 `entryTransition` or `revealTransition`, with `{ id, kind, durationFrames }`.
 Split keeps each transition's ID and duration at its original edge, even if that split
 makes it unrepresentable in the `CutList`.
 The compiler gives the upper active placement precedence and omits fully covered fades.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
-In the Inspector, **Centered dissolves** adds a dissolve at either placement edge.
-The timeline shows its centered window and the Inspector shows the contributing footage
+For a centered dissolve supplied by the host, the timeline shows its centered
+window and Transition Properties shows the contributing footage
 beyond each placement trim. An active dissolve is retained and reported as a
 compilation issue; the published format cannot carry its timing and contributions.
 

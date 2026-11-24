@@ -75,7 +75,7 @@ test("dropping a pool clip in the existing gap emits the exact CutList", async (
   await expect(timeline).toContainText("Duration: 00:06");
 });
 
-test("applying an entry fade emits the edited placement and its exact CutList edge", async ({
+test("adding at the start edge proposes one default entry fade and selects it on acceptance", async ({
   page,
 }) => {
   const expectedSequence = {
@@ -122,17 +122,21 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
   expect(await emissions()).toStrictEqual(noEdits);
 
   await lighthouse.click({ timeout: 3_000 });
-  const duration = page.getByLabel("Entry fade duration (sequence frames)");
-  await expect(duration).toBeVisible();
-  expect(await emissions()).toStrictEqual(noEdits);
-
-  await duration.fill("30");
-  expect(await emissions()).toStrictEqual(noEdits);
+  const inspector = page.getByRole("region", { name: "Inspector" });
   const indicator = timeline.getByText("Fade in", { exact: true });
   await expect(indicator).toHaveCount(0);
-  await page.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Add transition" })
+    .click();
 
   await expect(indicator).toBeVisible();
+  await expect(
+    timeline.getByRole("button", { name: "Select entry fade: Lighthouse" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(inspector.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
   await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);
   const [placementBox, fadeBox] = await Promise.all([
     lighthouse.boundingBox(),
@@ -148,13 +152,48 @@ test("applying an entry fade emits the edited placement and its exact CutList ed
     sequences: [expectedSequence],
     cutListResults: [compiled(expectedCutList)],
   });
+
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  await undo.click();
+  await expect(indicator).toHaveCount(0);
+  await expect(undo).toBeDisabled();
+  await expect
+    .poll(async () => (await emissions()).sequences)
+    .toStrictEqual([
+      expectedSequence,
+      {
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
+              { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
+            ],
+          },
+        ],
+      },
+    ]);
+  await expect
+    .poll(async () => (await emissions()).cutListResults)
+    .toStrictEqual([
+      compiled(expectedCutList),
+      compiled({
+        ...expectedCutList,
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 1, sectionIndex: 0 },
+        ],
+      }),
+    ]);
 });
 
-test("applying a reveal fade marks Harbor's trailing edge without moving the cut", async ({
+test("adding at the end edge caps the reveal fade at the placement duration without moving the cut", async ({
   page,
 }) => {
   const expectedSequence = {
-    durationFrames: 240,
+    durationFrames: 144,
     tracks: [
       {
         id: "main",
@@ -164,9 +203,10 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
             id: "harbor-open",
             clipId: "harbor",
             sequenceStartFrame: 0,
-            revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 48 },
+            sourceOutOffsetFrames: -96,
+            revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 24 },
           },
-          { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
+          { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 24 },
         ],
       },
     ],
@@ -176,7 +216,7 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
     inputMedia: [
       {
         s3Location: "s3://sequence-fixtures/harbor.mp4",
-        sections: [{ startFrame: 114, endFrame: 234 }],
+        sections: [{ startFrame: 114, endFrame: 138 }],
       },
       {
         s3Location: "s3://sequence-fixtures/lighthouse.mp4",
@@ -184,29 +224,41 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
       },
     ],
     outputTrack: [
-      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 48 } },
+      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 24 } },
       { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
 
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, straightCutArgs);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.durationFrames": 144,
+    "sequence.tracks[0].placements[0].sourceOutOffsetFrames": -96,
+    "sequence.tracks[0].placements[1].sequenceStartFrame": 24,
+  });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   await harbor.click();
 
-  const duration = page.getByLabel("Reveal fade duration (sequence frames)");
-  await duration.fill("48", { timeout: 3_000 });
-  expect(await emissions()).toStrictEqual({ sequences: [], cutListResults: [] });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  expect(await emissions()).toStrictEqual(noEdits);
   const indicator = timeline.getByText("Fade out", { exact: true });
   await expect(indicator).toHaveCount(0);
-  await page.getByRole("button", { name: "Apply reveal fade", exact: true }).click();
+  await inspector
+    .getByRole("group", { name: "End edge" })
+    .getByRole("button", { name: "Add transition" })
+    .click();
 
   await expect.poll(emissions).toStrictEqual({
     sequences: [expectedSequence],
     cutListResults: [compiled(expectedCutList)],
   });
   await expect(indicator).toBeVisible();
+  await expect(
+    timeline.getByRole("button", { name: "Select reveal fade: Harbor" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(inspector.getByText("Edge: End", { exact: true })).toBeVisible();
+  await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("24");
   await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);
   const [placementBox, fadeBox] = await Promise.all([
     harbor.boundingBox(),
@@ -218,6 +270,45 @@ test("applying a reveal fade marks Harbor's trailing edge without moving the cut
   expect(Math.abs(fadeBox.x + fadeBox.width - (placementBox.x + placementBox.width))).toBeLessThan(
     2,
   );
-  // The 48-frame fade occupies 40% of Harbor's 120-frame placement.
-  expect(Math.abs(fadeBox.width - placementBox.width * 0.4)).toBeLessThan(2);
+  // The default is capped to fill, but not extend, this 24-frame placement.
+  expect(Math.abs(fadeBox.width - placementBox.width)).toBeLessThan(2);
 });
+
+for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
+  { rate: [25, 1], expected: 13, sourceOutOffset: 0, secondStart: 50, duration: 100 },
+  { rate: [1, 2], expected: 1, sourceOutOffset: 360, secondStart: 4, duration: 5 },
+]) {
+  test(`Add rounds half a second at ${rate.join("/")} fps to ${expected} whole sequence frames`, async ({
+    page,
+  }) => {
+    const emissions = await recordEditorEmissions(page);
+    await openWorkflow(page, roughCutStoryId, {
+      ...straightCutArgs,
+      "projectRate.numerator": rate[0],
+      "projectRate.denominator": rate[1],
+      "sequence.tracks[0].placements[0].sourceOutOffsetFrames": sourceOutOffset,
+      "sequence.tracks[0].placements[1].sequenceStartFrame": secondStart,
+      "sequence.durationFrames": duration,
+    });
+    await page
+      .getByRole("region", { name: "Sequence timeline" })
+      .getByRole("button", { name: "Harbor", exact: true })
+      .click();
+    const inspector = page.getByRole("region", { name: "Inspector" });
+    await inspector
+      .getByRole("group", { name: "End edge" })
+      .getByRole("button", { name: "Add transition" })
+      .click();
+    await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue(
+      String(expected),
+    );
+    const { sequences, cutListResults } = await emissions();
+    expect(sequences).toHaveLength(1);
+    expect(sequences[0].tracks[0].placements[0].revealTransition).toEqual({
+      id: expect.stringMatching(/\S/),
+      kind: "fade",
+      durationFrames: expected,
+    });
+    expect(cutListResults).toHaveLength(1);
+  });
+}

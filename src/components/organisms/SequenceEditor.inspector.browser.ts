@@ -136,6 +136,205 @@ test("removing the Inspector target falls back to a selected placement without r
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
+test("the occupied edge and timeline both inspect a transition without editing or retaining a placement selection", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const indicator = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  const inspector = page.getByRole("region", { name: "Inspector", exact: true });
+  const chooser = inspector.getByRole("combobox", { name: "Inspect placement" });
+  const enter = inspector.getByRole("group", { name: "Start edge" });
+  const properties = inspector.getByRole("heading", { name: "Transition Properties" });
+  const duration = inspector.getByRole("spinbutton", {
+    name: "Entry fade duration (sequence frames)",
+  });
+
+  for (const inspect of [enter.getByRole("button", { name: "Inspect transition" }), indicator]) {
+    await harbor.click();
+    await lighthouse.click({ modifiers: ["Shift"] });
+    await chooser.selectOption({ label: "Lighthouse — Main, sequence frame 120" });
+    await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
+    await expect(duration).toHaveCount(0);
+    await inspect.click();
+    await expect(properties).toBeVisible();
+    await expect(inspector.getByText("Owner: Lighthouse — Main, sequence frame 120")).toBeVisible();
+    await expect(inspector.getByText("Edge: Start", { exact: true })).toBeVisible();
+    await expect(duration).toHaveValue("30");
+    await expect(chooser).toHaveCount(0);
+    await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toHaveCount(0);
+    await expect(
+      inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" }),
+    ).toHaveCount(0);
+    await expect(indicator).toHaveAttribute("aria-pressed", "true");
+    await expect(harbor).toHaveAttribute("aria-pressed", "false");
+    await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
+    expect(await emissions()).toStrictEqual(noEdits);
+  }
+});
+
+test("a read-only sequence allows occupied-edge inspection but no transition edits", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    readOnly: "true",
+    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const indicator = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  await lighthouse.click({ timeout: 5_000 });
+  await expect(
+    inspector
+      .getByRole("group", { name: "End edge" })
+      .getByRole("button", { name: "Add transition" }),
+  ).toBeDisabled();
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Inspect transition" })
+    .click();
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(indicator).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
+  await expect(inspector.getByRole("spinbutton")).toHaveCount(0);
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("inspecting an occupied edge in Split mode highlights the fade without enabling its timeline button", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  const fadeLabel = timeline.getByText("Fade in", { exact: true });
+  const splitMode = page.getByRole("button", { name: "Split mode", exact: true });
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
+  await splitMode.click();
+  await expect(splitMode).toHaveAttribute("aria-pressed", "true");
+  await expect(fadeLabel).toBeVisible();
+  const unselectedColor = await fadeLabel.evaluate(
+    (node) => getComputedStyle(node).backgroundColor,
+  );
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Inspect transition" })
+    .click();
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(fadeLabel).not.toHaveCSS("background-color", unselectedColor);
+  await expect(timeline.getByRole("button", { name: "Select entry fade: Lighthouse" })).toHaveCount(
+    0,
+  );
+  await expect(splitMode).toHaveAttribute("aria-pressed", "true");
+  const selectedColor = await fadeLabel.evaluate((node) => getComputedStyle(node).backgroundColor);
+  await splitMode.click();
+  await expect(
+    timeline.getByRole("button", { name: "Select entry fade: Lighthouse" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(fadeLabel).toHaveCSS("background-color", selectedColor);
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("a pending or rejected Add proposal leaves Placement Properties and history unchanged", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, { ...straightCutArgs, reviewEdits: "true" });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  const add = inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Add transition" });
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  async function expectPlacementProperties() {
+    await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
+    await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toHaveCount(0);
+    await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+    await expect(undo).toBeDisabled();
+    await expect(fade).toHaveCount(0);
+  }
+
+  await lighthouse.click();
+  await add.click();
+  const reject = page.getByRole("button", { name: "Reject proposed edit" });
+  await expect(reject).toBeVisible();
+  await expectPlacementProperties();
+  const first = await emissions();
+  expect(first.sequences).toHaveLength(1);
+  expect(first.cutListResults).toHaveLength(1);
+  await reject.click();
+  await expect(reject).toHaveCount(0);
+  await expectPlacementProperties();
+  expect(await emissions()).toStrictEqual(first);
+
+  await add.click();
+  const accept = page.getByRole("button", { name: "Accept proposed edit" });
+  await expect(accept).toBeVisible();
+  await expectPlacementProperties();
+  const second = await emissions();
+  expect(second.sequences).toHaveLength(2);
+  expect(second.cutListResults).toHaveLength(2);
+  await accept.click();
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(fade).toHaveAttribute("aria-pressed", "true");
+  await expect(undo).toBeEnabled();
+  expect(await emissions()).toStrictEqual(second);
+});
+
+test("a conflicting Add does not shorten the default to fit or clear the selection", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    ...straightCutArgs,
+    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-reveal",
+    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
+    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 96,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  await harbor.click();
+  await lighthouse.click({ modifiers: ["Shift"] });
+  await expect(inspector.getByRole("combobox", { name: "Inspect placement" })).toHaveValue(
+    "harbor-open",
+  );
+
+  // The reveal occupies the last 96 of 120 frames, leaving 24 for a 30-frame default.
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Add transition" })
+    .click();
+  await expect(inspector.getByRole("alert")).toContainText("competes with another transition");
+  await expect(inspector.getByText("2 placements selected")).toBeVisible();
+  await expect(harbor).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+  await expect(timeline.getByRole("button", { name: "Select entry fade: Harbor" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
 test("Inspector trims and fades apply only to the inspected placement in the selection", async ({
   page,
 }) => {
@@ -147,17 +346,13 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
   const inspector = page.getByRole("region", { name: "Inspector", exact: true });
   const target = inspector.getByRole("combobox", { name: "Inspect placement", exact: true });
   const sourceOut = inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" });
-  const entryFade = inspector.getByRole("spinbutton", {
-    name: "Entry fade duration (sequence frames)",
-  });
 
   await harbor.click();
   await lighthouse.click({ modifiers: ["Shift"] });
   // A draft for Harbor must not carry over to Lighthouse.
-  await entryFade.fill("15");
+  await sourceOut.fill("215");
   await target.selectOption({ label: "Lighthouse — Main, sequence frame 120" });
   await expect(sourceOut).toHaveValue("621");
-  await expect(entryFade).toHaveValue("");
   expect(await emissions()).toStrictEqual(noEdits);
 
   await sourceOut.fill("631");
@@ -165,8 +360,12 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
   await expect(
     inspector.getByText("Sequence start/end (sequence frames): 120 inclusive – 250 exclusive"),
   ).toBeVisible();
-  await entryFade.fill("30");
-  await inspector.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  await expect(harbor).toHaveAttribute("aria-pressed", "true");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Add transition" })
+    .click();
   const transition = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
   await expect(transition).toBeVisible();
 
@@ -221,10 +420,6 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
     cutListResults: [compiled(cut), compiled(cutWithFade)],
   };
   await expect.poll(emissions).toStrictEqual(expectedEmissions);
-  await expect(harbor).toHaveAttribute("aria-pressed", "true");
-  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
-
-  await transition.click();
   await expect(transition).toHaveAttribute("aria-pressed", "true");
   await expect(inspector.getByText("Owner: Lighthouse — Main, sequence frame 120")).toBeVisible();
   await expect(target).toHaveCount(0);

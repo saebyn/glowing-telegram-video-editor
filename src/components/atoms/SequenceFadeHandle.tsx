@@ -64,9 +64,11 @@ export default function SequenceFadeHandle({
           type={onSelect ? "button" : undefined}
           aria-label={onSelect ? `Select ${edge} fade: ${label}` : undefined}
           aria-pressed={onSelect ? selected : undefined}
-          className={`absolute h-3 overflow-hidden bg-amber-300 indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "top-0 rounded-r" : "top-3 rounded-l"} ${
+          className={`absolute h-3 overflow-hidden indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "top-0 rounded-r" : "top-3 rounded-l"} ${
+            selected ? "bg-amber-500 inset-ring-2 inset-ring-amber-900" : "bg-amber-300"
+          } ${
             onSelect
-              ? "min-w-1 cursor-pointer focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 aria-pressed:bg-amber-500 aria-pressed:inset-ring-2 aria-pressed:inset-ring-amber-900"
+              ? "min-w-1 cursor-pointer focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2"
               : "pointer-events-none"
           }`}
           style={{ [styleEdge]: 0, width: `${percent}%` }}

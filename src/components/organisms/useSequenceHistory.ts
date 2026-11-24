@@ -7,7 +7,7 @@ interface History {
   current: Sequence;
   past: readonly Sequence[];
   future: readonly Sequence[];
-  pending?: { sequence: Sequence; operation: HistoryOperation };
+  pending?: { sequence: Sequence; operation: HistoryOperation; onAccept?: () => void };
 }
 
 export function useSequenceHistory(sequence: Sequence, emitEdit: (next: Sequence) => void) {
@@ -28,17 +28,19 @@ export function useSequenceHistory(sequence: Sequence, emitEdit: (next: Sequence
             ? future.slice(0, -1)
             : [],
     });
+    // Like the history update, this callback only adjusts session state during render.
+    if (accepted) pending.onAccept?.();
   }
 
-  function propose(next: Sequence, operation: HistoryOperation) {
-    setHistory({ ...history, pending: { sequence: next, operation } });
+  function propose(next: Sequence, operation: HistoryOperation, onAccept?: () => void) {
+    setHistory({ ...history, pending: { sequence: next, operation, onAccept } });
     emitEdit(next);
   }
 
   const previous = history.past.at(-1);
   const next = history.future.at(-1);
   return {
-    commitEdit: (next: Sequence) => propose(next, "edit"),
+    commitEdit: (next: Sequence, onAccept?: () => void) => propose(next, "edit", onAccept),
     undo: previous ? () => propose(previous, "undo") : undefined,
     redo: next ? () => propose(next, "redo") : undefined,
   };

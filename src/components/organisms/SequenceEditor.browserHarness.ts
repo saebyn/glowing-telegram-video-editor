@@ -5,9 +5,13 @@ import type { CutListResult, Sequence } from "@/types";
 export const roughCutStoryId = "pages-sequenceeditorpage--assemble-a-rough-cut";
 export const layeredEditStoryId = "pages-sequenceeditorpage--rearrange-a-layered-edit";
 type Workflow = typeof roughCutStoryId | typeof layeredEditStoryId;
-type SequenceArgs = Record<`sequence.${string}`, string | number | undefined> & {
+type SequenceArgs = Record<
+  `sequence.${string}` | `projectRate.${string}`,
+  string | number | undefined
+> & {
   acceptEdits?: string;
   readOnly?: string;
+  reviewEdits?: string;
   startWithoutTracks?: string;
 };
 

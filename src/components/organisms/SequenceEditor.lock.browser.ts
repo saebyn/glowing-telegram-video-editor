@@ -114,11 +114,16 @@ test("undoing removal restores the empty track in its locked state", async ({ pa
   expect(cutListResults).toEqual(Array(4).fill(cutListResults[0]));
 });
 
-test("the Inspector can read locked ranges but cannot trim or set a fade", async ({ page }) => {
+test("the Inspector can read locked ranges and transitions but cannot edit them", async ({
+  page,
+}) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     "sequence.tracks[0].locked": "true",
+    "sequence.tracks[0].placements[1].entryTransition.id": "locked-fade",
+    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
+    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 24,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await expect(timeline.getByRole("button", { name: "Unlock track: Main" })).toBeVisible();
@@ -130,10 +135,20 @@ test("the Inspector can read locked ranges but cannot trim or set a fade", async
   await inspector.getByLabel("Source out (exclusive frame)").fill("620");
   await inspector.getByRole("button", { name: "Trim placement", exact: true }).click();
   await expect(page.getByText("Blocked: the track is locked.", { exact: true })).toBeVisible();
-  await inspector.getByLabel("Entry fade duration (sequence frames)").fill("10");
-  await inspector.getByRole("button", { name: "Apply entry fade", exact: true }).click();
+  await expect(
+    inspector
+      .getByRole("group", { name: "End edge" })
+      .getByRole("button", { name: "Add transition" }),
+  ).toBeDisabled();
+  await inspector
+    .getByRole("group", { name: "Start edge" })
+    .getByRole("button", { name: "Inspect transition" })
+    .click();
+  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
+  await expect(inspector.getByText("24 sequence frames", { exact: true })).toBeVisible();
+  await expect(inspector.getByRole("spinbutton")).toHaveCount(0);
   expect(await emissions()).toEqual(noEdits);
-  expect(
-    await timeline.getByRole("button", { name: "Select entry fade: Lighthouse" }).count(),
-  ).toBe(0);
+  await expect(
+    timeline.getByRole("button", { name: "Select entry fade: Lighthouse" }),
+  ).toHaveAttribute("aria-pressed", "true");
 });

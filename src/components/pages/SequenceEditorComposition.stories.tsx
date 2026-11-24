@@ -90,7 +90,11 @@ function PreviewSnapshot({ playheadFrame, durationFrames, playback }: SequencePr
 function WrappedInspector(props: SequenceInspectorProps) {
   return (
     <section aria-label="Wrapped Inspector">
-      <p className="mb-2 text-xs">Project notes and placement details</p>
+      <p className="mb-2 text-xs">
+        {props.inspection.kind === "transition"
+          ? "Project notes and transition details"
+          : "Project notes and placement details"}
+      </p>
       <SequenceInspector {...props} />
     </section>
   );

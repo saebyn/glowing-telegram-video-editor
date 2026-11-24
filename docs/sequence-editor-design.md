@@ -22,7 +22,7 @@ SequenceEditorPage                     default layout; calls useSequenceEditor
 ├─ SequenceWorkspace                   responsive layout and accessible splitters
 │  ├─ clipPool slot → SequenceClipPool  adapts ProjectClipPool
 │  ├─ preview slot → SequencePreview
-│  └─ inspector slot → SequenceInspector
+│  └─ inspector slot → SequenceInspector (empty, PlacementProperties, or TransitionProperties)
 └─ timeline slot → SequenceTimeline    adapter that speaks sequence frames
    └─ Timeline                         one @keplar-404/react-timeline-editor widget
 ```
@@ -49,7 +49,7 @@ mode. A host-built page can do the same in its own layout.
 | Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
 | Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The default `SequencePreview` displays that state today; media playback is follow-up work. |
-| Inspector | Selection summary and inspected placement or transition, with effective source and sequence ranges, edit bounds, and actions to choose what to inspect or edit trims and transitions. |
+| Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, and duration bounds and action). The Inspector owns labels and form rendering. |
 | Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
 
 Export the library-owned UI components and their props from the package root,
@@ -162,8 +162,8 @@ and reports interaction input; its rows are not editor state or compiler input.
   This applies to entry fades, reveal fades, and dissolves.
 - **Cut-spanning dissolve:** Center the transition on the cut. It can be
   attached to either the trailing edge of the outgoing placement or the
-  leading edge of the incoming placement, but not to both. Add it from the
-  edge that should own it, and show the owner when the dissolve is selected.
+  leading edge of the incoming placement, but not to both. Show the owning
+  placement and edge when the dissolve is selected.
   An odd duration puts the extra frame after the cut, regardless of
   which edge owns it. Use a linear picture blend and linear audio
   crossfade over the same window, with no curve controls.
@@ -252,15 +252,27 @@ of normal editor integration. The editor handles compilation for its edits.
 - Delete removes the selected placements together in one edit. It does not
   close gaps, shorten the sequence, remove tracks, or remove reusable clips
   from the clip pool. Delete is unavailable without a placement selection.
-- The Inspector shows the source and sequence ranges and applicable trim and
-  fade controls for one selected placement. For multiple selected placements,
+- Placement Properties shows the source and sequence ranges and applicable trim
+  controls for one selected placement. For multiple selected placements,
   it shows the count and tracks and lets the editor choose which placement to
   inspect without changing membership or emitting an edit. If that placement
   leaves the selection, inspect another selected placement, if any. Group
-  edits still use the whole selection. Use placement
-  edges for direct timeline trimming and separate handles for adjusting entry
-  and reveal transitions. Timeline gestures and Inspector controls use the
-  same edit rules.
+  edits still use the whole selection. Each occupied edge offers **Inspect
+  transition**, equivalent to selecting its timeline indicator: highlight the
+  transition, clear the entire placement selection, and show Transition
+  Properties instead of Placement Properties without proposing an edit.
+- Each editable empty edge offers **Add transition**, which proposes one entry
+  or reveal fade. Use half a second rounded to whole sequence frames, at least
+  one frame and capped at the placement's duration. A conflict leaves the
+  selection intact and explains why the edit is blocked; do not shorten the
+  default to fit. Select the new transition only when the host accepts the
+  proposed sequence, making Add one Undo step.
+- Transition Properties identifies the owner, edge, and authored kind, shows
+  resolved details such as dissolve contributions, and edits duration where
+  available. Read-only and locked tracks allow inspection, but not Add or
+  duration editing. Use placement edges for direct timeline trimming and
+  separate handles for adjusting fades. Timeline gestures and Inspector
+  controls use the same applicable edit rules.
 - A move proposes the IDs of the placements being moved and the grabbed placement's
   destination track and sequence frame. Every placement gets the same signed
   sequence-frame offset and the same shift in track order. Source ranges and
