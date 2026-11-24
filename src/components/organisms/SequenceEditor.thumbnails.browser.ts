@@ -98,7 +98,7 @@ test("placements stay readable and selectable without timed source thumbnails", 
     id: layeredEditStoryId,
     viewMode: "story",
     // Harbor has no matching source metadata; Lighthouse has a source but no timed thumbnails.
-    args: "sources[0].id:unmapped",
+    args: "sources.harbor-recording:!undefined",
   });
   await page.goto(`/iframe.html?${query}`);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -157,8 +157,8 @@ async function openThumbnails(page: Page, frames: number[], extraArgs: string[] 
     // Leave room after the closing Harbor to exercise its trim away from the scroll edge.
     "sequence.durationFrames:480",
     ...frames.flatMap((frame, index) => [
-      `sources[0].frameThumbnails[${index}].sourceFrame:${frame}`,
-      `sources[0].frameThumbnails[${index}].url:harbor-frame-${frame}`,
+      `sources.harbor-recording.frameThumbnails[${index}].sourceFrame:${frame}`,
+      `sources.harbor-recording.frameThumbnails[${index}].url:harbor-frame-${frame}`,
     ]),
     ...extraArgs,
   ].join(";");

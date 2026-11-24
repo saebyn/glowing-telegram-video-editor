@@ -3,8 +3,8 @@ import { layeredEditStoryId } from "./SequenceEditor.browserHarness";
 
 test("the clip pool labels the host-supplied media kinds", async ({ page }) => {
   await openMediaKinds(page, [
-    "sources[0].mediaKind:video-only",
-    "sources[1].mediaKind:audio-only",
+    "sources.harbor-recording.mediaKind:video-only",
+    "sources.lighthouse-recording.mediaKind:audio-only",
   ]);
 
   const pool = page.getByRole("heading", { name: "Clip Pool" }).locator("..");
@@ -15,7 +15,7 @@ test("the clip pool labels the host-supplied media kinds", async ({ page }) => {
 });
 
 test("the clip pool labels audio and video without guessing the omitted kind", async ({ page }) => {
-  await openMediaKinds(page, ["sources[0].mediaKind:audio-video"]);
+  await openMediaKinds(page, ["sources.harbor-recording.mediaKind:audio-video"]);
 
   const pool = page.getByRole("heading", { name: "Clip Pool" }).locator("..");
   const harbor = pool.locator('[draggable="true"]').filter({ hasText: "Harbor" });
@@ -29,10 +29,10 @@ test("the timeline distinguishes audio-only placements from video without thumbn
   page,
 }) => {
   await openMediaKinds(page, [
-    "sources[0].mediaKind:video-only",
-    "sources[1].mediaKind:audio-only",
-    "sources[1].frameThumbnails[0].sourceFrame:515",
-    "sources[1].frameThumbnails[0].url:source-preview-thumb",
+    "sources.harbor-recording.mediaKind:video-only",
+    "sources.lighthouse-recording.mediaKind:audio-only",
+    "sources.lighthouse-recording.frameThumbnails[0].sourceFrame:515",
+    "sources.lighthouse-recording.frameThumbnails[0].url:source-preview-thumb",
   ]);
 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -50,11 +50,11 @@ test("the timeline distinguishes audio-only placements from video without thumbn
 
 test("the timeline keeps thumbnails without inferring a media kind", async ({ page }) => {
   await openMediaKinds(page, [
-    "sources[0].mediaKind:audio-video",
-    "sources[0].frameThumbnails[0].sourceFrame:120",
-    "sources[0].frameThumbnails[0].url:source-preview-thumb",
-    "sources[1].frameThumbnails[0].sourceFrame:515",
-    "sources[1].frameThumbnails[0].url:source-preview-thumb",
+    "sources.harbor-recording.mediaKind:audio-video",
+    "sources.harbor-recording.frameThumbnails[0].sourceFrame:120",
+    "sources.harbor-recording.frameThumbnails[0].url:source-preview-thumb",
+    "sources.lighthouse-recording.frameThumbnails[0].sourceFrame:515",
+    "sources.lighthouse-recording.frameThumbnails[0].url:source-preview-thumb",
   ]);
 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });

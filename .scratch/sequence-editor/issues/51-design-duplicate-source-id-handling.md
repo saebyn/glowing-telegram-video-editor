@@ -1,6 +1,6 @@
 # 51 — Key source metadata by source ID
 
-Status: ready-for-agent
+Resolution: replaced public source arrays with readonly sparse records keyed by source ID
 
 ## Problem
 
@@ -35,3 +35,13 @@ Source order has no meaning, and multiple clips can reference the same source.
   it must catch duplicates before constructing the record; the library
   cannot recover entries already overwritten by that conversion. There
   are no downstream hosts to migrate before 1.0.
+- Red → green at `compileCutList`: two clips produced ordered sections from
+  one keyed render source, and inherited metadata produced `missing-source`.
+  An own `constructor` key still resolves. The public type checks reject
+  arrays at the editor, compiler, and standalone component boundaries.
+- Passed typecheck, the packed package type contract, 201 Vitest checks,
+  22 targeted Chromium checks, formatting, library build, and diff checks.
+  Lint reported only the existing `VideoPlayer` captions warning.
+- All seven targeted mutations were caught: inherited lookup, clip ID lookup
+  in the compiler and both thumbnail surfaces, source order lookup, and dense
+  or mutable source records. Logs: `/tmp/opencode/gtve-51-mutations.a59ThI`.

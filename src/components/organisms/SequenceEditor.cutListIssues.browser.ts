@@ -28,7 +28,7 @@ test("a missing source can point to its placement even on a locked track", async
   const query = new URLSearchParams({
     id: layeredEditStoryId,
     viewMode: "story",
-    args: "sources[0].id:unmapped;sequence.tracks[1].locked:true",
+    args: "sources.harbor-recording:!undefined;sequence.tracks[1].locked:true",
   });
   await page.goto(`/iframe.html?${query}`);
   const issues = page.getByRole("region", { name: "CutList issues" });
@@ -84,7 +84,7 @@ test("correcting source metadata in the host clears its issue without an edit", 
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
-  await page.goto(`/?path=/story/${layeredEditStoryId}&args=sources[0].id:unmapped`);
+  await page.goto(`/?path=/story/${layeredEditStoryId}&args=sources.harbor-recording:!undefined`);
   const story = page.frameLocator("#storybook-preview-iframe");
   const issues = story.getByRole("region", { name: "CutList issues" });
   await expect(issues).toContainText("Missing source metadata for harbor-recording", {
@@ -95,18 +95,16 @@ test("correcting source metadata in the host clears its issue without an edit", 
   await page.getByRole("switch", { name: "Edit sources as JSON" }).click();
   const sources = page.getByRole("textbox", { name: "Edit sources as JSON" });
   await sources.fill(
-    JSON.stringify([
-      {
-        id: "harbor-recording",
+    JSON.stringify({
+      "harbor-recording": {
         s3Location: "s3://sequence-fixtures/harbor.mp4",
         previewHlsUrl: "/fixtures/harbor.m3u8",
       },
-      {
-        id: "lighthouse-recording",
+      "lighthouse-recording": {
         s3Location: "s3://sequence-fixtures/lighthouse.mp4",
         previewHlsUrl: "/fixtures/lighthouse.m3u8",
       },
-    ]),
+    }),
   );
   await sources.blur();
 

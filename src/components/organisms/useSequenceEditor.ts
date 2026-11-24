@@ -8,6 +8,7 @@ import type {
   PlacementEdge,
   Sequence,
   SequenceSource,
+  SourcesById,
   TransitionDraft,
   TransitionEditProblem,
   VideoClip,
@@ -59,7 +60,7 @@ import { useSequenceTransport } from "./useSequenceTransport";
 export interface UseSequenceEditorOptions {
   sequence: Sequence;
   clips: VideoClip[];
-  sources: readonly SequenceSource[];
+  sources: SourcesById<SequenceSource>;
   thumbnails?: Record<string, string>;
   titles?: Record<string, string>;
   /** The host owns the sequence and feeds accepted edits back as props. Omit for read-only. */

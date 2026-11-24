@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import { ProjectProvider } from "@/context/ProjectContext";
-import type { FrameRate, SequenceSource } from "@/types";
+import type { FrameRate, SequenceSource, SourcesById } from "@/types";
 import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
+import { getSource } from "@/utils/sourcesById";
 import ProjectClipPool, { type ProjectClipPoolProps } from "./ProjectClipPool";
 
 export type SequenceClipPoolProps = Pick<
   ProjectClipPoolProps,
   "clips" | "thumbnails" | "titles"
 > & {
-  sources?: readonly Pick<SequenceSource, "id" | "mediaKind" | "frameThumbnails">[];
+  sources?: SourcesById<Pick<SequenceSource, "mediaKind" | "frameThumbnails">>;
   frameRate: FrameRate;
   beginClipDrag?: (clipId: string) => void;
   endClipDrag: () => void;
@@ -23,11 +24,10 @@ export default function SequenceClipPool({
   ...presentation
 }: SequenceClipPoolProps) {
   const keyframes = useMemo(() => {
-    const sourcesById = new Map(sources?.map((source) => [source.id, source]));
     return Object.fromEntries(
       clips.map((clip) => [
         clip.id,
-        frameThumbnailsInRange(sourcesById.get(clip.sourceId)?.frameThumbnails, clip).map(
+        frameThumbnailsInRange(getSource(sources, clip.sourceId)?.frameThumbnails, clip).map(
           ({ url }) => url,
         ),
       ]),

@@ -44,18 +44,16 @@ const clips: VideoClip[] = [
     sourceOutFrame: 360,
   },
 ];
-const sources = [
-  {
-    id: "harbor-recording",
+const sources = {
+  "harbor-recording": {
     s3Location: "s3://sequence-fixtures/harbor.mp4",
     previewHlsUrl: "/fixtures/harbor.m3u8",
   },
-  {
-    id: "bridge-recording",
+  "bridge-recording": {
     s3Location: "s3://sequence-fixtures/bridge.mp4",
     previewHlsUrl: "/fixtures/bridge.m3u8",
   },
-];
+};
 const titles = { harbor: "Harbor", bridge: "Bridge" };
 const original: Sequence = {
   durationFrames: 240,

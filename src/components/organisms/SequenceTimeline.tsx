@@ -25,6 +25,7 @@ import type {
   PlacementTransition,
   SequenceTrack,
   SequenceSource,
+  SourcesById,
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
@@ -37,6 +38,7 @@ import {
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
+import { getSource } from "@/utils/sourcesById";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -141,7 +143,7 @@ type Extension = Readonly<{ startFrame: number; endFrame: number }>;
 export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   durationFrames: number;
   tracks: readonly SequenceTrack[];
-  sources: readonly SequenceSource[];
+  sources: SourcesById<SequenceSource>;
   clips: readonly VideoClip[];
   titles: Record<string, string>;
   reorderTrack?: (trackId: string, destinationTrackId: string) => void;
@@ -415,7 +417,6 @@ export default function SequenceTimeline({
         thumbnails: SequenceSource["frameThumbnails"];
       }
     >();
-    const sourcesById = new Map(sources.map((source) => [source.id, source]));
     const rows: TimelineEditor["editorData"] = tracks.map((track, trackIndex) => ({
       id: track.id,
       actions: track.placements.flatMap((placement) => {
@@ -424,7 +425,7 @@ export default function SequenceTimeline({
         const range = getPlacementSourceRange(clip, placement);
         const duration = getProjectFrameCount(range, frameRate);
         if (duration <= 0) return [];
-        const source = sourcesById.get(clip.sourceId);
+        const source = getSource(sources, clip.sourceId);
         items.set(placement.id, {
           label: titles[clip.id] ?? `Clip ${clip.id}`,
           entryTransition: placement.entryTransition,

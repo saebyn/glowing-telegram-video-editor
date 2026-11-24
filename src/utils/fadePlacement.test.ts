@@ -27,7 +27,7 @@ const sequence: Sequence = {
 test("an entry fade can span the entire effective placement", () => {
   // The placement uses source [106, 146), exactly 40 frames at the project rate.
   expect(
-    evaluateTransitionEdit(sequence, [harbor], [], frameRate, {
+    evaluateTransitionEdit(sequence, [harbor], {}, frameRate, {
       placementId: "open",
       edge: "leading",
       transition: { kind: "fade", durationFrames: 40 },
@@ -55,7 +55,7 @@ test("an entry fade can span the entire effective placement", () => {
 
 test("resubmitting the authored entry fade duration produces no edit", () => {
   expect(
-    evaluateTransitionEdit(sequence, [harbor], [], frameRate, {
+    evaluateTransitionEdit(sequence, [harbor], {}, frameRate, {
       placementId: "open",
       edge: "leading",
       transition: { kind: "fade", durationFrames: 8 },

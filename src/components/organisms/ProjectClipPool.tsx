@@ -1,8 +1,9 @@
 import { useState } from "react";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
-import type { SequenceSource, VideoClip } from "@/types";
+import type { SequenceSource, SourcesById, VideoClip } from "@/types";
 import { getProjectFrameCount } from "@/utils/frames";
+import { getSource } from "@/utils/sourcesById";
 import { mediaKindLabels } from "./mediaKindLabels";
 
 export interface ProjectClipPoolProps {
@@ -25,7 +26,7 @@ export interface ProjectClipPoolProps {
   /**
    * Optional source metadata for labeling clips with a known media kind.
    */
-  sources?: readonly Pick<SequenceSource, "id" | "mediaKind">[];
+  sources?: SourcesById<Pick<SequenceSource, "mediaKind">>;
   /**
    * Width of each clip preview
    */
@@ -67,7 +68,6 @@ export default function ProjectClipPool({
 }: ProjectClipPoolProps) {
   const frameRate = useProjectFrameRate();
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
-  const mediaKinds = sources && new Map(sources.map(({ id, mediaKind }) => [id, mediaKind]));
 
   const handleClipSelect = (clipId: string, selected: boolean) => {
     const newSelected = new Set(selectedClips);
@@ -99,7 +99,7 @@ export default function ProjectClipPool({
       <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Clip Pool</h2>
       <div className="flex flex-wrap gap-4">
         {clips.map((clip) => {
-          const mediaKind = mediaKinds?.get(clip.sourceId);
+          const mediaKind = getSource(sources, clip.sourceId)?.mediaKind;
           return (
             <div
               key={clip.id}

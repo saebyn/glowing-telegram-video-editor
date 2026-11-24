@@ -29,12 +29,10 @@ const lighthouse: VideoClip = {
 };
 // Preview URLs are placeholders; these stories do not play media.
 const harborSource: SequenceSource = {
-  id: "harbor-recording",
   s3Location: "s3://sequence-fixtures/harbor.mp4",
   previewHlsUrl: "/fixtures/harbor.m3u8",
 };
 const lighthouseSource: SequenceSource = {
-  id: "lighthouse-recording",
   s3Location: "s3://sequence-fixtures/lighthouse.mp4",
   previewHlsUrl: "/fixtures/lighthouse.m3u8",
 };
@@ -63,7 +61,7 @@ const meta = {
     // Accept nested fixture URL args as well as edits in the Controls panel.
     sequence: { control: "object", type: { name: "object", value: {} } },
     clips: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
-    sources: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
+    sources: { control: "object", type: { name: "object", value: {} } },
     acceptEdits: { control: "boolean", name: "Accept edits" },
     readOnly: { control: "boolean", name: "Read-only" },
     reviewEdits: { control: "boolean", name: "Review proposals before applying" },
@@ -75,7 +73,7 @@ const meta = {
     acceptEdits: true,
     projectRate: sampleFrameRate,
     clips: [harbor, lighthouse],
-    sources: [harborSource, lighthouseSource],
+    sources: { "harbor-recording": harborSource, "lighthouse-recording": lighthouseSource },
     titles: { harbor: "Harbor", lighthouse: "Lighthouse" },
   },
 } satisfies Meta<EditingHostArgs>;
@@ -114,16 +112,16 @@ export const AssembleARoughCut: Story = {
       lighthouse,
       { ...harbor, id: "departure", sourceInFrame: 234, sourceOutFrame: 294 },
     ],
-    sources: [
-      {
+    sources: {
+      "harbor-recording": {
         ...harborSource,
         frameThumbnails: [
           { sourceFrame: 114, url: harborThumbnail },
           { sourceFrame: 237, url: harborDepartureThumbnail },
         ],
       },
-      lighthouseSource,
-    ],
+      "lighthouse-recording": lighthouseSource,
+    },
     titles: { harbor: "Harbor", lighthouse: "Lighthouse", departure: "Departure" },
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
     sequence: { durationFrames: 360, tracks: [mainTrack] },

@@ -87,8 +87,13 @@ Pass positions and durations as whole frames. Positions are zero-based. Source r
 
 ### SequenceEditorPage
 
-The host supplies `sequence`, `clips`, and one `SequenceSource` record per source ID.
-Each record includes its render `s3Location`. Before mounting the editor, supply
+The host supplies `sequence`, `clips`, and `sources: SourcesById<SequenceSource>`,
+a readonly, sparse record keyed by `VideoClip.sourceId`. The key is the source ID;
+metadata values have no `id` field. Several clips can reference the same entry.
+Supply source metadata as own properties; inherited properties are ignored.
+Replace the record when updating metadata.
+
+Each source value includes its render `s3Location`. Before mounting the editor, supply
 `previewHlsUrl` for `video-only`, `audio-video`, and sources with no declared
 `mediaKind`. An explicitly `audio-only` source does not require a preview URL;
 its streaming contract is not defined yet. The HLS playback rendition can use
@@ -108,10 +113,14 @@ first reported gap or inspect a placement with a source issue, without editing
 the sequence.
 
 Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
-with a readonly list of `CutListSource` records (`id` and `s3Location` only).
-Full `SequenceSource` records work too; preview metadata does not affect the
-`CutList`. The compiler describes the edit; final rendering is outside the
-library’s scope.
+with `SourcesById<CutListSource>` (values contain only `s3Location`). Full editor
+source records work too; preview metadata does not affect the `CutList`. A
+referenced ID without an entry yields a `missing-source` issue. The compiler
+describes the edit; final rendering is outside the library’s scope.
+
+Standalone `SequenceTimeline` uses the same source record as the page.
+Standalone `SequenceClipPool` only needs `mediaKind` and `frameThumbnails`
+in its optional source record, and `ProjectClipPool` only uses `mediaKind`.
 
 The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
 `timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane

@@ -1,4 +1,12 @@
-import type { CutListIssue, FrameRate, Sequence, SequenceSource, VideoClip } from "@/types";
+import type {
+  CutListIssue,
+  FrameRate,
+  Sequence,
+  SequenceSource,
+  SourcesById,
+  VideoClip,
+} from "@/types";
+import { getSource } from "./sourcesById";
 import { getDissolveWindow } from "./dissolveWindow";
 import {
   resolveVisibleSequence,
@@ -172,10 +180,10 @@ function sourceExtension(side: ResolvedPlacement, start: number, end: number) {
 
 function dissolvePresentation(
   { outgoing, incoming, ...details }: ReturnType<typeof resolveDissolve>,
-  sources: readonly SequenceSource[],
+  sources: SourcesById<SequenceSource>,
 ) {
   function missingContribution(side: ResolvedPlacement | undefined) {
-    const mediaKind = side && sources.find(({ id }) => id === side.sourceId)?.mediaKind;
+    const mediaKind = side && getSource(sources, side.sourceId)?.mediaKind;
     return {
       picture: !side || mediaKind === "audio-only",
       audio: !side || mediaKind === "video-only",
@@ -200,7 +208,7 @@ function dissolvePresentation(
 export function getSequenceDissolves(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly SequenceSource[],
+  sources: SourcesById<SequenceSource>,
   frameRate: FrameRate,
 ) {
   const details = new Map<string, ReturnType<typeof dissolvePresentation>>();
@@ -233,7 +241,7 @@ export function getSequenceDissolves(
 export function hasTransitionAuthoringConflict(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly SequenceSource[],
+  sources: SourcesById<SequenceSource>,
   frameRate: FrameRate,
   transitionId: string,
 ) {

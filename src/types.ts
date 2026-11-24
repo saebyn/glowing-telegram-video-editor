@@ -131,9 +131,11 @@ export interface SequenceLayout {
 /** Media content declared by the host for presentation in the editor. */
 export type MediaKind = "video-only" | "audio-only" | "audio-video";
 
-/** Renderable media identity supplied by the host, separate from a clip's source range. */
+/** Source metadata keyed by the host's source IDs. Not every ID has an entry. */
+export type SourcesById<T> = Readonly<Partial<Record<string, T>>>;
+
+/** Renderable media location supplied by the host, separate from a clip's source range. */
 export interface CutListSource {
-  id: string;
   s3Location: string;
 }
 

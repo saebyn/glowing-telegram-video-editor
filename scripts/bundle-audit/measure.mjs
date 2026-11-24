@@ -22,7 +22,7 @@ const compilerEntry = (importLine) => `
 ${importLine}
 const frameRate = { numerator: 30, denominator: 1 };
 const sequence = { durationFrames: 0, tracks: [] };
-document.querySelector("#app").textContent = JSON.stringify(compileCutList(sequence, [], [], frameRate));
+document.querySelector("#app").textContent = JSON.stringify(compileCutList(sequence, [], {}, frameRate));
 `;
 const fixtures = {
   "source-review": `
@@ -46,7 +46,7 @@ import "${pkg}/styles.css";
 const frameRate = { numerator: 30, denominator: 1 };
 const sequence = { durationFrames: 0, tracks: [{ id: "track", label: "Track", placements: [] }] };
 createRoot(document.querySelector("#app")).render(createElement(ProjectProvider, { frameRate },
-  createElement(SequenceEditorPage, { sequence, clips: [], sources: [] })));
+  createElement(SequenceEditorPage, { sequence, clips: [], sources: {} })));
 `,
   "compile-cut-list": compilerEntry(`import { compileCutList } from "${pkg}";`),
   "custom-css-import": `import "${pkg}/custom-only.css";`,

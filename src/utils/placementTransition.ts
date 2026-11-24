@@ -5,6 +5,7 @@ import type {
   PlacementTransition,
   Sequence,
   SequenceSource,
+  SourcesById,
   TransitionDraft,
   TransitionEditProblem,
   VideoClip,
@@ -37,7 +38,7 @@ type TransitionEdit =
 export function evaluateTransitionEdit(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly SequenceSource[],
+  sources: SourcesById<SequenceSource>,
   frameRate: FrameRate,
   { placementId, edge, transition }: TransitionEditIntent,
   allocateTransitionId: () => string = () => crypto.randomUUID(),

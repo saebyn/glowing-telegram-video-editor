@@ -1,5 +1,12 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { CutListResult, CutListSource, FrameRate, Sequence, VideoClip } from "@/types";
+import type {
+  CutListResult,
+  CutListSource,
+  FrameRate,
+  Sequence,
+  SourcesById,
+  VideoClip,
+} from "@/types";
 import { applyCutListTransitions } from "./sequenceTransitions";
 import { resolveVisibleSequence } from "./visibleSequence";
 
@@ -7,7 +14,7 @@ import { resolveVisibleSequence } from "./visibleSequence";
 export default function compileCutList(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly CutListSource[],
+  sources: SourcesById<CutListSource>,
   frameRate: FrameRate,
 ): CutListResult {
   const { issues, layout } = resolveVisibleSequence(sequence, clips, sources, frameRate);

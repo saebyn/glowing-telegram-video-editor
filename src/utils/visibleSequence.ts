@@ -6,10 +6,12 @@ import type {
   PlacementEdge,
   PlacementTransition,
   Sequence,
+  SourcesById,
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, inSequenceOrder, transitionFields } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
+import { getSource } from "./sourcesById";
 
 export type ResolvedPlacement = {
   trackIndex: number;
@@ -51,7 +53,7 @@ function isValidRate({ numerator, denominator }: FrameRate) {
 export function resolveVisibleSequence(
   sequence: Sequence,
   clips: readonly VideoClip[],
-  sources: readonly CutListSource[],
+  sources: SourcesById<CutListSource>,
   frameRate: FrameRate,
   layoutOnly = false,
 ) {
@@ -97,7 +99,7 @@ export function resolveVisibleSequence(
         canResolveLayout = false;
         continue;
       }
-      const source = sources.find(({ id }) => id === clip.sourceId);
+      const source = getSource(sources, clip.sourceId);
       if (!source && !layoutOnly)
         issues.push({ code: "missing-source", placementId, sourceId: clip.sourceId });
       const { sourceInFrame, sourceOutFrame, sourceFrameRate } = getPlacementSourceRange(

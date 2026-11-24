@@ -21,7 +21,7 @@ export const TwoEditors: StoryObj = {
             <SequenceEditorPage
               sequence={sequence}
               clips={[]}
-              sources={[]}
+              sources={{}}
               onSequenceChange={() => {}}
             />
           </section>

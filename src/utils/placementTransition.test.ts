@@ -22,7 +22,7 @@ test("duration is a positive whole count in the proposed kind, not the existing 
   const before = sequence(placement, b);
   for (const durationFrames of [0, -1, 1.5, NaN]) {
     expect(
-      evaluateTransitionEdit(before, clips, [], rate, {
+      evaluateTransitionEdit(before, clips, {}, rate, {
         placementId: "a",
         edge: "trailing",
         transition: { kind: "dissolve", durationFrames },
@@ -30,7 +30,7 @@ test("duration is a positive whole count in the proposed kind, not the existing 
     ).toStrictEqual({ kind: "invalid-duration", min: 1 });
   }
   expect(
-    evaluateTransitionEdit(before, clips, [], rate, {
+    evaluateTransitionEdit(before, clips, {}, rate, {
       placementId: "a",
       edge: "trailing",
       transition: { kind: "fade", durationFrames: 40 },
@@ -38,7 +38,7 @@ test("duration is a positive whole count in the proposed kind, not the existing 
   ).toStrictEqual({ kind: "invalid-duration", min: 1, max: 24 });
   const fade = { id: "blend", kind: "fade", durationFrames: 24 } as const;
   expect(
-    evaluateTransitionEdit(before, clips, [], rate, {
+    evaluateTransitionEdit(before, clips, {}, rate, {
       placementId: "a",
       edge: "trailing",
       transition: { kind: "fade", durationFrames: 24 },
@@ -50,7 +50,7 @@ test("duration is a positive whole count in the proposed kind, not the existing 
   });
   const dissolve = { ...fade, kind: "dissolve" } as const;
   expect(
-    evaluateTransitionEdit(sequence({ ...a, revealTransition: fade }, b), clips, [], rate, {
+    evaluateTransitionEdit(sequence({ ...a, revealTransition: fade }, b), clips, {}, rate, {
       placementId: "a",
       edge: "trailing",
       transition: { kind: "dissolve", durationFrames: 24 },
@@ -69,7 +69,7 @@ test("a dissolve requires an owner with a resolved positive placement duration",
     { ...a, sourceOutOffsetFrames: -24 },
   ]) {
     expect(
-      evaluateTransitionEdit(sequence(owner, b), clips, [], rate, {
+      evaluateTransitionEdit(sequence(owner, b), clips, {}, rate, {
         placementId: "a",
         edge: "leading",
         transition: { kind: "dissolve", durationFrames: 1 },
@@ -87,7 +87,7 @@ test("even nonoverlapping visible fades cannot both own the same cut", () => {
     evaluateTransitionEdit(
       before,
       clips,
-      [],
+      {},
       rate,
       {
         placementId: "b",
@@ -108,7 +108,7 @@ test("a dissolve and fade at the same cut compete even when their windows only t
     evaluateTransitionEdit(
       before,
       clips,
-      [],
+      {},
       rate,
       {
         placementId: "b",
@@ -129,7 +129,7 @@ test("an unrelated invalid transition does not let two valid transitions own a c
     evaluateTransitionEdit(
       before,
       clips,
-      [],
+      {},
       rate,
       {
         placementId: "b",
@@ -150,7 +150,7 @@ test("different cuts may touch but cannot compete over a visible frame", () => {
     evaluateTransitionEdit(
       before,
       clips,
-      [],
+      {},
       rate,
       {
         placementId: "a",
@@ -195,7 +195,7 @@ test("a partially covered fade does not compete with a dissolve only in its cove
     evaluateTransitionEdit(
       before,
       clips,
-      [],
+      {},
       rate,
       {
         placementId: "b",
