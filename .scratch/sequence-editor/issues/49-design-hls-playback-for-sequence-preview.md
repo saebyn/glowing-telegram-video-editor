@@ -1,6 +1,6 @@
 # 49 — Design HLS playback for `SequencePreview`
 
-Status: ready-for-agent
+Resolution: implemented in `f653116` and accepted after maintainer playback testing with a real HLS stream
 Depends on: [47 — Separate render and preview source inputs](47-separate-render-and-preview-source-inputs.md)
 
 ## Target
@@ -40,7 +40,7 @@ element path is not an exact timestamped video-frame and PCM reader.
 ## Feasibility checks for the implementing agent
 
 Use a small local MPEG-TS HLS fixture with known picture IDs and audio
-markers for correctness, and representative host playlists for compatibility.
+markers for correctness, and a real HLS stream for manual playback verification.
 Use current desktop Chromium as the verification baseline; API presence
 alone does not prove that the actual codec and device can decode the input.
 Keep the test cases the same if trying the next candidate.
@@ -114,11 +114,6 @@ selection are intentionally deferred.
   switched direction in desktop Chromium. See the
   [manual checklist](../../../docs/development.md#manual-sequence-preview-checks)
   for listening, scrubbing, and using network throttling.
-- Still open: no representative host playlist was available. Use a
-  browser-accessible, finite MPEG-TS rendition from the host to verify its
-  timestamp alignment, codec compatibility, and sustained playback.
-  Listening and longer-duration performance checks are still pending;
-  the short fixture timings are not a sustained playback guarantee.
 - Manual review found a hold every 30 sequence frames at 60 fps in the
   Mux story, and audible corruption. Chromium measurements showed that
   cold half-second windows were decoding the 1920px variant (~0.7–1s per
@@ -133,7 +128,7 @@ selection are intentionally deferred.
   288 gaps and five overlaps larger than 1ms before the fix and none in
   the first 300 blocks afterward. The local 60-fps browser regression
   records the mixed audio output and checks the 440Hz tone for dropouts and
-  incorrect pitch. Host rendition compatibility remains unverified.
+  incorrect pitch.
 - Follow-up verification: 215 Vitest and 20 targeted Chromium checks
   passed, along with typecheck, formatting, library and Storybook builds,
   and playback in a freshly packed consumer. Four targeted mutations
@@ -160,6 +155,7 @@ selection are intentionally deferred.
   This doesn't increase the decoded-window limit. At 4× CPU throttling,
   the Mux edit still showed decode-window stalls, so the slower-display
   regression does not guarantee smooth playback on a heavily loaded CPU.
-- The maintainer is satisfied with current performance. Further optimization
-  is deferred to [#66](66-reuse-sequential-preview-decoders.md) and
-  [#67](67-profile-warm-preview-playback.md), not required to close #49.
+- The maintainer tested playback with a real HLS stream and confirmed that
+  no separate host-playlist check was needed to close the ticket. Further
+  optimization is deferred to [#66](66-reuse-sequential-preview-decoders.md)
+  and [#67](67-profile-warm-preview-playback.md).

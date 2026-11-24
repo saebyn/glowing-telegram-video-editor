@@ -5,8 +5,6 @@ a `Resolution:` line closes it even if an old `Status:` line remains.
 
 ## Ready for an agent
 
-- [49 — HLS playback in `SequencePreview`](issues/49-design-hls-playback-for-sequence-preview.md):
-  full presentation target approved; ranked playback libraries and feasibility checks recorded.
 - [51 — Key source metadata by source ID](issues/51-design-duplicate-source-id-handling.md):
   approved switch from source arrays to a keyed record in the editor and compiler.
 - [65 — Rename placement fields to `transitionIn` and `transitionOut`](issues/65-rename-placement-transition-fields.md):
@@ -62,4 +60,6 @@ The [original PRD](PRD.md) records tickets **01–08**, shipped in `dc35b6b`.
 The expanded batch shipped in `2077dd8`. Tickets **40–45** implemented the
 [composition design](../../docs/sequence-editor-design.md#component-tree);
 **53–55** covered transition editing and **56–60** covered bundle cleanup.
+[#49 — HLS playback in `SequencePreview`](issues/49-design-hls-playback-for-sequence-preview.md)
+was implemented in `f653116` and accepted after real-stream playback testing.
 See individual tickets for completed work and resolutions.
