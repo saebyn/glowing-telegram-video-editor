@@ -677,6 +677,20 @@ export default function SequenceTimeline({
       : null;
   const poolLabel = activeClipId && (titles[activeClipId] ?? `Clip ${activeClipId}`);
 
+  function draftRectangle(
+    trackIndex: number,
+    startFrame: number,
+    duration: number,
+    scroll: number,
+  ) {
+    return {
+      left: startFrame * pixelsPerFrame - scroll + 1,
+      top: RULER_HEIGHT + trackIndex * ROW_HEIGHT + 4,
+      width: Math.max(0, duration * pixelsPerFrame - 2),
+      height: ROW_HEIGHT - 8,
+    };
+  }
+
   function placementPreview(
     key: string,
     label: string,
@@ -693,12 +707,7 @@ export default function SequenceTimeline({
         className={`pointer-events-none absolute z-10 flex items-center overflow-hidden rounded border-2 border-dashed px-2 text-xs whitespace-nowrap ${
           blocked ? "border-rose-300 bg-rose-900/90" : "border-sky-300 bg-sky-800/90"
         }`}
-        style={{
-          left: (framesToSeconds(startFrame, frameRate) / scale) * scaleWidth - scroll + 1,
-          top: RULER_HEIGHT + trackIndex * ROW_HEIGHT + 4,
-          width: Math.max(0, (framesToSeconds(duration, frameRate) / scale) * scaleWidth - 2),
-          height: ROW_HEIGHT - 8,
-        }}
+        style={draftRectangle(trackIndex, startFrame, duration, scroll)}
       >
         {label}
       </figure>
@@ -1173,18 +1182,12 @@ export default function SequenceTimeline({
               className={`pointer-events-none absolute z-10 rounded border-2 border-dashed ${
                 trimBlocked ? "border-rose-300 bg-rose-900/90" : "border-sky-300 bg-sky-800/90"
               }`}
-              style={{
-                left:
-                  (framesToSeconds(trimStart, frameRate) / scale) * scaleWidth -
-                  trimDraft.scrollLeft +
-                  1,
-                top: RULER_HEIGHT + trimItem.trackIndex * ROW_HEIGHT + 4,
-                width: Math.max(
-                  0,
-                  (framesToSeconds(trimEnd - trimStart, frameRate) / scale) * scaleWidth - 2,
-                ),
-                height: ROW_HEIGHT - 8,
-              }}
+              style={draftRectangle(
+                trimItem.trackIndex,
+                trimStart,
+                trimEnd - trimStart,
+                trimDraft.scrollLeft,
+              )}
             />
           )}
           {draft &&
