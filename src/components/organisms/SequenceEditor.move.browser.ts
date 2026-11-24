@@ -18,9 +18,9 @@ async function openFadedMove(page: Page) {
     "sequence.tracks[0].placements[1].id": "lighthouse-close",
     "sequence.tracks[0].placements[1].clipId": "lighthouse",
     "sequence.tracks[0].placements[1].sourceInOffsetFrames": -6,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
   });
   return emissions;
 }
@@ -42,7 +42,7 @@ test("moving a placement preserves duration, trims and its fade, leaving an unco
             sequenceStartFrame: 120,
             sourceInOffsetFrames: -6,
             sourceOutOffsetFrames: 6,
-            entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+            transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
           },
         ],
       },
@@ -316,7 +316,7 @@ test("a placement can preview beyond the endpoint at the same scale and extend o
                 sequenceStartFrame: 240,
                 sourceInOffsetFrames: -6,
                 sourceOutOffsetFrames: 6,
-                entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+                transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
               },
             ],
           },

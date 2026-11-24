@@ -28,12 +28,12 @@ test("Delete removes one Lighthouse placement without removing its other use or 
 }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
-    "sequence.tracks[0].placements[0].revealTransition.id": "opening-reveal",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
-    "sequence.tracks[2].placements[0].entryTransition.id": "alternate-entry",
-    "sequence.tracks[2].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[2].placements[0].entryTransition.durationFrames": 18,
+    "sequence.tracks[0].placements[0].transitionOut.id": "opening-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,
+    "sequence.tracks[2].placements[0].transitionIn.id": "alternate-entry",
+    "sequence.tracks[2].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[2].placements[0].transitionIn.durationFrames": 18,
   });
   const deleteButton = page.getByRole("button", { name: "Delete", exact: true });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -78,7 +78,7 @@ test("Delete removes one Lighthouse placement without removing its other use or 
                 sequenceStartFrame: 120,
                 sourceInOffsetFrames: 6,
                 sourceOutOffsetFrames: -6,
-                entryTransition: { id: "alternate-entry", kind: "fade", durationFrames: 18 },
+                transitionIn: { id: "alternate-entry", kind: "fade", durationFrames: 18 },
               },
             ],
           },
@@ -109,7 +109,7 @@ test("Delete removes one Lighthouse placement without removing its other use or 
   await expect(
     timeline.getByRole("button", { name: "Select reveal fade: Lighthouse" }),
   ).toBeVisible();
-  expect((await emissions()).sequences[1].tracks[0].placements[0].revealTransition).toEqual({
+  expect((await emissions()).sequences[1].tracks[0].placements[0].transitionOut).toEqual({
     id: "opening-reveal",
     kind: "fade",
     durationFrames: 12,

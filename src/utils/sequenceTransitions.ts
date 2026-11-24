@@ -215,8 +215,8 @@ export function getSequenceDissolves(
   if (
     !sequence.tracks.some(({ placements }) =>
       placements.some(
-        ({ entryTransition, revealTransition }) =>
-          entryTransition?.kind === "dissolve" || revealTransition?.kind === "dissolve",
+        ({ transitionIn, transitionOut }) =>
+          transitionIn?.kind === "dissolve" || transitionOut?.kind === "dissolve",
       ),
     )
   )

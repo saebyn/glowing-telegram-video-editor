@@ -63,7 +63,7 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
   await expect(entry).toHaveValue("30");
   const initial = await emissions();
   expect(initial.sequences).toHaveLength(1);
-  const id = initial.sequences[0].tracks[1].placements[1].entryTransition?.id;
+  const id = initial.sequences[0].tracks[1].placements[1].transitionIn?.id;
   expect(id).toEqual(expect.stringMatching(/\S/));
   await entry.fill("24");
   expect(await emissions()).toStrictEqual(initial);
@@ -71,7 +71,7 @@ test("the Inspector edits an entry fade on a track between empty tracks", async 
 
   const next = structuredClone(paddedStraightCut);
   Object.assign(next.tracks[1].placements[1], {
-    entryTransition: { id, kind: "fade", durationFrames: 24 },
+    transitionIn: { id, kind: "fade", durationFrames: 24 },
   });
   const cutList: CutList = {
     version: "1.0.0",
@@ -114,9 +114,9 @@ test("a covered transition can be selected without selecting its owner or emitti
 }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
-    "sequence.tracks[2].placements[0].entryTransition.id": "covered-entry",
-    "sequence.tracks[2].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[2].placements[0].entryTransition.durationFrames": 24,
+    "sequence.tracks[2].placements[0].transitionIn.id": "covered-entry",
+    "sequence.tracks[2].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[2].placements[0].transitionIn.durationFrames": 24,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
@@ -138,9 +138,9 @@ test("an editable one-frame fade can be selected separately from its resize hand
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 1,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 1,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
@@ -159,9 +159,9 @@ test("a timeline reveal grip edits a placement on a track between empty tracks",
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
     ...paddedStraightCutArgs,
-    "sequence.tracks[1].placements[0].revealTransition.id": "harbor-reveal",
-    "sequence.tracks[1].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[1].placements[0].revealTransition.durationFrames": 12,
+    "sequence.tracks[1].placements[0].transitionOut.id": "harbor-reveal",
+    "sequence.tracks[1].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[1].placements[0].transitionOut.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -174,7 +174,7 @@ test("a timeline reveal grip edits a placement on a track between empty tracks",
 
   const next = structuredClone(paddedStraightCut);
   Object.assign(next.tracks[1].placements[0], {
-    revealTransition: { id: "harbor-reveal", kind: "fade", durationFrames: 30 },
+    transitionOut: { id: "harbor-reveal", kind: "fade", durationFrames: 30 },
   });
   const cutList: CutList = {
     version: "1.0.0",
@@ -228,7 +228,7 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
                 clipId: "lighthouse",
                 sequenceStartFrame: 0,
                 sourceOutOffsetFrames: -60,
-                revealTransition: {
+                transitionOut: {
                   id: expect.stringMatching(/\S/),
                   kind: "fade",
                   durationFrames: 30,
@@ -251,9 +251,9 @@ test("a layered timeline fade commits but explains a window interrupted by anoth
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
     "sequence.durationFrames": 260, // An unrelated trailing gap must not hide transition feedback.
-    "sequence.tracks[1].placements[0].entryTransition.id": "harbor-entry",
-    "sequence.tracks[1].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[1].placements[0].entryTransition.durationFrames": 12,
+    "sequence.tracks[1].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[1].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[1].placements[0].transitionIn.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -274,7 +274,7 @@ test("a layered timeline fade commits but explains a window interrupted by anoth
                 id: "harbor-bed",
                 sequenceStartFrame: 0,
                 sourceOutOffsetFrames: 120,
-                entryTransition: {
+                transitionIn: {
                   id: "harbor-entry",
                   kind: "fade",
                   durationFrames: 80,
@@ -297,9 +297,9 @@ test("a gap elsewhere does not block a locally representable layered fade", asyn
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
     "sequence.durationFrames": 260,
-    "sequence.tracks[0].placements[0].revealTransition.id": "lighthouse-reveal",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 6,
+    "sequence.tracks[0].placements[0].transitionOut.id": "lighthouse-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 6,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true }).first();
@@ -307,7 +307,7 @@ test("a gap elsewhere does not block a locally representable layered fade", asyn
   await dragFade(page, timeline.getByLabel("Adjust reveal fade: Lighthouse").first(), -width / 10);
   await page.mouse.up();
   await expect
-    .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0].revealTransition)
+    .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[0].transitionOut)
     .toEqual({ id: "lighthouse-reveal", kind: "fade", durationFrames: 12 });
   expect((await emissions()).cutListResults).toEqual([blockedOutput]);
   await expect(page.getByText(/^CutList unavailable:.*fade/)).toHaveCount(0);
@@ -319,12 +319,12 @@ test("opening a gap preserves both adjoining fades and reports their missing con
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-reveal",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 24,
+    "sequence.tracks[0].placements[0].transitionOut.id": "harbor-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 24,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
@@ -341,12 +341,12 @@ test("opening a gap preserves both adjoining fades and reports their missing con
             placements: [
               {
                 ...straightCut.tracks[0].placements[0],
-                revealTransition: { id: "harbor-reveal", kind: "fade", durationFrames: 12 },
+                transitionOut: { id: "harbor-reveal", kind: "fade", durationFrames: 12 },
               },
               {
                 ...straightCut.tracks[0].placements[1],
                 sequenceStartFrame: 121,
-                entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 24 },
+                transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 24 },
               },
             ],
           },
@@ -364,9 +364,9 @@ test("dragging Lighthouse's entry handle previews 30 frames and commits once wit
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -395,7 +395,7 @@ test("dragging Lighthouse's entry handle previews 30 frames and commits once wit
   await page.mouse.up();
   const next = structuredClone(straightCut);
   Object.assign(next.tracks[0].placements[1], {
-    entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+    transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
   });
   const cutList: CutList = {
     version: "1.0.0",
@@ -420,12 +420,12 @@ test("Harbor's separate reveal handle previews 48 frames from the trailing edge 
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].entryTransition.id": "harbor-entry",
-    "sequence.tracks[0].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].entryTransition.durationFrames": 12,
-    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-reveal",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[0].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionIn.durationFrames": 12,
+    "sequence.tracks[0].placements[0].transitionOut.id": "harbor-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -455,8 +455,8 @@ test("Harbor's separate reveal handle previews 48 frames from the trailing edge 
   await page.mouse.up();
   const next = structuredClone(straightCut);
   Object.assign(next.tracks[0].placements[0], {
-    entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 12 },
-    revealTransition: { id: "harbor-reveal", kind: "fade", durationFrames: 48 },
+    transitionIn: { id: "harbor-entry", kind: "fade", durationFrames: 12 },
+    transitionOut: { id: "harbor-reveal", kind: "fade", durationFrames: 48 },
   });
   const cutList: CutList = {
     version: "1.0.0",
@@ -493,7 +493,7 @@ test("a placement stays trimmable after adding a fade in Placement Properties", 
   await expect(page.getByLabel("Duration (sequence frames)")).toHaveValue("30");
   const afterFade = await emissions();
   expect(afterFade.sequences).toHaveLength(1);
-  const entryId = afterFade.sequences[0].tracks[0].placements[1].entryTransition?.id;
+  const entryId = afterFade.sequences[0].tracks[0].placements[1].transitionIn?.id;
   expect(entryId).toEqual(expect.stringMatching(/\S/));
   await lighthouse.click();
 
@@ -522,7 +522,7 @@ test("a placement stays trimmable after adding a fade in Placement Properties", 
             clipId: "lighthouse",
             sequenceStartFrame: 144,
             sourceInOffsetFrames: 24,
-            entryTransition: { id: entryId!, kind: "fade", durationFrames: 30 },
+            transitionIn: { id: entryId!, kind: "fade", durationFrames: 30 },
           },
         ],
       },
@@ -545,12 +545,12 @@ test("a trim preserves both fades and reports unsupported overlapping output", a
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
-    "sequence.tracks[0].placements[1].revealTransition.id": "lighthouse-reveal",
-    "sequence.tracks[0].placements[1].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].revealTransition.durationFrames": 20,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionOut.id": "lighthouse-reveal",
+    "sequence.tracks[0].placements[1].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionOut.durationFrames": 20,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -566,8 +566,8 @@ test("a trim preserves both fades and reports unsupported overlapping output", a
   Object.assign(next.tracks[0].placements[1], {
     sequenceStartFrame: 191,
     sourceInOffsetFrames: 71,
-    entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
-    revealTransition: { id: "lighthouse-reveal", kind: "fade", durationFrames: 20 },
+    transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+    transitionOut: { id: "lighthouse-reveal", kind: "fade", durationFrames: 20 },
   });
   await expect.poll(emissions).toStrictEqual({
     sequences: [next],
@@ -582,9 +582,9 @@ test("an entry fade keeps the recorded source extension after a trailing trim", 
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].entryTransition.id": "harbor-entry",
-    "sequence.tracks[0].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].entryTransition.durationFrames": 20,
+    "sequence.tracks[0].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[0].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionIn.durationFrames": 20,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
@@ -597,7 +597,7 @@ test("an entry fade keeps the recorded source extension after a trailing trim", 
       clipId: "harbor",
       sequenceStartFrame: 0,
       sourceOutOffsetFrames: -109,
-      entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 20 },
+      transitionIn: { id: "harbor-entry", kind: "fade", durationFrames: 20 },
     });
   expect((await emissions()).cutListResults).toEqual([blockedOutput]);
   const fade = timeline.getByRole("button", { name: "Select entry fade: Harbor" });
@@ -638,10 +638,10 @@ test("adjacent fades leave both handles usable, but a resize cannot make them co
   const initial = (await emissions())!;
   expect(initial.cutListResults).toHaveLength(4);
   expect(initial.cutListResults[3]).toHaveProperty("ok", true);
-  const { entryTransition, revealTransition } = initial.sequences[3].tracks[0].placements[0];
-  expect(entryTransition?.id).toEqual(expect.stringMatching(/\S/));
-  expect(revealTransition?.id).toEqual(expect.stringMatching(/\S/));
-  expect(entryTransition?.id).not.toBe(revealTransition?.id);
+  const { transitionIn, transitionOut } = initial.sequences[3].tracks[0].placements[0];
+  expect(transitionIn?.id).toEqual(expect.stringMatching(/\S/));
+  expect(transitionOut?.id).toEqual(expect.stringMatching(/\S/));
+  expect(transitionIn?.id).not.toBe(transitionOut?.id);
 
   // At 72 + 48 = 120, the handles share a sequence position, not a hit target.
   // Extending just the entry by 18 frames makes the fade regions intersect.
@@ -702,9 +702,9 @@ test("resizing during a fade drag cancels the preview instead of committing at a
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });

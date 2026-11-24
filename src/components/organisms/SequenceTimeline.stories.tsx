@@ -15,7 +15,7 @@ const tracks: SequenceTrack[] = [
         id: "opening",
         clipId: "harbor",
         sequenceStartFrame: 0,
-        entryTransition: { id: "opening-fade", kind: "fade", durationFrames: 24 },
+        transitionIn: { id: "opening-fade", kind: "fade", durationFrames: 24 },
       },
       { id: "closing", clipId: "lighthouse", sequenceStartFrame: 240 },
     ],

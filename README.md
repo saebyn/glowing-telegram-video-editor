@@ -204,7 +204,9 @@ to select or move the placement. Separate timeline grips adjust authored
 fades; there are no grips on empty edges or dissolves. Use the owning edge in
 **Placement Properties** to inspect a short or obscured transition.
 Hosts store transitions on placements as
-`entryTransition` or `revealTransition`, with `{ id, kind, durationFrames }`.
+`transitionIn` on the leading edge or `transitionOut` on the trailing edge,
+with `{ id, kind, durationFrames }`. The same names in a compiled `CutList`
+refer to output transitions, which have `{ type, duration }` instead.
 Split keeps each transition's ID and duration at its original edge, even if that split
 makes it unrepresentable in the `CutList`.
 The compiler gives the upper active placement precedence and omits fully covered fades.

@@ -103,7 +103,7 @@ it("reports a missing source when metadata is inherited instead of owned by the 
   });
 });
 
-it("compiles the same fade from render-only and full source records without loading presentation data", () => {
+it("compiles both placement fades without changing the output shape or loading presentation data", () => {
   const frameRate = { numerator: 30, denominator: 1 };
   const clips: readonly VideoClip[] = [
     {
@@ -126,7 +126,8 @@ it("compiles the same fade from render-only and full source records without load
             clipId: "harbor",
             sequenceStartFrame: 0,
             sourceInOffsetFrames: 10,
-            entryTransition: { id: "entrance", kind: "fade", durationFrames: 5 },
+            transitionIn: { id: "entrance", kind: "fade", durationFrames: 5 },
+            transitionOut: { id: "reveal", kind: "fade", durationFrames: 3 },
           },
         ],
       },
@@ -151,7 +152,12 @@ it("compiles the same fade from render-only and full source records without load
         { s3Location: "s3://archive/harbor.mp4", sections: [{ startFrame: 30, endFrame: 50 }] },
       ],
       outputTrack: [
-        { mediaIndex: 0, sectionIndex: 0, transitionIn: { type: "fade", duration: 5 } },
+        {
+          mediaIndex: 0,
+          sectionIndex: 0,
+          transitionIn: { type: "fade", duration: 5 },
+          transitionOut: { type: "fade", duration: 3 },
+        },
       ],
     },
   };

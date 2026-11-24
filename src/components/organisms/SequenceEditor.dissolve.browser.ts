@@ -14,9 +14,9 @@ test("Transition Properties resolves an authored odd dissolve and can resize it 
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 7,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 7,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -43,7 +43,7 @@ test("Transition Properties resolves an authored odd dissolve and can resize it 
                 id: "lighthouse-next",
                 clipId: "lighthouse",
                 sequenceStartFrame: 120,
-                entryTransition: {
+                transitionIn: {
                   id: "incoming-dissolve",
                   kind: "dissolve",
                   durationFrames: 9,
@@ -90,9 +90,9 @@ test("adding a fade at a cut already owned by a dissolve explains the conflict w
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 9,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 9,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
@@ -117,12 +117,12 @@ test("resizing a host-authored dissolve cannot commit while another dissolve own
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].revealTransition.id": "outgoing-dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 8,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 9,
+    "sequence.tracks[0].placements[0].transitionOut.id": "outgoing-dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 8,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 9,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const inspector = page.getByRole("region", { name: "Inspector" });
@@ -146,9 +146,9 @@ test("a dissolve clipped at the start retains its phase and supplies black and s
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].entryTransition.id": "opening-dissolve",
-    "sequence.tracks[0].placements[0].entryTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[0].entryTransition.durationFrames": 9,
+    "sequence.tracks[0].placements[0].transitionIn.id": "opening-dissolve",
+    "sequence.tracks[0].placements[0].transitionIn.kind": "dissolve",
+    "sequence.tracks[0].placements[0].transitionIn.durationFrames": 9,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Select centered dissolve: Harbor" }).click();
@@ -168,13 +168,13 @@ test("moving two dissolves into conflict retains both authored transitions", asy
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     "sequence.durationFrames": 360,
-    "sequence.tracks[0].placements[0].revealTransition.id": "outgoing-dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[0].transitionOut.id": "outgoing-dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,
     "sequence.tracks[0].placements[1].sequenceStartFrame": 130,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 8,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "dissolve",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 8,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
@@ -186,13 +186,13 @@ test("moving two dissolves into conflict retains both authored transitions", asy
         id: "harbor-open",
         clipId: "harbor",
         sequenceStartFrame: 0,
-        revealTransition: { id: "outgoing-dissolve", kind: "dissolve", durationFrames: 12 },
+        transitionOut: { id: "outgoing-dissolve", kind: "dissolve", durationFrames: 12 },
       },
       {
         id: "lighthouse-next",
         clipId: "lighthouse",
         sequenceStartFrame: 129,
-        entryTransition: { id: "incoming-dissolve", kind: "dissolve", durationFrames: 8 },
+        transitionIn: { id: "incoming-dissolve", kind: "dissolve", durationFrames: 8 },
       },
     ]);
   expect((await emissions()).cutListResults).toEqual([blockedOutput]);

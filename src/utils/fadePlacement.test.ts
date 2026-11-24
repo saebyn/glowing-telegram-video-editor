@@ -17,7 +17,7 @@ const placement = {
   sequenceStartFrame: 20,
   sourceInOffsetFrames: 6,
   sourceOutOffsetFrames: -2,
-  entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 8 } as const,
+  transitionIn: { id: "opening-entry", kind: "fade", durationFrames: 8 } as const,
 };
 const sequence: Sequence = {
   durationFrames: 64,
@@ -44,7 +44,7 @@ test("an entry fade can span the entire effective placement", () => {
           placements: [
             {
               ...placement,
-              entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
+              transitionIn: { id: "opening-entry", kind: "fade", durationFrames: 40 },
             },
           ],
         },
@@ -69,8 +69,8 @@ test("an entry extension stops at the source endpoint and a reveal at sequence f
     sequenceStartFrame: 3,
     sourceInOffsetFrames: 36,
     sourceOutOffsetFrames: -8,
-    entryTransition: { id: "entry", kind: "fade", durationFrames: 20 },
-    revealTransition: { id: "reveal", kind: "fade", durationFrames: 20 },
+    transitionIn: { id: "entry", kind: "fade", durationFrames: 20 },
+    transitionOut: { id: "reveal", kind: "fade", durationFrames: 20 },
   } as const;
   expect(getFadeSourceExtension(shortened, "leading", harbor, frameRate, 60)).toStrictEqual({
     startFrame: 140,

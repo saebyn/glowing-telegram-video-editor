@@ -195,12 +195,12 @@ test("Split blocks an edge touch but still commits an interior split when the se
 }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
-    "sequence.tracks[0].placements[1].entryTransition.id": "harbor-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 40,
-    "sequence.tracks[0].placements[1].revealTransition.id": "harbor-reveal",
-    "sequence.tracks[0].placements[1].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].revealTransition.durationFrames": 15,
+    "sequence.tracks[0].placements[1].transitionIn.id": "harbor-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 40,
+    "sequence.tracks[0].placements[1].transitionOut.id": "harbor-reveal",
+    "sequence.tracks[0].placements[1].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionOut.durationFrames": 15,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -241,7 +241,7 @@ test("Split blocks an edge touch but still commits an interior split when the se
                 sequenceStartFrame: 240,
                 sourceInOffsetFrames: 6,
                 sourceOutOffsetFrames: -84,
-                entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 40 },
+                transitionIn: { id: "harbor-entry", kind: "fade", durationFrames: 40 },
               },
               {
                 id: expect.stringMatching(/\S/),
@@ -249,7 +249,7 @@ test("Split blocks an edge touch but still commits an interior split when the se
                 sequenceStartFrame: 270,
                 sourceInOffsetFrames: 36,
                 sourceOutOffsetFrames: 6,
-                revealTransition: { id: "harbor-reveal", kind: "fade", durationFrames: 15 },
+                transitionOut: { id: "harbor-reveal", kind: "fade", durationFrames: 15 },
               },
             ],
           },

@@ -200,13 +200,13 @@ test("reorder keeps an exposed interrupted fade, explains the unavailable CutLis
   const fade = { id: "alternate-entry", kind: "fade", durationFrames: 40 } as const;
   await openWorkflow(page, layeredEditStoryId, {
     "sequence.tracks[2].placements[0].sequenceStartFrame": 40,
-    "sequence.tracks[2].placements[0].entryTransition.id": fade.id,
-    "sequence.tracks[2].placements[0].entryTransition.kind": fade.kind,
-    "sequence.tracks[2].placements[0].entryTransition.durationFrames": fade.durationFrames,
+    "sequence.tracks[2].placements[0].transitionIn.id": fade.id,
+    "sequence.tracks[2].placements[0].transitionIn.kind": fade.kind,
+    "sequence.tracks[2].placements[0].transitionIn.durationFrames": fade.durationFrames,
   });
   const alternateWithFade = {
     ...alternate,
-    placements: [{ ...alternate.placements[0], sequenceStartFrame: 40, entryTransition: fade }],
+    placements: [{ ...alternate.placements[0], sequenceStartFrame: 40, transitionIn: fade }],
   };
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const unavailable = page.getByText(

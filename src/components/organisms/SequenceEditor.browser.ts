@@ -90,7 +90,7 @@ test("adding at the start edge proposes one default entry fade and selects it on
             id: "lighthouse-next",
             clipId: "lighthouse",
             sequenceStartFrame: 120,
-            entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
+            transitionIn: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
           },
         ],
       },
@@ -204,7 +204,7 @@ test("adding at the end edge caps the reveal fade at the placement duration with
             clipId: "harbor",
             sequenceStartFrame: 0,
             sourceOutOffsetFrames: -96,
-            revealTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 24 },
+            transitionOut: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 24 },
           },
           { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 24 },
         ],
@@ -302,7 +302,7 @@ for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
     await expect(inspector.getByLabel("Duration (sequence frames)")).toHaveValue(String(expected));
     const { sequences, cutListResults } = await emissions();
     expect(sequences).toHaveLength(1);
-    expect(sequences[0].tracks[0].placements[0].revealTransition).toEqual({
+    expect(sequences[0].tracks[0].placements[0].transitionOut).toEqual({
       id: expect.stringMatching(/\S/),
       kind: "fade",
       durationFrames: expected,

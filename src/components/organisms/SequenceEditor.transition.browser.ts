@@ -16,9 +16,9 @@ test("one Apply converts type and duration together, without replacing the trans
     ...straightCutArgs,
     "sequence.durationFrames": 144,
     "sequence.tracks[0].placements[0].sourceOutOffsetFrames": -96,
-    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-transition",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 40,
+    "sequence.tracks[0].placements[0].transitionOut.id": "harbor-transition",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 40,
     "sequence.tracks[0].placements[1].sequenceStartFrame": 24,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -56,7 +56,7 @@ test("one Apply converts type and duration together, without replacing the trans
             clipId: "harbor",
             sequenceStartFrame: 0,
             sourceOutOffsetFrames: -96,
-            revealTransition: { id: "harbor-transition", kind: "fade", durationFrames: 24 },
+            transitionOut: { id: "harbor-transition", kind: "fade", durationFrames: 24 },
           },
           { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 24 },
         ],
@@ -89,7 +89,7 @@ test("one Apply converts type and duration together, without replacing the trans
   await duration.fill("15");
   await apply.click();
   const dissolved = structuredClone(faded);
-  dissolved.tracks[0].placements[0].revealTransition = {
+  dissolved.tracks[0].placements[0].transitionOut = {
     id: "harbor-transition",
     kind: "dissolve",
     durationFrames: 15,
@@ -113,12 +113,12 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     reviewEdits: "true",
-    "sequence.tracks[0].placements[0].entryTransition.id": "harbor-entry",
-    "sequence.tracks[0].placements[0].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].entryTransition.durationFrames": 16,
-    "sequence.tracks[0].placements[0].revealTransition.id": reveal.id,
-    "sequence.tracks[0].placements[0].revealTransition.kind": reveal.kind,
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": reveal.durationFrames,
+    "sequence.tracks[0].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[0].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionIn.durationFrames": 16,
+    "sequence.tracks[0].placements[0].transitionOut.id": reveal.id,
+    "sequence.tracks[0].placements[0].transitionOut.kind": reveal.kind,
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": reveal.durationFrames,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const inspector = page.getByRole("region", { name: "Inspector" });
@@ -164,7 +164,7 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
             id: "harbor-open",
             clipId: "harbor",
             sequenceStartFrame: 0,
-            entryTransition: { id: "harbor-entry", kind: "fade", durationFrames: 16 },
+            transitionIn: { id: "harbor-entry", kind: "fade", durationFrames: 16 },
           },
           { id: "lighthouse-next", clipId: "lighthouse", sequenceStartFrame: 120 },
         ],
@@ -199,7 +199,7 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   await expect(dissolve).toHaveAttribute("aria-pressed", "false");
   await expect(end.getByRole("button", { name: "Inspect transition" })).toBeEnabled();
   const restored = structuredClone(removed);
-  Object.assign(restored.tracks[0].placements[0], { revealTransition: reveal });
+  Object.assign(restored.tracks[0].placements[0], { transitionOut: reveal });
   await expect.poll(emissions).toStrictEqual({
     sequences: [removed, removed, restored],
     cutListResults: [

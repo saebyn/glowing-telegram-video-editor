@@ -407,8 +407,8 @@ export default function SequenceTimeline({
       string,
       {
         label: string;
-        entryTransition?: PlacementTransition;
-        revealTransition?: PlacementTransition;
+        transitionIn?: PlacementTransition;
+        transitionOut?: PlacementTransition;
         sequenceFrame: number;
         duration: number;
         trackIndex: number;
@@ -428,8 +428,8 @@ export default function SequenceTimeline({
         const source = getSource(sources, clip.sourceId);
         items.set(placement.id, {
           label: titles[clip.id] ?? `Clip ${clip.id}`,
-          entryTransition: placement.entryTransition,
-          revealTransition: placement.revealTransition,
+          transitionIn: placement.transitionIn,
+          transitionOut: placement.transitionOut,
           sequenceFrame: placement.sequenceStartFrame,
           duration,
           trackIndex,
@@ -889,8 +889,7 @@ export default function SequenceTimeline({
             getActionRender={({ id }) => {
               const item = items.get(id);
               if (!item) return null;
-              const { label, entryTransition, revealTransition, trimRange, mediaKind, thumbnails } =
-                item;
+              const { label, transitionIn, transitionOut, trimRange, mediaKind, thumbnails } = item;
               const mediaKindLabel = mediaKind && mediaKindLabels[mediaKind];
               const title = mediaKindLabel ? `${label} — ${mediaKindLabel}` : label;
               const audioOnly = mediaKind === "audio-only";
@@ -934,7 +933,7 @@ export default function SequenceTimeline({
                   ? "bg-violet-950 text-violet-100 border-violet-400 inset-ring-violet-400"
                   : "bg-sky-950 text-sky-100 border-sky-400 inset-ring-sky-400"
               } ${compactTrim ? "inset-ring" : "border px-2"} ${
-                entryTransition || revealTransition
+                transitionIn || transitionOut
                   ? "items-end pb-0.5"
                   : hasThumbnails
                     ? "items-end pb-3"

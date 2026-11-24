@@ -178,9 +178,9 @@ export interface ClipPlacement {
   sourceInOffsetFrames?: number;
   sourceOutOffsetFrames?: number;
   /** Transition owned by the leading edge. Omit for a hard cut. */
-  entryTransition?: PlacementTransition;
+  transitionIn?: PlacementTransition;
   /** Transition owned by the trailing edge. Omit for a hard cut. */
-  revealTransition?: PlacementTransition;
+  transitionOut?: PlacementTransition;
 }
 
 export interface SequenceTrack {

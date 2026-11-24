@@ -66,19 +66,19 @@ export function splitPlacementsAtPlayhead(
       if (!split) return [placement];
       const { clip, sourceSplitFrame } = split;
 
-      const { entryTransition, revealTransition, ...placementWithoutTransitions } = placement;
+      const { transitionIn, transitionOut, ...placementWithoutTransitions } = placement;
       return [
         {
           ...placementWithoutTransitions,
           sourceOutOffsetFrames: sourceSplitFrame - clip.sourceOutFrame,
-          ...(entryTransition && { entryTransition }),
+          ...(transitionIn && { transitionIn }),
         },
         {
           ...placementWithoutTransitions,
           id: allocatePlacementId(),
           sequenceStartFrame: playheadFrame,
           sourceInOffsetFrames: sourceSplitFrame - clip.sourceInFrame,
-          ...(revealTransition && { revealTransition }),
+          ...(transitionOut && { transitionOut }),
         },
       ];
     });

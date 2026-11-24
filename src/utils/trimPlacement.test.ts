@@ -89,8 +89,8 @@ test("a trailing trim cannot end between whole source frames", () => {
 test("a trailing trim can shorten a placement below its fade without changing either transition", () => {
   const faded = {
     ...placement,
-    entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
-    revealTransition: { id: "reveal", kind: "fade", durationFrames: 5 },
+    transitionIn: { id: "entry", kind: "fade", durationFrames: 10 },
+    transitionOut: { id: "reveal", kind: "fade", durationFrames: 5 },
   } as const;
   const track = { id: "main", label: "Main", placements: [faded] };
   const withFades: Sequence = { ...sequence, tracks: [track] };
@@ -217,8 +217,8 @@ test("a leading trim shifts the sequence start and source in without moving the 
 test("a leading trim keeps both transition IDs and durations even when they overlap", () => {
   const faded = {
     ...placement,
-    entryTransition: { id: "entry", kind: "fade", durationFrames: 10 },
-    revealTransition: { id: "reveal", kind: "fade", durationFrames: 5 },
+    transitionIn: { id: "entry", kind: "fade", durationFrames: 10 },
+    transitionOut: { id: "reveal", kind: "fade", durationFrames: 5 },
   } as const;
   const track = { id: "main", label: "Main", placements: [faded] };
   const withFades: Sequence = { ...sequence, tracks: [track] };

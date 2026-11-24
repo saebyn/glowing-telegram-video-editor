@@ -142,9 +142,9 @@ test("the occupied edge and timeline both inspect a transition without editing o
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -188,9 +188,9 @@ test("a read-only sequence allows occupied-edge inspection but no transition edi
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     readOnly: "true",
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const inspector = page.getByRole("region", { name: "Inspector" });
@@ -221,9 +221,9 @@ test("inspecting an occupied edge in Split mode highlights the fade without enab
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "incoming-fade",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionIn.id": "incoming-fade",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const inspector = page.getByRole("region", { name: "Inspector" });
@@ -309,9 +309,9 @@ test("a conflicting Add does not shorten the default to fit or clear the selecti
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-reveal",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "fade",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 96,
+    "sequence.tracks[0].placements[0].transitionOut.id": "harbor-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 96,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -409,7 +409,7 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
   };
   const faded = structuredClone(trimmed);
   Object.assign(faded.tracks[0].placements[1], {
-    entryTransition: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
+    transitionIn: { id: expect.stringMatching(/\S/), kind: "fade", durationFrames: 30 },
   });
   const cutWithFade: CutList = {
     ...cut,

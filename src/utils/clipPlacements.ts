@@ -1,8 +1,8 @@
 import type { ClipPlacement, VideoClip } from "@/types";
 
 export const transitionFields = {
-  leading: "entryTransition",
-  trailing: "revealTransition",
+  leading: "transitionIn",
+  trailing: "transitionOut",
 } as const;
 
 export function getPlacementSourceRange(clip: VideoClip, placement: ClipPlacement) {

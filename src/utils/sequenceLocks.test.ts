@@ -93,7 +93,7 @@ test("locked placements reject trims and transition edits", () => {
         placements: [
           {
             ...overlay,
-            entryTransition: { id: "locked-fade", kind: "fade", durationFrames: 10 } as const,
+            transitionIn: { id: "locked-fade", kind: "fade", durationFrames: 10 } as const,
           },
         ],
       },

@@ -121,9 +121,9 @@ test("the Inspector can read locked ranges and transitions but cannot edit them"
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     "sequence.tracks[0].locked": "true",
-    "sequence.tracks[0].placements[1].entryTransition.id": "locked-fade",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 24,
+    "sequence.tracks[0].placements[1].transitionIn.id": "locked-fade",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 24,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await expect(timeline.getByRole("button", { name: "Unlock track: Main" })).toBeVisible();

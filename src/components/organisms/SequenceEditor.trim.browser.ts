@@ -223,9 +223,9 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
   const { sequences, cutListResults } = await recordEdits(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 12,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -269,7 +269,7 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
             clipId: "lighthouse",
             sequenceStartFrame: 144,
             sourceInOffsetFrames: 24,
-            entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 12 },
+            transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 12 },
           },
         ],
       },

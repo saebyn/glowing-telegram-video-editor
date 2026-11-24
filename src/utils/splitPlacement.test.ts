@@ -128,15 +128,15 @@ test("a split requires exact matching rates, including equivalent rate fractions
 });
 
 test("a split keeps the full fade and its ID at each original edge", () => {
-  const entryTransition = { id: "enter-opening", kind: "fade", durationFrames: 20 } as const;
-  const revealTransition = { id: "reveal-opening", kind: "fade", durationFrames: 11 } as const;
+  const transitionIn = { id: "enter-opening", kind: "fade", durationFrames: 20 } as const;
+  const transitionOut = { id: "reveal-opening", kind: "fade", durationFrames: 11 } as const;
   const withFades: Sequence = {
     ...sequence,
     tracks: [
       {
         id: "main",
         label: "Main",
-        placements: [{ ...opening, entryTransition, revealTransition }],
+        placements: [{ ...opening, transitionIn, transitionOut }],
       },
     ],
   };
@@ -148,18 +148,15 @@ test("a split keeps the full fade and its ID at each original edge", () => {
       ["opening"],
       playheadFrame,
       () => "right",
-    )?.tracks[0].placements.map(({ entryTransition, revealTransition }) => [
-      entryTransition,
-      revealTransition,
-    ]);
+    )?.tracks[0].placements.map(({ transitionIn, transitionOut }) => [transitionIn, transitionOut]);
 
   expect(transitions(28)).toStrictEqual([
-    [entryTransition, undefined],
-    [undefined, revealTransition],
+    [transitionIn, undefined],
+    [undefined, transitionOut],
   ]);
   expect(transitions(62)).toStrictEqual([
-    [entryTransition, undefined],
-    [undefined, revealTransition],
+    [transitionIn, undefined],
+    [undefined, transitionOut],
   ]);
 });
 

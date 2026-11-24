@@ -35,9 +35,9 @@ test("a full-placement fade leaves a separate strip for selection and movement",
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 120,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 120,
   });
   const timeline = sequenceTimeline(page);
   const placement = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -82,7 +82,7 @@ test("a full-placement fade leaves a separate strip for selection and movement",
               expect.objectContaining({
                 id: "lighthouse-next",
                 sequenceStartFrame: 144,
-                entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 120 },
+                transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 120 },
               }),
             ],
           }),
@@ -100,13 +100,13 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
     "sequence.durationFrames": 300,
-    "sequence.tracks[0].placements[0].revealTransition.id": "harbor-dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.kind": "dissolve",
-    "sequence.tracks[0].placements[0].revealTransition.durationFrames": 20,
+    "sequence.tracks[0].placements[0].transitionOut.id": "harbor-dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 20,
     "sequence.tracks[0].placements[1].sequenceStartFrame": 132,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 30,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
   });
   const timeline = sequenceTimeline(page);
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
@@ -141,12 +141,12 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
             placements: [
               expect.objectContaining({
                 id: "harbor-open",
-                revealTransition: { id: "harbor-dissolve", kind: "dissolve", durationFrames: 20 },
+                transitionOut: { id: "harbor-dissolve", kind: "dissolve", durationFrames: 20 },
               }),
               expect.objectContaining({
                 id: "lighthouse-next",
                 sequenceStartFrame: 128,
-                entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
+                transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 30 },
               }),
             ],
           }),
@@ -200,9 +200,9 @@ test("a narrow placement still exposes its one-frame fade through Placement Prop
     ...straightCutArgs,
     "sequence.durationFrames": 3600,
     "sequence.tracks[0].placements[1].sourceOutOffsetFrames": -115,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 1,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 1,
   });
   const timeline = sequenceTimeline(page);
   const placement = timeline.getByRole("button", { name: "Lighthouse", exact: true });
@@ -225,9 +225,9 @@ test("the Split blade can cut through a visible full-placement transition", asyn
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.tracks[0].placements[1].entryTransition.id": "lighthouse-entry",
-    "sequence.tracks[0].placements[1].entryTransition.kind": "fade",
-    "sequence.tracks[0].placements[1].entryTransition.durationFrames": 120,
+    "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
+    "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[1].transitionIn.durationFrames": 120,
   });
   const timeline = sequenceTimeline(page);
   await page.getByRole("button", { name: "Split mode" }).click();
@@ -251,7 +251,7 @@ test("the Split blade can cut through a visible full-placement transition", asyn
         id: "lighthouse-next",
         sequenceStartFrame: 120,
         sourceOutOffsetFrames: -60,
-        entryTransition: { id: "lighthouse-entry", kind: "fade", durationFrames: 120 },
+        transitionIn: { id: "lighthouse-entry", kind: "fade", durationFrames: 120 },
       }),
       expect.objectContaining({
         clipId: "lighthouse",

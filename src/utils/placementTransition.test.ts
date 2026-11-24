@@ -17,7 +17,7 @@ function sequence(a: ClipPlacement, b: ClipPlacement): Sequence {
 test("duration is a positive whole count in the proposed kind, not the existing kind", () => {
   const placement = {
     ...a,
-    revealTransition: { id: "blend", kind: "dissolve", durationFrames: 40 } as const,
+    transitionOut: { id: "blend", kind: "dissolve", durationFrames: 40 } as const,
   };
   const before = sequence(placement, b);
   for (const durationFrames of [0, -1, 1.5, NaN]) {
@@ -46,11 +46,11 @@ test("duration is a positive whole count in the proposed kind, not the existing 
   ).toStrictEqual({
     kind: "edit",
     transition: fade,
-    sequence: sequence({ ...a, revealTransition: fade }, b),
+    sequence: sequence({ ...a, transitionOut: fade }, b),
   });
   const dissolve = { ...fade, kind: "dissolve" } as const;
   expect(
-    evaluateTransitionEdit(sequence({ ...a, revealTransition: fade }, b), clips, {}, rate, {
+    evaluateTransitionEdit(sequence({ ...a, transitionOut: fade }, b), clips, {}, rate, {
       placementId: "a",
       edge: "trailing",
       transition: { kind: "dissolve", durationFrames: 24 },
@@ -58,7 +58,7 @@ test("duration is a positive whole count in the proposed kind, not the existing 
   ).toStrictEqual({
     kind: "edit",
     transition: dissolve,
-    sequence: sequence({ ...a, revealTransition: dissolve }, b),
+    sequence: sequence({ ...a, transitionOut: dissolve }, b),
   });
   expect(before.tracks[0].placements[0]).toStrictEqual(placement);
 });
@@ -80,7 +80,7 @@ test("a dissolve requires an owner with a resolved positive placement duration",
 
 test("even nonoverlapping visible fades cannot both own the same cut", () => {
   const before = sequence(
-    { ...a, revealTransition: { id: "outgoing", kind: "fade", durationFrames: 1 } },
+    { ...a, transitionOut: { id: "outgoing", kind: "fade", durationFrames: 1 } },
     b,
   );
   expect(
@@ -101,7 +101,7 @@ test("even nonoverlapping visible fades cannot both own the same cut", () => {
 
 test("a dissolve and fade at the same cut compete even when their windows only touch", () => {
   const before = sequence(
-    { ...a, revealTransition: { id: "outgoing", kind: "fade", durationFrames: 1 } },
+    { ...a, transitionOut: { id: "outgoing", kind: "fade", durationFrames: 1 } },
     b,
   );
   expect(
@@ -122,8 +122,8 @@ test("a dissolve and fade at the same cut compete even when their windows only t
 
 test("an unrelated invalid transition does not let two valid transitions own a cut", () => {
   const before = sequence(
-    { ...a, revealTransition: { id: "outgoing", kind: "fade", durationFrames: 1 } },
-    { ...b, revealTransition: { id: "unrelated-invalid", kind: "fade", durationFrames: 0 } },
+    { ...a, transitionOut: { id: "outgoing", kind: "fade", durationFrames: 1 } },
+    { ...b, transitionOut: { id: "unrelated-invalid", kind: "fade", durationFrames: 0 } },
   );
   expect(
     evaluateTransitionEdit(
@@ -143,7 +143,7 @@ test("an unrelated invalid transition does not let two valid transitions own a c
 
 test("different cuts may touch but cannot compete over a visible frame", () => {
   const before = sequence(
-    { ...a, entryTransition: { id: "start", kind: "fade", durationFrames: 16 } },
+    { ...a, transitionIn: { id: "start", kind: "fade", durationFrames: 16 } },
     b,
   );
   const setReveal = (durationFrames: number) =>
@@ -184,7 +184,7 @@ test("a partially covered fade does not compete with a dissolve only in its cove
         placements: [
           {
             ...a,
-            entryTransition: { id: "partly-covered", kind: "fade", durationFrames: 24 },
+            transitionIn: { id: "partly-covered", kind: "fade", durationFrames: 24 },
           },
         ],
       },
