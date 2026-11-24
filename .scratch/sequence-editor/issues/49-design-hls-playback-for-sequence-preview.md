@@ -65,6 +65,12 @@ selection are intentionally deferred.
 
 ## Behavior to verify when implementing the target
 
+- For a Storybook example with real media, reuse the
+  [public Mux HLS sample](https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8)
+  from the [`VideoSelectionPage` Default story](../../../src/components/pages/VideoSelectionPage.stories.tsx#L10)
+  as a `previewHlsUrl` in a `SequencePreview` story. Use it for an
+  interactive playback smoke check; keep automated timing assertions on
+  the local fixture so they don't depend on the network.
 - Test the browser-independent presentation rules with mixed-rate trims,
   separate picture and sound winners, a reveal whose counterpart starts
   at the cut, and a clipped dissolve that retains its authored phase.
