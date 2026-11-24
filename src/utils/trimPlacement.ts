@@ -2,8 +2,6 @@ import type { ClipPlacement, FrameRate, Sequence, SequenceTrack, VideoClip } fro
 import { getPlacementSourceRange } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
 
-export type PlacementTrimEdge = "leading" | "trailing";
-
 /** Trimming requires matching source and project frame rates. */
 export function getTrimmableSourceRange(
   placement: ClipPlacement,

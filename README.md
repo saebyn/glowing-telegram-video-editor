@@ -186,8 +186,10 @@ trim can grow the sequence but never shortens it. In Placement Properties, use
 **Add transition** on an empty edge to add an entry or reveal fade of half a
 second (rounded to sequence frames and capped at the placement's duration).
 Use **Inspect transition** on an occupied edge or click its timeline indicator
-to see **Transition Properties**, including the owner, edge, kind, and duration
-controls where editing is allowed. Fade duration can also be adjusted on the
+to see **Transition Properties**. Choose **Fade** or **Centered dissolve**
+and enter the duration in sequence frames; **Apply** submits both together.
+**Remove transition** clears that edge and returns to Placement Properties
+once the host accepts the edit. Fade duration can also be adjusted on the
 timeline. Hosts store transitions on placements as
 `entryTransition` or `revealTransition`, with `{ id, kind, durationFrames }`.
 Split keeps each transition's ID and duration at its original edge, even if that split
@@ -195,7 +197,7 @@ makes it unrepresentable in the `CutList`.
 The compiler gives the upper active placement precedence and omits fully covered fades.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
-For a centered dissolve supplied by the host, the timeline shows its centered
+For a centered dissolve, the timeline shows its centered
 window and Transition Properties shows the contributing footage
 beyond each placement trim. An active dissolve is retained and reported as a
 compilation issue; the published format cannot carry its timing and contributions.

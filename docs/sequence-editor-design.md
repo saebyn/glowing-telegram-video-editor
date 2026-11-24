@@ -49,7 +49,7 @@ mode. A host-built page can do the same in its own layout.
 | Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
 | Preview | Read-only transport snapshot: sequence playhead, project frame rate, sequence duration, and playback state. The default `SequencePreview` displays that state today; media playback is follow-up work. |
-| Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, and duration bounds and action). The Inspector owns labels and form rendering. |
+| Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, duration bounds by kind, and actions to apply type and duration together or remove the transition). The Inspector owns labels, drafts, and form rendering. |
 | Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
 
 Export the library-owned UI components and their props from the package root,
@@ -265,12 +265,20 @@ of normal editor integration. The editor handles compilation for its edits.
   selection intact and explains why the edit is blocked; do not shorten the
   default to fit. Select the new transition only when the host accepts the
   proposed sequence, making Add one Undo step.
-- Transition Properties identifies the owner, edge, and authored kind, shows
-  resolved details such as dissolve contributions, and edits duration where
-  available. Read-only and locked tracks allow inspection, but not Add or
-  duration editing. Use placement edges for direct timeline trimming and
-  separate handles for adjusting fades. Timeline gestures and Inspector
-  controls use the same applicable edit rules.
+- Transition Properties identifies the owner, edge, and authored kind, and
+  shows resolved details such as dissolve contributions. **Apply** proposes
+  the draft type and duration together, retaining the transition's ID and
+  edge. Changing the type does not change the draft duration. Both kinds
+  require positive whole sequence frames; a fade cannot be longer than the
+  placement when authored or resized. Apply, Add, and timeline fade resizing
+  use the same evaluator and reject competition at the same cut or over
+  visible frames.
+- **Remove transition** clears the owned edge without moving or trimming its
+  placement. When accepted, it selects just the owning placement; Undo
+  restores the transition without changing that selection. Zero duration is
+  not removal. Read-only and locked tracks allow inspection, but not
+  transition edits. Timeline placement edges still trim and the separate fade
+  handles still resize fades.
 - A move proposes the IDs of the placements being moved and the grabbed placement's
   destination track and sequence frame. Every placement gets the same signed
   sequence-frame offset and the same shift in track order. Source ranges and

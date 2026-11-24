@@ -13,7 +13,9 @@ export default function compileCutList(
   const { issues, layout } = resolveVisibleSequence(sequence, clips, sources, frameRate);
   if (layout) {
     for (const gap of layout.gaps) issues.push({ code: "sequence-gap", ...gap });
-    issues.push(...applyCutListTransitions(layout.spans, layout.fades, sequence.durationFrames));
+    issues.push(
+      ...applyCutListTransitions(layout.spans, layout.transitions, sequence.durationFrames),
+    );
   }
   const [issue, ...otherIssues] = issues;
   if (issue) return { ok: false, issues: [issue, ...otherIssues] };

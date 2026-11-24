@@ -1,11 +1,15 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { SequenceFrameForm } from "@/components/molecules/SequenceFrameForm";
-import type { PlacementTransition } from "@/types";
+import type {
+  PlacementEdge,
+  PlacementTransition,
+  TransitionDraft,
+  TransitionEditProblem,
+} from "@/types";
 
 type FrameRange = { startFrame: number; endFrame: number };
 type FrameBounds = { min: number; max?: number };
 type TransitionContribution = { picture: boolean; audio: boolean };
-type InspectorEdge = "start" | "end";
 type EdgeAction = { inspectTransition: () => void } | { addTransition?: () => void };
 
 export interface PlacementPropertiesProps {
@@ -15,16 +19,20 @@ export interface PlacementPropertiesProps {
   sourceRange?: FrameRange;
   sequenceRange?: FrameRange;
   trim?: FrameBounds & { trimPlacement: (sourceOutFrame: number) => void };
-  edges: Record<InspectorEdge, EdgeAction>;
+  edges: Record<PlacementEdge, EdgeAction>;
   conflict: boolean;
 }
 
 export interface TransitionPropertiesProps {
   owner: string;
-  edge: InspectorEdge;
+  edge: PlacementEdge;
   locked: boolean;
   transition: PlacementTransition;
-  duration?: FrameBounds & { editDuration: (durationFrames: number) => void };
+  edit?: {
+    bounds: (kind: PlacementTransition["kind"]) => FrameBounds | null;
+    applyTransition: (draft: TransitionDraft) => void;
+    removeTransition: () => void;
+  };
   sourceExtension: FrameRange | null;
   dissolve?: FrameRange & {
     phaseOffsetFrames: number;
@@ -34,7 +42,7 @@ export interface TransitionPropertiesProps {
     outgoingFallback: TransitionContribution;
     incomingFallback: TransitionContribution;
   };
-  conflict: boolean;
+  problem?: TransitionEditProblem;
 }
 
 export interface SequenceInspectorProps {
@@ -50,7 +58,7 @@ export interface SequenceInspectorProps {
     | { kind: "transition"; properties: TransitionPropertiesProps };
 }
 
-const edgeLabels = { start: "Start", end: "End" } as const;
+const edgeLabels = { leading: "Start", trailing: "End" } as const;
 
 function Range({
   children,
@@ -126,7 +134,7 @@ export function PlacementProperties({
         </div>
       )}
       <div className="space-y-2">
-        {(["start", "end"] as const).map((edge) => {
+        {(["leading", "trailing"] as const).map((edge) => {
           const action = edges[edge];
           const occupied = "inspectTransition" in action;
           return (
@@ -154,15 +162,13 @@ export function TransitionProperties({
   edge,
   locked,
   transition,
-  duration,
+  edit,
   sourceExtension,
   dissolve,
-  conflict,
+  problem,
 }: TransitionPropertiesProps) {
-  const fadeLabel = edge === "start" ? "Entry fade" : "Reveal fade";
-  const dissolveEdge = edge === "start" ? "Leading" : "Trailing";
+  const fadeLabel = edge === "leading" ? "Entry fade" : "Reveal fade";
   const kindLabel = transition.kind === "dissolve" ? "Centered dissolve" : fadeLabel;
-  const durationLabel = transition.kind === "dissolve" ? `${dissolveEdge} dissolve` : fadeLabel;
   return (
     <>
       <h3 className="mb-2 font-semibold">Transition Properties</h3>
@@ -208,20 +214,81 @@ export function TransitionProperties({
           </Range>
         )}
       </div>
-      {duration && (
-        <SequenceFrameForm
+      {edit && !locked && (
+        <TransitionForm
           key={`${transition.id}:${transition.kind}:${transition.durationFrames}`}
-          id={transition.id}
-          label={`${durationLabel} duration (sequence frames)`}
-          button={`Apply ${durationLabel.toLowerCase()}`}
-          frame={transition.durationFrames}
-          min={duration.min}
-          max={duration.max}
-          onApply={duration.editDuration}
+          transition={transition}
+          {...edit}
         />
       )}
-      {conflict && <ConflictNote />}
+      {problem?.kind === "conflict" && <ConflictNote />}
+      {problem?.kind === "invalid-duration" && (
+        <p role="alert" className="mt-2 text-sm">
+          {problem.max === undefined
+            ? "Duration must be a positive whole number of sequence frames."
+            : `Duration must be a whole number between ${problem.min} and ${problem.max} sequence frames.`}
+        </p>
+      )}
+      {problem?.kind === "unavailable" && <p role="alert">This transition cannot be edited.</p>}
     </>
+  );
+}
+
+function TransitionForm({
+  transition,
+  bounds,
+  applyTransition,
+  removeTransition,
+}: NonNullable<TransitionPropertiesProps["edit"]> & { transition: PlacementTransition }) {
+  const [kind, setKind] = useState(transition.kind);
+  const durationBounds = bounds(kind);
+  const inputClass =
+    "block w-full rounded border border-slate-400 bg-white px-2 py-1 dark:bg-slate-900";
+  return (
+    <form
+      className="space-y-2 text-sm"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        const input = event.currentTarget.elements.namedItem("duration") as HTMLInputElement;
+        applyTransition({ kind, durationFrames: input.valueAsNumber });
+      }}
+    >
+      <label className="block space-y-1">
+        <span>Type</span>
+        <select
+          className={inputClass}
+          value={kind}
+          onChange={(event) => setKind(event.currentTarget.value === "fade" ? "fade" : "dissolve")}
+        >
+          <option value="fade">Fade</option>
+          <option value="dissolve">Centered dissolve</option>
+        </select>
+      </label>
+      <label className="block space-y-1">
+        <span>Duration (sequence frames)</span>
+        <input
+          className={inputClass}
+          name="duration"
+          type="number"
+          required
+          step={1}
+          defaultValue={transition.durationFrames}
+          min={durationBounds?.min}
+          max={durationBounds?.max}
+        />
+      </label>
+      <button type="submit" className="rounded bg-slate-800 px-3 py-1 text-white dark:bg-slate-600">
+        Apply
+      </button>
+      <button
+        type="button"
+        onClick={removeTransition}
+        className="ml-2 rounded border border-slate-400 px-2 py-1"
+      >
+        Remove transition
+      </button>
+    </form>
   );
 }
 

@@ -1,7 +1,8 @@
 import { type PointerEvent, useId, useLayoutEffect, useRef, useState } from "react";
+import type { PlacementEdge } from "@/types";
 export type SequenceFadeHandleProps = {
   label: string;
-  edge: "entry" | "reveal";
+  edge: PlacementEdge;
   frames: number;
   placementFrames: number;
   pixelsPerFrame: number;
@@ -32,9 +33,10 @@ export default function SequenceFadeHandle({
     100,
     (100 * (typeof draft === "number" ? draft : frames)) / placementFrames,
   );
-  const isEntry = edge === "entry";
+  const isEntry = edge === "leading";
   const styleEdge = isEntry ? "left" : "right";
-  const name = `Adjust ${edge} fade: ${label}`;
+  const fade = isEntry ? "entry fade" : "reveal fade";
+  const name = `Adjust ${fade}: ${label}`;
   const Indicator = onSelect ? "button" : "span";
 
   // The draft is relative to the authored fade and the scale at pointerdown.
@@ -62,7 +64,7 @@ export default function SequenceFadeHandle({
       {(percent > 0 || onSelect) && (
         <Indicator
           type={onSelect ? "button" : undefined}
-          aria-label={onSelect ? `Select ${edge} fade: ${label}` : undefined}
+          aria-label={onSelect ? `Select ${fade}: ${label}` : undefined}
           aria-pressed={onSelect ? selected : undefined}
           className={`absolute h-3 overflow-hidden indent-1 text-left text-[9px]/3 font-semibold whitespace-nowrap text-amber-950 ${isEntry ? "top-0 rounded-r" : "top-3 rounded-l"} ${
             selected ? "bg-amber-500 inset-ring-2 inset-ring-amber-900" : "bg-amber-300"

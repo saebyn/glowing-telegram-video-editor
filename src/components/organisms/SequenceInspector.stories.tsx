@@ -37,7 +37,7 @@ const harborPlacement = {
     sourceRange: { startFrame: 114, endFrame: 234 },
     sequenceRange: { startFrame: 0, endFrame: 120 },
     locked: false,
-    edges: { start: { inspectTransition: fn() }, end: {} },
+    edges: { leading: { inspectTransition: fn() }, trailing: {} },
     conflict: false,
   },
 } as const;
@@ -50,8 +50,8 @@ export const EditablePlacement: Story = {
         ...harborPlacement.properties,
         trim: { min: 115, max: 474, trimPlacement: fn() },
         edges: {
-          start: { inspectTransition: fn() },
-          end: { addTransition: fn() },
+          leading: { inspectTransition: fn() },
+          trailing: { addTransition: fn() },
         },
       },
     },
@@ -64,7 +64,7 @@ export const EditablePlacement: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Trim placement" }));
     if (args.inspection.kind !== "placement") throw new Error("Expected a placement");
     await expect(args.inspection.properties.trim?.trimPlacement).toHaveBeenCalledWith(210);
-    const { start, end } = args.inspection.properties.edges;
+    const { leading: start, trailing: end } = args.inspection.properties.edges;
     if (!("inspectTransition" in start) || !("addTransition" in end)) {
       throw new Error("Expected an occupied start and editable end");
     }
@@ -103,12 +103,15 @@ export const SelectedTransition: Story = {
       kind: "transition",
       properties: {
         owner: "Harbor",
-        edge: "end",
+        edge: "trailing",
         locked: false,
         transition: { id: "opening-fade", kind: "fade", durationFrames: 24 },
-        duration: { min: 1, max: 120, editDuration: fn() },
+        edit: {
+          bounds: (kind) => (kind === "fade" ? { min: 1, max: 120 } : { min: 1 }),
+          applyTransition: fn(),
+          removeTransition: fn(),
+        },
         sourceExtension: { startFrame: 90, endFrame: 114 },
-        conflict: false,
       },
     },
   },
@@ -118,13 +121,45 @@ export const SelectedTransition: Story = {
       canvas.getByText(/Transition source extension: 90 inclusive – 114 exclusive/),
     ).toBeVisible();
     const duration = canvas.getByRole("spinbutton", {
-      name: "Reveal fade duration (sequence frames)",
+      name: "Duration (sequence frames)",
     });
     await expect(duration).toHaveValue(24);
     await userEvent.clear(duration);
     await userEvent.type(duration, "18");
-    await userEvent.click(canvas.getByRole("button", { name: "Apply reveal fade" }));
+    await userEvent.selectOptions(canvas.getByRole("combobox", { name: "Type" }), "dissolve");
+    await expect(duration).toHaveValue(18);
+    await userEvent.click(canvas.getByRole("button", { name: /^Apply$/ }));
     if (args.inspection.kind !== "transition") throw new Error("Expected a transition");
-    await expect(args.inspection.properties.duration?.editDuration).toHaveBeenCalledWith(18);
+    await expect(args.inspection.properties.edit?.applyTransition).toHaveBeenCalledTimes(1);
+    await expect(args.inspection.properties.edit?.applyTransition).toHaveBeenCalledWith({
+      kind: "dissolve",
+      durationFrames: 18,
+    });
+    await userEvent.click(canvas.getByRole("button", { name: "Remove transition" }));
+    await expect(args.inspection.properties.edit?.removeTransition).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const LockedTransition: Story = {
+  args: {
+    inspection: {
+      kind: "transition",
+      properties: {
+        owner: "Harbor",
+        edge: "trailing",
+        locked: true,
+        transition: { id: "opening-fade", kind: "fade", durationFrames: 24 },
+        sourceExtension: null,
+        edit: { bounds: () => ({ min: 1 }), applyTransition: fn(), removeTransition: fn() },
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("24 sequence frames")).toBeVisible();
+    await expect(canvas.queryByRole("combobox", { name: "Type" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("spinbutton")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Remove transition" }),
+    ).not.toBeInTheDocument();
   },
 };

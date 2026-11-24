@@ -151,6 +151,8 @@ export type SequenceSource = CutListSource & {
       }
   );
 
+export type PlacementEdge = "leading" | "trailing";
+
 export interface PlacementTransition {
   /** Stable identity within the sequence. */
   id: string;
@@ -159,6 +161,12 @@ export interface PlacementTransition {
   /** Positive whole sequence frames, anchored at the owning edge. */
   durationFrames: number;
 }
+
+export type TransitionDraft = Omit<PlacementTransition, "id">;
+
+export type TransitionEditProblem =
+  | { kind: "invalid-duration"; min: number; max?: number }
+  | { kind: "conflict" | "locked" | "unavailable" };
 
 export interface ClipPlacement {
   id: string;

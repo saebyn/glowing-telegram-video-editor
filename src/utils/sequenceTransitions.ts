@@ -2,7 +2,7 @@ import type { CutListIssue, FrameRate, Sequence, SequenceSource, VideoClip } fro
 import { getDissolveWindow } from "./dissolveWindow";
 import {
   resolveVisibleSequence,
-  type ResolvedFade,
+  type ResolvedTransition,
   type ResolvedPlacement,
   type VisibleSpan,
 } from "./visibleSequence";
@@ -22,12 +22,12 @@ type TransitionOutputIssue = Extract<CutListIssue, { transitionId: string }>;
 
 function* applyVisibleFades(
   spans: readonly VisibleSpan[],
-  fades: readonly ResolvedFade[],
+  transitions: readonly ResolvedTransition[],
   durationFrames: number,
 ): Generator<TransitionOutputIssue> {
-  for (const { id, placement, edge, duration, kind } of fades) {
+  for (const { id, placement, edge, durationFrames: duration, kind } of transitions) {
     if (kind !== "fade") continue;
-    const entry = edge === "entry";
+    const entry = edge === "leading";
     const start = entry ? placement.sequenceStartFrame : placement.sequenceEndFrame - duration;
     const end = entry ? start + duration : placement.sequenceEndFrame;
     const index = firstSpanEndingAfter(spans, start);
@@ -103,22 +103,33 @@ function isContinuous(
   return !placement || cursor >= end;
 }
 
-function transitionCut({ edge, placement }: ResolvedFade) {
-  return edge === "entry" ? placement.sequenceStartFrame : placement.sequenceEndFrame;
+function transitionCut({ edge, placement }: ResolvedTransition) {
+  return edge === "leading" ? placement.sequenceStartFrame : placement.sequenceEndFrame;
+}
+
+function visibleFadeSpans(spans: readonly VisibleSpan[], fade: ResolvedTransition) {
+  const cut = transitionCut(fade);
+  const start = fade.edge === "leading" ? cut : cut - fade.durationFrames;
+  const end = fade.edge === "leading" ? cut + fade.durationFrames : cut;
+  return spans.flatMap((span) =>
+    span.placement === fade.placement && span.start < end && span.end > start
+      ? [{ startFrame: Math.max(span.start, start), endFrame: Math.min(span.end, end) }]
+      : [],
+  );
 }
 
 function resolveDissolve(
   spans: readonly VisibleSpan[],
-  transitions: readonly ResolvedFade[],
-  transition: ResolvedFade,
+  transitions: readonly ResolvedTransition[],
+  transition: ResolvedTransition,
   sequenceDuration: number,
 ) {
-  const { edge, placement, duration, id } = transition;
+  const { edge, placement, durationFrames, id } = transition;
   const cut = transitionCut(transition);
-  const window = getDissolveWindow(cut, duration, sequenceDuration);
+  const window = getDissolveWindow(cut, durationFrames, sequenceDuration);
   const outgoing = visibleAt(spans, cut - 1);
   const incoming = visibleAt(spans, cut);
-  const ownerSide = edge === "entry" ? incoming : outgoing;
+  const ownerSide = edge === "leading" ? incoming : outgoing;
   const covered = !!ownerSide && ownerSide.trackIndex < placement.trackIndex;
   const interrupted =
     !covered &&
@@ -128,27 +139,18 @@ function resolveDissolve(
     !covered &&
     transitions.some((other) => {
       if (other.id === id) return false;
-      const entry = other.edge === "entry";
+      const entry = other.edge === "leading";
       const otherCut = transitionCut(other);
       const side = visibleAt(spans, entry ? otherCut : otherCut - 1);
       if (other.kind === "dissolve" && side && side.trackIndex < other.placement.trackIndex)
         return false;
-      const start = entry ? otherCut : otherCut - other.duration;
-      const end = entry ? otherCut + other.duration : otherCut;
-      const otherWindow =
+      const otherWindows =
         other.kind === "dissolve"
-          ? getDissolveWindow(otherCut, other.duration, sequenceDuration)
-          : { startFrame: start, endFrame: end };
-      if (
-        other.kind === "fade" &&
-        !spans.some(
-          (span) => span.placement === other.placement && span.start < end && span.end > start,
-        )
-      )
-        return false;
-      return (
-        cut === otherCut ||
-        (window.startFrame < otherWindow.endFrame && window.endFrame > otherWindow.startFrame)
+          ? [getDissolveWindow(otherCut, other.durationFrames, sequenceDuration)]
+          : visibleFadeSpans(spans, other);
+      return otherWindows.some(
+        ({ startFrame, endFrame }) =>
+          cut === otherCut || (window.startFrame < endFrame && window.endFrame > startFrame),
       );
     });
   return {
@@ -213,12 +215,12 @@ export function getSequenceDissolves(
     return details;
   const { layout, issues } = resolveVisibleSequence(sequence, clips, sources, frameRate);
   if (layout && !issues.length) {
-    for (const transition of layout.fades) {
+    for (const transition of layout.transitions) {
       if (transition.kind === "dissolve") {
         details.set(
           transition.id,
           dissolvePresentation(
-            resolveDissolve(layout.spans, layout.fades, transition, sequence.durationFrames),
+            resolveDissolve(layout.spans, layout.transitions, transition, sequence.durationFrames),
             sources,
           ),
         );
@@ -235,36 +237,28 @@ export function hasTransitionAuthoringConflict(
   frameRate: FrameRate,
   transitionId: string,
 ) {
-  const { layout, issues } = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
-  if (!layout || issues.length) return false;
-  const { spans, fades } = layout;
-  const changed = fades.find(({ id }) => id === transitionId);
+  const { layout } = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
+  if (!layout) return false;
+  const { spans, transitions } = layout;
+  const changed = transitions.find(({ id }) => id === transitionId);
   if (!changed) return false;
   if (changed.kind === "dissolve") {
-    return resolveDissolve(spans, fades, changed, sequence.durationFrames).conflict;
+    return resolveDissolve(spans, transitions, changed, sequence.durationFrames).conflict;
   }
-  function visibleFadeSpans(fade: ResolvedFade) {
-    const cut = transitionCut(fade);
-    const start = fade.edge === "entry" ? cut : cut - fade.duration;
-    const end = fade.edge === "entry" ? cut + fade.duration : cut;
-    return spans.flatMap((span) =>
-      span.placement === fade.placement && span.start < end && span.end > start
-        ? [{ start: Math.max(span.start, start), end: Math.min(span.end, end) }]
-        : [],
-    );
-  }
-  const authoredSpans = visibleFadeSpans(changed);
+  const authoredSpans = visibleFadeSpans(spans, changed);
   return (
     authoredSpans.length > 0 &&
-    fades.some((other) => {
+    transitions.some((other) => {
       if (other.id === transitionId) return false;
       if (other.kind === "dissolve") {
         return resolveDissolve(spans, [changed, other], other, sequence.durationFrames).conflict;
       }
-      return visibleFadeSpans(other).some(
+      return visibleFadeSpans(spans, other).some(
         (span) =>
           transitionCut(changed) === transitionCut(other) ||
-          authoredSpans.some(({ start, end }) => start < span.end && end > span.start),
+          authoredSpans.some(
+            ({ startFrame, endFrame }) => startFrame < span.endFrame && endFrame > span.startFrame,
+          ),
       );
     })
   );
@@ -272,7 +266,7 @@ export function hasTransitionAuthoringConflict(
 
 function* getDissolveIssues(
   spans: readonly VisibleSpan[],
-  transitions: readonly ResolvedFade[],
+  transitions: readonly ResolvedTransition[],
   duration: number,
 ): Generator<TransitionOutputIssue> {
   for (const transition of transitions) {
@@ -294,11 +288,11 @@ function* getDissolveIssues(
 /** Attach fades to visible spans in place and collect output issues. */
 export function applyCutListTransitions(
   spans: readonly VisibleSpan[],
-  fades: readonly ResolvedFade[],
+  transitions: readonly ResolvedTransition[],
   durationFrames: number,
 ) {
   return [
-    ...getDissolveIssues(spans, fades, durationFrames),
-    ...applyVisibleFades(spans, fades, durationFrames),
+    ...getDissolveIssues(spans, transitions, durationFrames),
+    ...applyVisibleFades(spans, transitions, durationFrames),
   ];
 }

@@ -21,14 +21,14 @@ import SequenceTrackHeaders from "@/components/molecules/SequenceTrackHeaders";
 import type {
   FrameRate,
   MediaKind,
+  PlacementEdge,
   PlacementTransition,
   SequenceTrack,
   SequenceSource,
   VideoClip,
 } from "@/types";
-import { getPlacementSourceRange } from "@/utils/clipPlacements";
+import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
 import { getDissolveWindow } from "@/utils/dissolveWindow";
-import type { PlacementFadeField } from "@/utils/fadePlacement";
 import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
 import {
   formatFrames,
@@ -37,7 +37,6 @@ import {
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
-import type { PlacementTrimEdge } from "@/utils/trimPlacement";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -120,12 +119,12 @@ export type SequenceTimelinePlacementProps = {
 
 export type TimelineTrimIntent = {
   placementId: string;
-  edge: PlacementTrimEdge;
+  edge: PlacementEdge;
   sourceFrame: number;
 };
 export type TimelineFadeIntent = {
   placementId: string;
-  field: PlacementFadeField;
+  edge: PlacementEdge;
   durationFrames: number;
 };
 export type TimelinePlacementActivation = {
@@ -186,14 +185,14 @@ type PlacementDrag = {
 type TrimDrag = {
   pointerId: number;
   placementId: string;
-  edge: PlacementTrimEdge;
+  edge: PlacementEdge;
   contentX: number;
   width: number;
   sourceFrame: number;
 };
 type TrimDraft = {
   placementId: string;
-  edge: PlacementTrimEdge;
+  edge: PlacementEdge;
   frameOffset: number;
   sourceFrame: number;
   scrollLeft: number;
@@ -1033,9 +1032,8 @@ export default function SequenceTimeline({
                         {content}
                       </div>
                     )}
-                    {(["entry", "reveal"] as const).map((edge) => {
-                      const field = edge === "entry" ? "entryTransition" : "revealTransition";
-                      const transition = item[field];
+                    {(["leading", "trailing"] as const).map((edge) => {
+                      const transition = item[transitionFields[edge]];
                       if (transition?.kind === "dissolve") return null;
                       return (
                         <SequenceFadeHandle
@@ -1055,9 +1053,9 @@ export default function SequenceTimeline({
                             !splitEnabled && previewFade && editFade && fadePlacementIds.has(id)
                               ? {
                                   evaluate: (durationFrames) =>
-                                    previewFade({ placementId: id, field, durationFrames }),
+                                    previewFade({ placementId: id, edge, durationFrames }),
                                   commit: (durationFrames) =>
-                                    editFade({ placementId: id, field, durationFrames }),
+                                    editFade({ placementId: id, edge, durationFrames }),
                                   locked: tracks[item.trackIndex].locked,
                                 }
                               : undefined
@@ -1128,10 +1126,10 @@ export default function SequenceTimeline({
             </div>
           )}
           {Array.from(items.values()).flatMap((item) =>
-            (["entryTransition", "revealTransition"] as const).flatMap((field) => {
-              const transition = item[field];
+            (["leading", "trailing"] as const).flatMap((edge) => {
+              const transition = item[transitionFields[edge]];
               if (transition?.kind !== "dissolve") return [];
-              const cut = item.sequenceFrame + (field === "entryTransition" ? 0 : item.duration);
+              const cut = item.sequenceFrame + (edge === "leading" ? 0 : item.duration);
               const { startFrame, endFrame } = getDissolveWindow(
                 cut,
                 transition.durationFrames,

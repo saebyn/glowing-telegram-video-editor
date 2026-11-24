@@ -25,12 +25,10 @@ test("Transition Properties resolves an authored odd dissolve and can resize it 
   const before = (await lighthouse.boundingBox())!;
   const inspector = page.getByRole("region", { name: "Inspector" });
   await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
-  await expect(inspector.getByLabel("Leading dissolve duration (sequence frames)")).toHaveValue(
-    "7",
-  );
-  await inspector.getByLabel("Leading dissolve duration (sequence frames)").fill("9");
+  await expect(inspector.getByLabel("Duration (sequence frames)")).toHaveValue("7");
+  await inspector.getByLabel("Duration (sequence frames)").fill("9");
   expect(await emissions()).toEqual(noEdits);
-  await inspector.getByRole("button", { name: "Apply leading dissolve" }).click();
+  await inspector.getByRole("button", { name: "Apply", exact: true }).click();
   await expect.poll(emissions).toEqual({
     sequences: [
       {
@@ -134,8 +132,8 @@ test("resizing a host-authored dissolve cannot commit while another dissolve own
     .getByRole("button", { name: "Inspect transition" })
     .click();
   await expect(inspector.getByText("Owner: Harbor — Main, sequence frame 0")).toBeVisible();
-  await inspector.getByLabel("Trailing dissolve duration (sequence frames)").fill("10");
-  await inspector.getByRole("button", { name: "Apply trailing dissolve" }).click();
+  await inspector.getByLabel("Duration (sequence frames)").fill("10");
+  await inspector.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(inspector.getByRole("alert")).toContainText("competes with another transition");
   await expect(inspector.getByText("8 sequence frames", { exact: true })).toBeVisible();
   await expect(timeline.getByRole("button", { name: /Select centered dissolve/ })).toHaveCount(2);

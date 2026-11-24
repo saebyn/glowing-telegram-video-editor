@@ -5,21 +5,24 @@ import type {
   ClipPlacement,
   CutListIssue,
   CutListResult,
+  PlacementEdge,
   Sequence,
   SequenceSource,
+  TransitionDraft,
+  TransitionEditProblem,
   VideoClip,
 } from "@/types";
-import { getPlacementSourceRange } from "@/utils/clipPlacements";
+import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
 import compileCutList from "@/utils/compileCutList";
-import { evaluatePlacementDissolve } from "@/utils/dissolvePlacement";
-import {
-  evaluatePlacementFade,
-  getFadeBounds,
-  getFadeSourceExtension,
-  type PlacementFadeField,
-} from "@/utils/fadePlacement";
+import { getFadeSourceExtension } from "@/utils/fadePlacement";
 import { getProjectFrameCount, secondsToFrame } from "@/utils/frames";
 import { evaluatePlacementMove, evaluatePoolDrop, placeClipInGap } from "@/utils/placementDrag";
+import {
+  evaluateTransitionEdit,
+  getTransitionDurationBounds,
+  removePlacementTransition,
+  type TransitionEditIntent,
+} from "@/utils/placementTransition";
 import {
   addSequenceTrack,
   canRemoveSequenceTrack,
@@ -28,7 +31,7 @@ import {
   reorderSequenceTrack,
   toggleSequenceTrackLock,
 } from "@/utils/sequenceTracks";
-import { getSequenceDissolves, hasTransitionAuthoringConflict } from "@/utils/sequenceTransitions";
+import { getSequenceDissolves } from "@/utils/sequenceTransitions";
 import { shortenSequence } from "@/utils/shortenSequence";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {
@@ -36,7 +39,6 @@ import {
   applyTrailingTrim,
   getTrailingTrimBounds,
   getTrimmableSourceRange,
-  type PlacementTrimEdge,
 } from "@/utils/trimPlacement";
 import type { SequenceInspectorProps } from "./SequenceInspector";
 import type { SequenceClipPoolProps } from "./SequenceClipPool";
@@ -66,8 +68,6 @@ export interface UseSequenceEditorOptions {
   onCutListResult?: (result: CutListResult) => void;
 }
 
-const transitionFields = { start: "entryTransition", end: "revealTransition" } as const;
-
 const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = {
   "fade-overlap": "CutList unavailable: authored fades overlap.",
   "fade-interrupted": "CutList unavailable: an authored fade crosses a visible cut.",
@@ -84,10 +84,9 @@ function findTransition(sequence: Sequence, id: string | undefined) {
   if (id === undefined) return undefined;
   for (const track of sequence.tracks) {
     for (const placement of track.placements) {
-      for (const edge of ["start", "end"] as const) {
-        const field = transitionFields[edge];
-        const transition = placement[field];
-        if (transition?.id === id) return { track, placement, edge, field, transition };
+      for (const edge of ["leading", "trailing"] as const) {
+        const transition = placement[transitionFields[edge]];
+        if (transition?.id === id) return { track, placement, edge, transition };
       }
     }
   }
@@ -118,6 +117,7 @@ export function useSequenceEditor({
   const [activeClipId, setActiveClipId] = useState<string>();
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [transitionConflict, setTransitionConflict] = useState(false);
+  const [transitionProblem, setTransitionProblem] = useState<TransitionEditProblem>();
   const splitEnabled = !!onSequenceChange && splitMode;
   const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
   const cutListIssues = useMemo(
@@ -163,7 +163,7 @@ export function useSequenceEditor({
     selectedTransition && transitionClip
       ? getFadeSourceExtension(
           selectedTransition.placement,
-          selectedTransition.field,
+          selectedTransition.edge,
           transitionClip,
           frameRate,
           sequence.durationFrames,
@@ -177,18 +177,13 @@ export function useSequenceEditor({
   const inspectedFrameCount = inspectedSourceRange
     ? getProjectFrameCount(inspectedSourceRange, frameRate)
     : null;
-  const transitionDurationBounds =
-    onSequenceChange && selectedTransition && !selectedTransition.track.locked
-      ? selectedTransition.transition.kind === "dissolve"
-        ? { min: 1 }
-        : transitionClip &&
-          getFadeBounds(
-            getProjectFrameCount(
-              getPlacementSourceRange(transitionClip, selectedTransition.placement),
-              frameRate,
-            ),
-          )
-      : undefined;
+  const transitionPlacementFrames =
+    selectedTransition && transitionClip
+      ? getProjectFrameCount(
+          getPlacementSourceRange(transitionClip, selectedTransition.placement),
+          frameRate,
+        )
+      : 0;
   const trimBounds =
     onSequenceChange && inspectorTarget && inspectedClip
       ? getTrailingTrimBounds(
@@ -202,6 +197,7 @@ export function useSequenceEditor({
   function selectPlacement(id: string | null, toggle: boolean) {
     setBlockedTrackEdit(undefined);
     setTransitionConflict(false);
+    setTransitionProblem(undefined);
     setTransitionId(undefined);
     if (id === null) setSelection([]);
     else if (!toggle) setSelection([id]);
@@ -222,6 +218,7 @@ export function useSequenceEditor({
   function selectTransition(id: string) {
     setBlockedTrackEdit(undefined);
     setTransitionConflict(false);
+    setTransitionProblem(undefined);
     setSelection([]);
     setTransitionId(id);
   }
@@ -229,6 +226,7 @@ export function useSequenceEditor({
   function emitEdit(next: Sequence) {
     setBlockedTrackEdit(undefined);
     setTransitionConflict(false);
+    setTransitionProblem(undefined);
     onSequenceChange?.(next);
     onCutListResult?.(compileCutList(next, clips, sources, frameRate));
   }
@@ -363,7 +361,10 @@ export function useSequenceEditor({
         const trimRange = getTrimmableSourceRange(placement, clip, frameRate);
         if (trimRange) trimRanges.set(placement.id, trimRange);
         if (
-          getFadeBounds(getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate))
+          getTransitionDurationBounds(
+            "fade",
+            getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate),
+          )
         )
           fadePlacementIds.add(placement.id);
       }
@@ -386,18 +387,28 @@ export function useSequenceEditor({
     }
   }
 
-  function previewFade({ placementId, field, durationFrames }: TimelineFadeIntent) {
-    let blocked: "blocked" | "conflict" = "blocked";
-    return proposePlacementFade(placementId, field, durationFrames, () => {
-      blocked = "conflict";
-    })
-      ? ("valid" as const)
-      : blocked;
+  function previewFade(intent: TimelineFadeIntent) {
+    const result = proposeFadeGesture(intent);
+    if (result?.kind === "edit") return "valid";
+    return result?.kind === "conflict" ? "conflict" : "blocked";
   }
 
-  function editFade({ placementId, field, durationFrames }: TimelineFadeIntent) {
-    const next = proposePlacementFade(placementId, field, durationFrames);
-    if (next) commitEdit(next);
+  function editFade(intent: TimelineFadeIntent) {
+    const result = proposeFadeGesture(intent);
+    if (result?.kind === "edit") commitEdit(result.sequence);
+  }
+
+  function proposeFadeGesture({ placementId, edge, durationFrames }: TimelineFadeIntent) {
+    const owner = findPlacementTrack(sequence, placementId)?.placements.find(
+      ({ id }) => id === placementId,
+    );
+    // A fade gesture never converts an authored dissolve.
+    if (!onSequenceChange || !owner || owner[transitionFields[edge]]?.kind === "dissolve") return;
+    return proposeTransitionEdit({
+      placementId,
+      edge,
+      transition: { kind: "fade", durationFrames },
+    });
   }
 
   const timelineProps: SequenceTimelineProps = {
@@ -508,30 +519,11 @@ export function useSequenceEditor({
     }
   }
 
-  function proposePlacementFade(
-    placementId: string,
-    field: PlacementFadeField,
-    duration: number,
-    onConflict?: () => void,
-  ) {
-    const next = evaluatePlacementFade(sequence, clips, frameRate, placementId, field, duration);
-    if (next) {
-      const transitions = next.tracks
-        .flatMap(({ placements }) => placements)
-        .find(({ id }) => id === placementId);
-      const transitionId = transitions?.[field]?.id;
-      if (
-        transitionId &&
-        hasTransitionAuthoringConflict(next, clips, sources, frameRate, transitionId)
-      ) {
-        onConflict?.();
-        return null;
-      }
-    }
-    return next;
+  function proposeTransitionEdit(intent: TransitionEditIntent) {
+    return evaluateTransitionEdit(sequence, clips, sources, frameRate, intent);
   }
 
-  function proposeTrim(placementId: string, edge: PlacementTrimEdge, sourceFrame: number) {
+  function proposeTrim(placementId: string, edge: PlacementEdge, sourceFrame: number) {
     const applyTrim = edge === "leading" ? applyLeadingTrim : applyTrailingTrim;
     return applyTrim(sequence, clips, frameRate, placementId, sourceFrame);
   }
@@ -546,29 +538,24 @@ export function useSequenceEditor({
     if (next) commitEdit(next);
   }
 
-  function editTransitionDuration(duration: number) {
+  function applyTransition(transition: TransitionDraft) {
     if (!onSequenceChange || !selectedTransition) return;
-    const { field, placement, transition } = selectedTransition;
-    setTransitionConflict(false);
-    if (transition.kind === "fade") {
-      const next = proposePlacementFade(placement.id, field, duration, () =>
-        setTransitionConflict(true),
-      );
-      if (next) commitEdit(next);
-      return;
-    }
-    const edit = evaluatePlacementDissolve(
-      sequence,
-      clips,
-      sources,
-      frameRate,
-      placement,
-      field,
-      duration,
-    );
-    setTransitionConflict(edit.kind === "conflict");
+    const { placement, edge } = selectedTransition;
+    const edit = proposeTransitionEdit({
+      placementId: placement.id,
+      edge,
+      transition,
+    });
+    setTransitionProblem(edit.kind === "edit" || edit.kind === "unchanged" ? undefined : edit);
     if (edit.kind === "locked") setBlockedTrackEdit(sequence);
     if (edit.kind === "edit") commitEdit(edit.sequence);
+  }
+
+  function removeTransition() {
+    if (!onSequenceChange || !selectedTransition) return;
+    const { placement, edge } = selectedTransition;
+    const next = removePlacementTransition(sequence, placement.id, edge);
+    if (next) commitEdit(next, () => selectPlacement(placement.id, false));
   }
 
   function shorten(endFrame: number) {
@@ -624,28 +611,28 @@ export function useSequenceEditor({
     return titles?.[id] ?? `Clip ${id}`;
   }
 
-  function getEdgeAction(placement: ClipPlacement, field: PlacementFadeField, locked?: boolean) {
-    const transition = placement[field];
+  function getEdgeAction(placement: ClipPlacement, edge: PlacementEdge, locked?: boolean) {
+    const transition = placement[transitionFields[edge]];
     if (transition) return { inspectTransition: () => selectTransition(transition.id) };
     if (!onSequenceChange || locked || !inspectedFrameCount) return {};
     const duration = Math.min(inspectedFrameCount, Math.max(1, secondsToFrame(0.5, frameRate)));
-    return { addTransition: () => addTransition(placement.id, field, duration) };
+    return { addTransition: () => addTransition(placement.id, edge, duration) };
   }
 
-  function addTransition(placementId: string, field: PlacementFadeField, duration: number) {
+  function addTransition(placementId: string, edge: PlacementEdge, durationFrames: number) {
     if (!onSequenceChange) return;
     const owner = findPlacementTrack(sequence, placementId)?.placements.find(
       ({ id }) => id === placementId,
     );
-    if (!owner || owner[field]) return;
-    setTransitionConflict(false);
-    const next = proposePlacementFade(placementId, field, duration, () =>
-      setTransitionConflict(true),
-    );
-    if (!next) return;
-    const track = findPlacementTrack(next, placementId);
-    const transition = track?.placements.find(({ id }) => id === placementId)?.[field];
-    if (transition) commitEdit(next, () => selectTransition(transition.id));
+    if (!owner || owner[transitionFields[edge]]) return;
+    const result = proposeTransitionEdit({
+      placementId,
+      edge,
+      transition: { kind: "fade", durationFrames },
+    });
+    setTransitionConflict(result.kind === "conflict");
+    if (result.kind === "edit")
+      commitEdit(result.sequence, () => selectTransition(result.transition.id));
   }
 
   const inspectorProps: SequenceInspectorProps = {
@@ -659,10 +646,15 @@ export function useSequenceEditor({
             transition: selectedTransition.transition,
             sourceExtension: fadeSourceExtension,
             dissolve: dissolveDetails,
-            duration: transitionDurationBounds
-              ? { ...transitionDurationBounds, editDuration: editTransitionDuration }
-              : undefined,
-            conflict: transitionConflict,
+            edit:
+              onSequenceChange && !selectedTransition.track.locked
+                ? {
+                    bounds: (kind) => getTransitionDurationBounds(kind, transitionPlacementFrames),
+                    applyTransition,
+                    removeTransition,
+                  }
+                : undefined,
+            problem: transitionProblem,
           },
         }
       : inspectorTarget
@@ -689,14 +681,14 @@ export function useSequenceEditor({
                 ? { min: trimBounds.min, max: trimBounds.max, trimPlacement }
                 : undefined,
               edges: {
-                start: getEdgeAction(
+                leading: getEdgeAction(
                   inspectorTarget.placement,
-                  "entryTransition",
+                  "leading",
                   inspectorTarget.track.locked,
                 ),
-                end: getEdgeAction(
+                trailing: getEdgeAction(
                   inspectorTarget.placement,
-                  "revealTransition",
+                  "trailing",
                   inspectorTarget.track.locked,
                 ),
               },

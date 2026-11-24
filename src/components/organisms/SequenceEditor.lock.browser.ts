@@ -147,6 +147,8 @@ test("the Inspector can read locked ranges and transitions but cannot edit them"
   await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
   await expect(inspector.getByText("24 sequence frames", { exact: true })).toBeVisible();
   await expect(inspector.getByRole("spinbutton")).toHaveCount(0);
+  await expect(inspector.getByRole("combobox", { name: "Type" })).toHaveCount(0);
+  await expect(inspector.getByRole("button", { name: "Remove transition" })).toHaveCount(0);
   expect(await emissions()).toEqual(noEdits);
   await expect(
     timeline.getByRole("button", { name: "Select entry fade: Lighthouse" }),

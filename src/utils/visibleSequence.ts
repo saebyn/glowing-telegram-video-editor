@@ -1,6 +1,14 @@
 import type { CutList } from "@saebyn/glowing-telegram-types";
-import type { CutListIssue, CutListSource, FrameRate, Sequence, VideoClip } from "@/types";
-import { getPlacementSourceRange, inSequenceOrder } from "./clipPlacements";
+import type {
+  CutListIssue,
+  CutListSource,
+  FrameRate,
+  PlacementEdge,
+  PlacementTransition,
+  Sequence,
+  VideoClip,
+} from "@/types";
+import { getPlacementSourceRange, inSequenceOrder, transitionFields } from "./clipPlacements";
 import { getProjectFrameCount } from "./frames";
 
 export type ResolvedPlacement = {
@@ -22,12 +30,9 @@ export type VisibleSpan = {
   transitionOut?: CutList["outputTrack"][number]["transitionOut"];
 };
 
-export type ResolvedFade = {
-  id: string;
-  kind: "fade" | "dissolve";
+export type ResolvedTransition = PlacementTransition & {
   placement: ResolvedPlacement;
-  edge: "entry" | "reveal";
-  duration: number;
+  edge: PlacementEdge;
 };
 
 function isValidRate({ numerator, denominator }: FrameRate) {
@@ -51,7 +56,7 @@ export function resolveVisibleSequence(
   layoutOnly = false,
 ) {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
-  const fades: ResolvedFade[] = [];
+  const transitions: ResolvedTransition[] = [];
   const issues: CutListIssue[] = [];
   const { durationFrames } = sequence;
   const validDuration = Number.isSafeInteger(durationFrames) && durationFrames >= 0;
@@ -64,23 +69,22 @@ export function resolveVisibleSequence(
     let trackEndFrame = 0;
     let previousPlacementId: string | undefined;
     for (const placement of inSequenceOrder(track.placements)) {
-      const { id: placementId, sequenceStartFrame, entryTransition, revealTransition } = placement;
-      const transitions = [
-        ["entry", entryTransition],
-        ["reveal", revealTransition],
-      ] as const;
-      const validTransitions = transitions.filter(([, transition]) => {
-        if (!transition) return false;
-        const { kind, durationFrames } = transition;
-        if (
-          (kind === "fade" || kind === "dissolve") &&
-          Number.isSafeInteger(durationFrames) &&
-          durationFrames > 0
-        )
-          return true;
-        issues.push({ code: "invalid-transition", transitionId: transition.id });
-        return false;
-      });
+      const { id: placementId, sequenceStartFrame } = placement;
+      const edges = ["leading", "trailing"] as const;
+      const validTransitions = edges
+        .map((edge) => [edge, placement[transitionFields[edge]]] as const)
+        .filter(([, transition]) => {
+          if (!transition) return false;
+          const { kind, durationFrames } = transition;
+          if (
+            (kind === "fade" || kind === "dissolve") &&
+            Number.isSafeInteger(durationFrames) &&
+            durationFrames > 0
+          )
+            return true;
+          issues.push({ code: "invalid-transition", transitionId: transition.id });
+          return false;
+        });
 
       const validStart = Number.isSafeInteger(sequenceStartFrame) && sequenceStartFrame >= 0;
       if (!validStart) {
@@ -152,12 +156,10 @@ export function resolveVisibleSequence(
       };
       for (const [edge, transition] of validTransitions) {
         if (!transition) continue;
-        fades.push({
-          id: transition.id,
-          kind: transition.kind,
+        transitions.push({
+          ...transition,
           placement: resolved,
           edge,
-          duration: transition.durationFrames,
         });
       }
 
@@ -195,5 +197,5 @@ export function resolveVisibleSequence(
   if (cutStartFrame < sequence.durationFrames) {
     gaps.push({ startFrame: cutStartFrame, endFrame: sequence.durationFrames });
   }
-  return { issues, layout: { spans, fades, gaps } };
+  return { issues, layout: { spans, transitions, gaps } };
 }

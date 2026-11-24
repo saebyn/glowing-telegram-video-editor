@@ -1,9 +1,8 @@
 import { expect, test } from "vitest";
 import type { Sequence, VideoClip } from "@/types";
-import { evaluatePlacementDissolve } from "./dissolvePlacement";
-import { evaluatePlacementFade } from "./fadePlacement";
 import compileCutList from "./compileCutList";
 import { evaluatePlacementMove, evaluatePoolDrop } from "./placementDrag";
+import { evaluateTransitionEdit, removePlacementTransition } from "./placementTransition";
 import { toggleSequenceTrackLock } from "./sequenceTracks";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "./splitPlacement";
 import { applyLeadingTrim, applyTrailingTrim } from "./trimPlacement";
@@ -87,20 +86,31 @@ test("a lock blocks whole group moves out of the track and any move or drop into
 test("locked placements reject trims and transition edits", () => {
   expect(applyLeadingTrim(sequence, [harbor], frameRate, "over", 21)).toBeNull();
   expect(applyTrailingTrim(sequence, [harbor], frameRate, "over", 49)).toBeNull();
-  expect(
-    evaluatePlacementFade(sequence, [harbor], frameRate, "over", "entryTransition", 8),
-  ).toBeNull();
-  expect(
-    evaluatePlacementDissolve(
-      sequence,
-      [harbor],
-      sources,
-      frameRate,
-      overlay,
-      "entryTransition",
-      8,
-    ),
-  ).toEqual({ kind: "locked" });
+  const existing = {
+    ...sequence,
+    tracks: [
+      {
+        ...sequence.tracks[0],
+        placements: [
+          {
+            ...overlay,
+            entryTransition: { id: "locked-fade", kind: "fade", durationFrames: 10 } as const,
+          },
+        ],
+      },
+      ...sequence.tracks.slice(1),
+    ],
+  };
+  for (const kind of ["fade", "dissolve"] as const) {
+    expect(
+      evaluateTransitionEdit(existing, [harbor], sources, frameRate, {
+        placementId: "over",
+        edge: "leading",
+        transition: { kind, durationFrames: 8 },
+      }),
+    ).toEqual({ kind: "locked" });
+  }
+  expect(removePlacementTransition(existing, "over", "leading")).toBeNull();
 });
 
 test("the playhead split ignores locked targets even when they cover unlocked targets", () => {

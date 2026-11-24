@@ -155,7 +155,7 @@ test("the occupied edge and timeline both inspect a transition without editing o
   const enter = inspector.getByRole("group", { name: "Start edge" });
   const properties = inspector.getByRole("heading", { name: "Transition Properties" });
   const duration = inspector.getByRole("spinbutton", {
-    name: "Entry fade duration (sequence frames)",
+    name: "Duration (sequence frames)",
   });
 
   for (const inspect of [enter.getByRole("button", { name: "Inspect transition" }), indicator]) {
@@ -210,6 +210,8 @@ test("a read-only sequence allows occupied-edge inspection but no transition edi
   await expect(indicator).toHaveAttribute("aria-pressed", "true");
   await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
   await expect(inspector.getByRole("spinbutton")).toHaveCount(0);
+  await expect(inspector.getByRole("combobox", { name: "Type" })).toHaveCount(0);
+  await expect(inspector.getByRole("button", { name: "Remove transition" })).toHaveCount(0);
   expect(await emissions()).toStrictEqual(noEdits);
 });
 

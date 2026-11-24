@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import type { FrameRate, Sequence, VideoClip } from "@/types";
-import { evaluatePlacementFade, getFadeSourceExtension } from "./fadePlacement";
+import { getFadeSourceExtension } from "./fadePlacement";
+import { evaluateTransitionEdit } from "./placementTransition";
 
 const frameRate: FrameRate = { numerator: 24, denominator: 1 };
 const harbor: VideoClip = {
@@ -26,28 +27,40 @@ const sequence: Sequence = {
 test("an entry fade can span the entire effective placement", () => {
   // The placement uses source [106, 146), exactly 40 frames at the project rate.
   expect(
-    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransition", 40),
+    evaluateTransitionEdit(sequence, [harbor], [], frameRate, {
+      placementId: "open",
+      edge: "leading",
+      transition: { kind: "fade", durationFrames: 40 },
+    }),
   ).toStrictEqual({
-    durationFrames: 64,
-    tracks: [
-      {
-        id: "main",
-        label: "Main",
-        placements: [
-          {
-            ...placement,
-            entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
-          },
-        ],
-      },
-    ],
+    kind: "edit",
+    transition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
+    sequence: {
+      durationFrames: 64,
+      tracks: [
+        {
+          id: "main",
+          label: "Main",
+          placements: [
+            {
+              ...placement,
+              entryTransition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
+            },
+          ],
+        },
+      ],
+    },
   });
 });
 
 test("resubmitting the authored entry fade duration produces no edit", () => {
   expect(
-    evaluatePlacementFade(sequence, [harbor], frameRate, "open", "entryTransition", 8),
-  ).toBeNull();
+    evaluateTransitionEdit(sequence, [harbor], [], frameRate, {
+      placementId: "open",
+      edge: "leading",
+      transition: { kind: "fade", durationFrames: 8 },
+    }),
+  ).toStrictEqual({ kind: "unchanged" });
 });
 
 test("an entry extension stops at the source endpoint and a reveal at sequence frame zero", () => {
@@ -59,15 +72,11 @@ test("an entry extension stops at the source endpoint and a reveal at sequence f
     entryTransition: { id: "entry", kind: "fade", durationFrames: 20 },
     revealTransition: { id: "reveal", kind: "fade", durationFrames: 20 },
   } as const;
-  expect(getFadeSourceExtension(shortened, "entryTransition", harbor, frameRate, 60)).toStrictEqual(
-    {
-      startFrame: 140,
-      endFrame: 148,
-    },
-  );
-  expect(
-    getFadeSourceExtension(shortened, "revealTransition", harbor, frameRate, 60),
-  ).toStrictEqual({
+  expect(getFadeSourceExtension(shortened, "leading", harbor, frameRate, 60)).toStrictEqual({
+    startFrame: 140,
+    endFrame: 148,
+  });
+  expect(getFadeSourceExtension(shortened, "trailing", harbor, frameRate, 60)).toStrictEqual({
     startFrame: 133,
     endFrame: 136,
   });

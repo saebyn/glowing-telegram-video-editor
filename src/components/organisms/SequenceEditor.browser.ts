@@ -136,7 +136,7 @@ test("adding at the start edge proposes one default entry fade and selects it on
   ).toHaveAttribute("aria-pressed", "true");
   await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
   await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
-  await expect(inspector.getByLabel("Entry fade duration (sequence frames)")).toHaveValue("30");
+  await expect(inspector.getByLabel("Duration (sequence frames)")).toHaveValue("30");
   await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);
   const [placementBox, fadeBox] = await Promise.all([
     lighthouse.boundingBox(),
@@ -258,7 +258,7 @@ test("adding at the end edge caps the reveal fade at the placement duration with
     timeline.getByRole("button", { name: "Select reveal fade: Harbor" }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(inspector.getByText("Edge: End", { exact: true })).toBeVisible();
-  await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue("24");
+  await expect(inspector.getByLabel("Duration (sequence frames)")).toHaveValue("24");
   await expect(timeline.getByText("Transitions", { exact: true })).toHaveCount(0);
   const [placementBox, fadeBox] = await Promise.all([
     harbor.boundingBox(),
@@ -299,9 +299,7 @@ for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
       .getByRole("group", { name: "End edge" })
       .getByRole("button", { name: "Add transition" })
       .click();
-    await expect(inspector.getByLabel("Reveal fade duration (sequence frames)")).toHaveValue(
-      String(expected),
-    );
+    await expect(inspector.getByLabel("Duration (sequence frames)")).toHaveValue(String(expected));
     const { sequences, cutListResults } = await emissions();
     expect(sequences).toHaveLength(1);
     expect(sequences[0].tracks[0].placements[0].revealTransition).toEqual({
