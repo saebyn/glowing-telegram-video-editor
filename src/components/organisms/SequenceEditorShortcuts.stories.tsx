@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { withSampleProject } from "@/fixtures/video";
 import SequenceEditorPage from "@/components/pages/SequenceEditorPage";
+import { useState } from "react";
+import type { Sequence } from "@/types";
+import { sequenceStoryMedia } from "@/fixtures/sequenceEditor";
 
 const meta = {
   title: "Testing/Sequence editor shortcuts",
@@ -30,3 +33,33 @@ export const TwoEditors: StoryObj = {
     );
   },
 };
+
+const clipboardSequence: Sequence = {
+  durationFrames: 360,
+  tracks: [
+    {
+      id: "main",
+      label: "Main",
+      placements: [{ id: "opening", clipId: "harbor", sequenceStartFrame: 0 }],
+    },
+  ],
+};
+
+function ClipboardEditingHost() {
+  const [sequence, setSequence] = useState(clipboardSequence);
+  return (
+    <>
+      <button type="button" onClick={() => setSequence({ ...clipboardSequence })}>
+        Replace sequence
+      </button>
+      <SequenceEditorPage
+        {...sequenceStoryMedia}
+        sequence={sequence}
+        onSequenceChange={setSequence}
+        slots={{ preview: null }}
+      />
+    </>
+  );
+}
+
+export const ClipboardHost: StoryObj = { render: () => <ClipboardEditingHost /> };

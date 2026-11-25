@@ -10,7 +10,11 @@ interface History {
   pending?: { sequence: Sequence; operation: HistoryOperation; onAccept?: () => void };
 }
 
-export function useSequenceHistory(sequence: Sequence, emitEdit: (next: Sequence) => void) {
+export function useSequenceHistory(
+  sequence: Sequence,
+  emitEdit: (next: Sequence) => void,
+  onReplace: () => void,
+) {
   const [history, setHistory] = useState<History>({ current: sequence, past: [], future: [] });
 
   if (sequence !== history.current) {
@@ -30,6 +34,7 @@ export function useSequenceHistory(sequence: Sequence, emitEdit: (next: Sequence
     });
     // Like the history update, this callback only adjusts session state during render.
     if (accepted) pending.onAccept?.();
+    else onReplace();
   }
 
   function propose(next: Sequence, operation: HistoryOperation, onAccept?: () => void) {

@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type {
@@ -6,6 +6,7 @@ import type {
   CutListIssue,
   CutListResult,
   PlacementEdge,
+  PlacementPasteTarget,
   Sequence,
   SequenceSource,
   SequenceTransportSnapshot,
@@ -19,6 +20,13 @@ import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacement
 import compileCutList from "@/utils/compileCutList";
 import { getFadeSourceExtension } from "@/utils/fadePlacement";
 import { getProjectFrameCount, secondsToFrame } from "@/utils/frames";
+import {
+  copyPlacements,
+  duplicatePlacements,
+  pastePlacements,
+  previewPlacementPaste,
+  type CopiedPlacements,
+} from "@/utils/placementCopies";
 import { evaluatePlacementMove, evaluatePoolDrop, placeClipInGap } from "@/utils/placementDrag";
 import {
   evaluateTransitionEdit,
@@ -111,13 +119,32 @@ export function useSequenceEditor({
   const [inspectorPlacementId, setInspectorPlacementId] = useState<string>();
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
+  const [clipboard, setClipboard] = useState<CopiedPlacements | null>(null);
+  const [dropTarget, setDropTarget] = useState<PlacementPasteTarget | null>();
+  const pasteTarget = useRef<PlacementPasteTarget | null>(null);
+  const setPasteTarget = useCallback((target: PlacementPasteTarget | null) => {
+    pasteTarget.current = target;
+    setDropTarget((previous) => (previous === undefined ? undefined : target));
+  }, []);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string>();
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [transitionConflict, setTransitionConflict] = useState(false);
   const [transitionProblem, setTransitionProblem] = useState<TransitionEditProblem>();
   const splitEnabled = !!onSequenceChange && splitMode;
-  const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit);
+  const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit, () => {
+    setClipboard(null);
+    setDropTarget(undefined);
+  });
+
+  function commitPaste(target: PlacementPasteTarget | null) {
+    if (!onSequenceChange || !clipboard || !target) return false;
+    const next = pastePlacements(sequence, clips, frameRate, clipboard, target);
+    if (!next) return false;
+    setDropTarget(undefined);
+    commitEdit(next);
+    return true;
+  }
   const cutListIssues = useMemo(
     () => compileCutList(sequence, clips, sources, frameRate).issues,
     [sequence, clips, sources, frameRate],
@@ -460,6 +487,22 @@ export function useSequenceEditor({
     trimRanges,
     fadePlacementIds,
     selectedPlacementIds: selectedIds,
+    placementPaste: onSequenceChange
+      ? {
+          onTargetChange: setPasteTarget,
+          drop:
+            dropTarget !== undefined && clipboard
+              ? {
+                  preview: dropTarget
+                    ? previewPlacementPaste(sequence, clips, frameRate, clipboard, dropTarget)
+                    : null,
+                  confirm: (target) => {
+                    commitPaste(target);
+                  },
+                }
+              : undefined,
+        }
+      : undefined,
     splitMode: splitEnabled,
     activatePlacement,
     clearPlacementSelection: () => {
@@ -488,8 +531,6 @@ export function useSequenceEditor({
       event.defaultPrevented ||
       event.nativeEvent.isComposing ||
       event.altKey ||
-      event.ctrlKey ||
-      event.metaKey ||
       event.shiftKey ||
       !(target instanceof Element) ||
       !event.currentTarget.contains(target) ||
@@ -499,12 +540,45 @@ export function useSequenceEditor({
       return;
     }
 
+    const field = target.closest("input, textarea, select, [contenteditable]");
+    if (event.ctrlKey || event.metaKey) {
+      if (field || !onSequenceChange) return;
+      const shortcut = event.key.toLowerCase();
+      if (shortcut === "d" && selectedIds.length) {
+        event.preventDefault();
+        if (event.repeat) return;
+        const next = duplicatePlacements(sequence, clips, frameRate, selectedIds);
+        if (next) commitEdit(next);
+      } else if (shortcut === "c" && selectedIds.length) {
+        event.preventDefault();
+        setClipboard(copyPlacements(sequence, clips, frameRate, selectedIds));
+      } else if (shortcut === "v" && clipboard) {
+        event.preventDefault();
+        if (event.repeat) return;
+        if (!commitPaste(pasteTarget.current)) {
+          setSplitMode(false);
+          setDropTarget(pasteTarget.current);
+        }
+      }
+      return;
+    }
+
+    if (
+      event.key === "Escape" &&
+      !field &&
+      dropTarget !== undefined &&
+      !target.closest("dialog[open]")
+    ) {
+      event.preventDefault();
+      setDropTarget(undefined);
+      return;
+    }
     if (event.key === "Escape" && splitMode && !target.closest("dialog[open]")) {
       event.preventDefault();
       setSplitMode(false);
       return;
     }
-    if (target.closest("input, textarea, select, [contenteditable]")) return;
+    if (field) return;
 
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
@@ -586,7 +660,12 @@ export function useSequenceEditor({
     },
     splitAtPlayhead: canSplit ? splitAtPlayhead : undefined,
     splitMode,
-    toggleSplitMode: onSequenceChange ? () => setSplitMode((active) => !active) : undefined,
+    toggleSplitMode: onSequenceChange
+      ? () => {
+          setDropTarget(undefined);
+          setSplitMode((active) => !active);
+        }
+      : undefined,
     snapEnabled,
     toggleSnap: onSequenceChange ? () => setSnapEnabled((active) => !active) : undefined,
     undo: onSequenceChange ? undo : undefined,

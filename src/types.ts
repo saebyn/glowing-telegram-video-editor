@@ -199,6 +199,23 @@ export interface Sequence {
   tracks: readonly SequenceTrack[];
 }
 
+export type PlacementPasteTarget = { trackId: string; sequenceFrame: number };
+
+export type PlacementPastePreview = {
+  placements: readonly {
+    trackId: string;
+    clipId: string;
+    sequenceStartFrame: number;
+    duration: number;
+  }[];
+} & (
+  | { kind: "valid" }
+  | {
+      kind: "blocked";
+      reason: "outside-tracks" | "locked-track" | "overlap" | "invalid-placement";
+    }
+);
+
 export interface SequenceTransportSnapshot {
   readonly playheadFrame: number;
   readonly frameRate: Readonly<FrameRate>;

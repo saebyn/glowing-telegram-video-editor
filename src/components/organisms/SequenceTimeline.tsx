@@ -23,6 +23,8 @@ import type {
   FrameRate,
   MediaKind,
   PlacementEdge,
+  PlacementPastePreview,
+  PlacementPasteTarget,
   PlacementTransition,
   SequenceTrack,
   SequenceSource,
@@ -153,6 +155,13 @@ export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   trimRanges: ReadonlyMap<string, { sourceInFrame: number; sourceOutFrame: number }>;
   fadePlacementIds: ReadonlySet<string>;
   selectedPlacementIds: readonly string[];
+  placementPaste?: {
+    onTargetChange: (target: PlacementPasteTarget | null) => void;
+    drop?: {
+      preview: PlacementPastePreview | null;
+      confirm: (target: PlacementPasteTarget) => void;
+    };
+  };
   splitMode: boolean;
   activatePlacement?: (activation: TimelinePlacementActivation) => void;
   clearPlacementSelection?: () => void;
@@ -227,6 +236,7 @@ export default function SequenceTimeline({
   trimRanges,
   fadePlacementIds,
   selectedPlacementIds,
+  placementPaste,
   splitMode,
   activatePlacement,
   clearPlacementSelection,
@@ -242,6 +252,10 @@ export default function SequenceTimeline({
   const splitPointerOrigin = useRef<PointerPosition | null>(null);
   const [splitOverlayRevision, setSplitOverlayRevision] = useState(0);
   const pointer = useRef<PointerPosition | null>(null);
+  const pastePointer = useRef<PointerPosition | null>(null);
+  const reportedPasteTarget = useRef<PlacementPasteTarget | null>(null);
+  const pasteReporter =
+    useRef<NonNullable<SequenceTimelineProps["placementPaste"]>["onTargetChange"]>(undefined);
   const scrollLeft = useRef(0);
   const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
   const pendingScrollLeft = useRef<number | null>(null);
@@ -270,6 +284,27 @@ export default function SequenceTimeline({
   const playheadX = playheadFrame * pixelsPerFrame - visibleScrollLeft;
   const playheadVisible = playheadX >= 0 && playheadX <= width;
   const playheadGripOffset = Math.max(8, Math.min(width - 8, playheadX)) - playheadX;
+  const reportPasteTarget = placementPaste?.onTargetChange;
+  const pasteDrop = placementPaste?.drop;
+  const pastePress = useRef<PointerPosition | null>(null);
+
+  function pasteTargetAt(point: PointerPosition | null): PlacementPasteTarget | null {
+    if (!point || !width) return null;
+    const destination = poolDestination(point);
+    return destination
+      ? { trackId: tracks[destination.trackIndex].id, sequenceFrame: destination.sequenceFrame }
+      : null;
+  }
+
+  function syncPasteTarget() {
+    if (!reportPasteTarget) return;
+    const next = pasteTargetAt(pastePointer.current);
+    const previous = reportedPasteTarget.current;
+    if (next?.trackId !== previous?.trackId || next?.sequenceFrame !== previous?.sequenceFrame) {
+      reportedPasteTarget.current = next;
+      reportPasteTarget(next);
+    }
+  }
 
   function seekFromCursor(seconds: number) {
     const frame = snapFrame(secondsToFrame(seconds, frameRate), durationFrames);
@@ -294,6 +329,29 @@ export default function SequenceTimeline({
     }
     pendingScrollLeft.current = null;
   }, [zoom, maxDragScrollLeft]);
+
+  useLayoutEffect(() => {
+    if (!reportPasteTarget && reportedPasteTarget.current) {
+      reportedPasteTarget.current = null;
+      pasteReporter.current?.(null);
+    }
+    pasteReporter.current = reportPasteTarget;
+    if (!reportPasteTarget) return;
+    // Re-evaluate when layout, zoom or the widget scroll changes without a pointer event.
+    syncPasteTarget();
+    window.addEventListener("scroll", syncPasteTarget, true);
+    return () => window.removeEventListener("scroll", syncPasteTarget, true);
+  });
+
+  useLayoutEffect(
+    () => () => {
+      if (reportedPasteTarget.current) {
+        reportedPasteTarget.current = null;
+        pasteReporter.current?.(null);
+      }
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     timeline.current?.setTime(framesToSeconds(playheadFrame, frameRate));
@@ -542,6 +600,18 @@ export default function SequenceTimeline({
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (event.isPrimary && event.pointerType !== "touch") {
+      pastePointer.current = { clientX: event.clientX, clientY: event.clientY };
+      syncPasteTarget();
+    }
+    const pasteOrigin = pastePress.current;
+    if (
+      pasteOrigin &&
+      Math.hypot(event.clientX - pasteOrigin.clientX, event.clientY - pasteOrigin.clientY) >=
+        DRAG_THRESHOLD
+    ) {
+      pastePress.current = null;
+    }
     const splitOrigin = splitPointerOrigin.current;
     if (
       splitEnabled &&
@@ -577,6 +647,7 @@ export default function SequenceTimeline({
   }
 
   function cancelPlacementDrag(event: PointerEvent<HTMLDivElement>) {
+    pastePress.current = null;
     splitPointerOrigin.current = null;
     if (trimDrag.current?.pointerId === event.pointerId) clearTrim();
     if (drag.current?.pointerId === event.pointerId) clearMove();
@@ -785,10 +856,41 @@ export default function SequenceTimeline({
               onSeek(playheadFrame);
             }
           }}
+          tabIndex={pasteDrop ? -1 : undefined}
+          onPointerDownCapture={(event) => {
+            if (!event.isPrimary || event.button !== 0) return;
+            if (event.pointerType !== "touch") {
+              pastePointer.current = { clientX: event.clientX, clientY: event.clientY };
+              syncPasteTarget();
+            }
+            if (!pasteDrop || !pasteTargetAt(event)) return;
+            pastePress.current = { clientX: event.clientX, clientY: event.clientY };
+            event.stopPropagation();
+            event.preventDefault();
+            event.currentTarget.focus({ preventScroll: true });
+          }}
           onPointerMove={handlePointerMove}
+          onPointerLeave={() => {
+            pastePointer.current = null;
+            pastePress.current = null;
+            syncPasteTarget();
+          }}
           onPointerUp={finishPlacementDrag}
           onPointerCancel={cancelPlacementDrag}
           onClickCapture={(event) => {
+            const target = pasteDrop && event.detail !== 0 && pasteTargetAt(event);
+            if (pasteDrop && target) {
+              event.stopPropagation();
+              const origin = pastePress.current;
+              pastePress.current = null;
+              if (
+                origin &&
+                Math.hypot(event.clientX - origin.clientX, event.clientY - origin.clientY) <
+                  DRAG_THRESHOLD
+              )
+                pasteDrop.confirm(target);
+              return;
+            }
             if (!(event.target as Element).closest(RULER)) return;
             // The widget's ruler right-bound check subtracts the scroll offset
             // twice. Read the tracks' current scroll before seeking.
@@ -847,6 +949,7 @@ export default function SequenceTimeline({
               if (scrollLeft.current === left) return;
               scrollLeft.current = left;
               setVisibleScrollLeft(left);
+              syncPasteTarget();
               if (drag.current && pointer.current) previewMove(pointer.current, drag.current);
               if (trimDrag.current && pointer.current)
                 setTrimDraft(proposedTrim(pointer.current.clientX, trimDrag.current));
@@ -1223,6 +1326,19 @@ export default function SequenceTimeline({
               poolDraft.scrollLeft,
               poolDrop.kind === "blocked",
             )}
+          {pasteDrop?.preview?.placements.map((placement, index) => {
+            const trackIndex = tracks.findIndex(({ id }) => id === placement.trackId);
+            if (trackIndex < 0) return null;
+            return placementPreview(
+              `paste-${index}`,
+              titles[placement.clipId] ?? `Clip ${placement.clipId}`,
+              trackIndex,
+              placement.sequenceStartFrame,
+              placement.duration,
+              visibleScrollLeft,
+              pasteDrop.preview?.kind === "blocked",
+            );
+          })}
         </div>
         {tracks.length === 0 && (
           <p className="col-span-full border-t border-slate-600 px-3 py-6 text-sm">
@@ -1232,6 +1348,25 @@ export default function SequenceTimeline({
       </div>
       {/* Draft feedback must not add a page scrollbar and resize the timeline during a gesture. */}
       <div className="h-20 overflow-y-auto text-sm wrap-anywhere tabular-nums">
+        {pasteDrop && (
+          <output className="mt-1 block">
+            Paste: click to place or press Escape to cancel.
+            {pasteDrop.preview?.placements.map(({ trackId, sequenceStartFrame }, index) => (
+              <span key={index}>
+                {" · "}
+                {tracks.find(({ id }) => id === trackId)?.label} · Sequence frame{" "}
+                {sequenceStartFrame}
+              </span>
+            ))}
+            {pasteDrop.preview?.kind === "blocked" &&
+              {
+                overlap: " · Blocked: Overlaps another placement",
+                "outside-tracks": " · Blocked: The selection needs more tracks",
+                "locked-track": " · Blocked: The track is locked",
+                "invalid-placement": " · Blocked: Cannot place this selection",
+              }[pasteDrop.preview.reason]}
+          </output>
+        )}
         {activeTrimPreview && trimDraft && trimItem && (
           <output className="mt-1 block">
             {trimItem.label} · Sequence frame {trimDraft.edge === "leading" ? trimStart : trimEnd}

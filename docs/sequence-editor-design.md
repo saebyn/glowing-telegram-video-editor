@@ -41,8 +41,8 @@ the project frame rate from `ProjectProvider` and passes the resolved rate to
 components that need it. The hook returns `toolbarProps`, `clipPoolProps`,
 `previewProps`, `inspectorProps`, and `timelineProps`, plus notices and an opt-in
 root keyboard handler. The default page renders notices independently of the
-Toolbar and binds shortcuts to its root, including Escape to dismiss Split
-mode. A host-built page can do the same in its own layout.
+Toolbar and binds shortcuts to its root, including Escape to dismiss Split or
+placement paste drop mode. A host-built page can do the same in its own layout.
 
 | Slot | Props from the editing session |
 | --- | --- |
@@ -271,6 +271,26 @@ of normal editor integration. The editor handles compilation for its edits.
 - Delete removes the selected placements together in one edit. It does not
   close gaps, shorten the sequence, remove tracks, or remove reusable clips
   from the clip pool. Delete is unavailable without a placement selection.
+- With focus in an editable editor and outside text fields, use Ctrl/⌘+C to
+  copy placement selection, Ctrl/⌘+D to duplicate it, or Ctrl/⌘+V to paste the
+  copy. Copy snapshots relative sequence positions and track spacing, effective
+  source ranges, and authored transitions. The clipboard belongs to the session,
+  survives accepted edits, and clears when the host replaces the sequence. It
+  does not use the system clipboard or copy across editors.
+- Duplicate puts the earliest new placement at the latest selected exclusive
+  end and keeps the original tracks. Paste maps the earliest copied sequence
+  frame and topmost copied track to the pointer's frame and track respectively,
+  without snapping or fitting to a gap. If Paste cannot place the group there,
+  it enters drop mode: move the pointer to preview, click on a valid track
+  position to place, or press Escape to cancel. A blocked click leaves drop
+  mode active. The optional `placementPaste` prop reports frame-and-track
+  targets (or `null`) to the session; when it supplies a drop preview, the
+  Timeline renders it and reports the clicked target for revalidation.
+- Duplicate and Paste reuse clips and assign new placement and transition IDs.
+  Same-track overlap and missing or locked destination tracks block the whole
+  edit. Touching edges are allowed. Any needed duration growth joins the group
+  insertion as one host-accepted Undo step. Copy, preview, and cancel emit
+  nothing; an accepted edit need not produce a successful `CutList`.
 - Placement Properties shows the source and sequence ranges and applicable trim
   controls for one selected placement. For multiple selected placements,
   it shows the count and tracks and lets the editor choose which placement to

@@ -97,6 +97,7 @@ export default function SequenceEditorPage({ slots, ...props }: SequenceEditorPa
       <p id={shortcutsHintId} className="text-sm text-slate-600 dark:text-slate-300">
         Left/Right Arrow: step the playhead.
         {onSequenceChange && " [ and ]: nudge selection earlier or later."}
+        {onSequenceChange && " Ctrl/⌘+C: copy placements. Ctrl/⌘+D: duplicate. Ctrl/⌘+V: paste."}
       </p>
       {notices.map((notice) => (
         <output key={notice} className="block text-sm text-amber-900 dark:text-amber-200">
