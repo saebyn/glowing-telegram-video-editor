@@ -22,7 +22,7 @@ npm ci
 | Format source with Oxfmt | `npm run format` |
 | Check source formatting | `npm run format:check` |
 | Build the library | `npm run build` |
-| Rebuild the library JavaScript on changes | `npm run dev` |
+| Rebuild the library JavaScript and CSS on changes | `npm run dev` |
 | Start Storybook at [localhost:6006](http://localhost:6006) | `npm run storybook` |
 | Build static Storybook | `npm run build-storybook` |
 

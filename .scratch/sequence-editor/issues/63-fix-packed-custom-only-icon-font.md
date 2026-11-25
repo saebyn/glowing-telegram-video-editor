@@ -68,5 +68,11 @@ for hosts that use their own Tailwind.
   byte-identical.
 - `npm test -- --run` passed (215 unit and Storybook tests), along with
   typecheck, lint, formatting, script syntax, and `git diff --check`.
-  Lint reported the existing `VideoPlayer.tsx` captions warning. Logs and
-  measurements: `/tmp/opencode/sequence63.1J1voAD2/`.
+   Lint reported the existing `VideoPlayer.tsx` captions warning. Logs and
+   measurements: `/tmp/opencode/sequence63.1J1voAD2/`.
+- Follow-up: `npm run dev` initially deleted both built stylesheet exports
+  when its JS watcher cleared `dist`. Running both build watchers without
+  clearing their shared output preserved both files and rebuilt them after
+  a custom CSS edit. The Chromium packed check passed on the watch output.
+  Re-enabling output clearing broke the watch check; isolated Stryker also
+  killed 3/3 mutations to the CSS build inputs.
