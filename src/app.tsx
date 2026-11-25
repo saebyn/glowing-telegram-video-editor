@@ -1,3 +1,4 @@
+import "./index.css";
 import { createRoot } from "react-dom/client";
 import { parseContent, VideoSelectionPage } from ".";
 import rawContent from "./data.json";

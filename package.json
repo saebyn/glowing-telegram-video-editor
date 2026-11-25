@@ -32,9 +32,10 @@
   "scripts": {
     "prepublishOnly": "npm run build",
     "dev": "vite build --watch",
-    "build": "tsc && vite build && npx postcss src/custom-only.css -o dist/custom-only.css",
+    "build": "tsc && vite build && vite build --config vite.styles.config.ts",
     "test": "vitest",
     "test:browser": "playwright test",
+    "test:packed-css": "node scripts/test-packed-css.mjs",
     "test:ui": "vitest --ui",
     "lint": "oxlint -c .oxlintrc.json src/",
     "lint:fix": "oxlint -c .oxlintrc.json --fix src/",

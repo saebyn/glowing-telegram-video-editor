@@ -1,3 +1,4 @@
+@import "./custom-only.css";
 @import "tailwindcss" source(none);
 
 /* Keep this scan on library code; Storybook imports Tailwind separately. */

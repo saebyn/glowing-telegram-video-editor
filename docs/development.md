@@ -22,12 +22,13 @@ npm ci
 | Format source with Oxfmt | `npm run format` |
 | Check source formatting | `npm run format:check` |
 | Build the library | `npm run build` |
-| Rebuild the Vite library on changes | `npm run dev` |
+| Rebuild the library JavaScript on changes | `npm run dev` |
 | Start Storybook at [localhost:6006](http://localhost:6006) | `npm run storybook` |
 | Build static Storybook | `npm run build-storybook` |
 
 [Test CI](../.github/workflows/unittest.yml) installs dependencies and Chromium,
-then runs lint, formatting, and Vitest on pushes and pull requests to `main`.
+then runs lint, formatting, Vitest, and the packed CSS browser check on pushes
+and pull requests to `main`.
 [Chromatic](../.github/workflows/chromatic.yml) checks Storybook on pushes.
 For UI changes, exercise the affected stories in the browser and check light
 and dark modes where applicable.
@@ -83,10 +84,17 @@ such as the toolbar, inspector, or timeline.
 - `dist/glowing-telegram-video-editor.js`: the ES module, with React and React DOM as external peer dependencies.
 - `dist/index.d.ts` and supporting declaration files.
 - `dist/glowing-telegram-video-editor.css` (`styles.css`) and `dist/custom-only.css` (`custom-only.css`), the full and custom-only stylesheets.
+- One Material Symbols Outlined font under `dist/assets/`, referenced by both stylesheets.
 
 Keep `dts({ outDir: "dist" })` in [`vite.config.ts`](../vite.config.ts) and `compilerOptions.rootDir: "./src"` in [`tsconfig.json`](../tsconfig.json). The plugin uses `rootDir` to put `index.d.ts` at the root of `dist/`; without it, declarations can land under `dist/src/` and miss the types export. Leave declaration bundling off (`bundleTypes`, called `rollupTypes` in older versions): API Extractor has failed to resolve `@/` aliases here and emitted `export {}`.
 
 To inspect what npm would ship, run `npm run build` followed by `npm pack --dry-run`.
+After building, run `timeout --kill-after=5s 150s npm run test:packed-css` on
+Linux (also run by Test CI). The test runs `npm pack`, installs the tarball in
+a fresh Vite app, and checks in Chromium that the Export icon renders as a glyph
+with only `custom-only.css` imported. It serves that app on an ephemeral
+localhost port, not Storybook. To test an existing tarball instead, append
+`-- /path/to/package.tgz`.
 
 ## Releases
 

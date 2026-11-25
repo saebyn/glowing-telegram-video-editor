@@ -29,3 +29,5 @@ jobs:
       - run: npm run lint:ci
       - run: npm run format:check
       - run: npm test
+      - run: npm run build
+      - run: timeout --kill-after=5s 150s npm run test:packed-css

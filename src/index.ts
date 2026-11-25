@@ -1,6 +1,3 @@
-import "./custom-only.css";
-import "./index.css";
-
 import AudioChannelNameEditor from "@/components/atoms/AudioChannelNameEditor";
 import WaveformDisplay from "@/components/atoms/WaveformDisplay";
 import ProjectClipPreview from "@/components/molecules/ProjectClipPreview";
