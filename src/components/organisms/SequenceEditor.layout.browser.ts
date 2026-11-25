@@ -31,6 +31,21 @@ test("move feedback does not cancel a drag when the editor just fits the viewpor
     width: 1_280,
     height: Math.ceil(editorBox.y + editorBox.height) + 2,
   });
+
+  // The last Harbor ends at the sequence endpoint. Wait for it to reach
+  // the fitted timeline's right edge (allowing for the button's inset).
+  await expect
+    .poll(
+      async () => {
+        const fitted = await timeline.boundingBox();
+        const last = await harbor.last().boundingBox();
+        if (!fitted || !last) return Infinity;
+        return Math.abs(fitted.x + fitted.width - (last.x + last.width));
+      },
+      { message: "Last Harbor reaches the fitted timeline's right edge" },
+    )
+    .toBeLessThan(2);
+
   const [first, last] = await Promise.all([
     harbor.first().boundingBox(),
     harbor.last().boundingBox(),
