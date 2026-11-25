@@ -1,6 +1,6 @@
 # 52 — Revisit thumbnails in standalone project clip views
 
-Status: needs-info
+Resolution: Closed without implementation; no standalone caller currently needs source-frame thumbnails.
 
 ## Proposal
 
@@ -15,3 +15,12 @@ thumbnails in the sequence editor but leaves standalone `ProjectClipPool`,
 - If convergence is useful, determine what source metadata those callers
   already have and how to support them without requiring render locations
   or playback URLs just to display thumbnails.
+
+## Comments
+
+- `ProjectClipTimeline` was removed in [#56](56-remove-unused-legacy-editor-views.md).
+  Keep the existing per-clip image inputs for `ProjectClipPool` and
+  `ProjectClipPreview`. The sequence editor already filters source-frame
+  thumbnails to each clip's range before passing image URLs to the pool.
+  Revisit if a standalone caller needs the pool to do that filtering; it
+  should not require playback URLs or render metadata.
