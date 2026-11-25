@@ -74,3 +74,10 @@ editors can adjust its duration directly, just as they can for a
   relative documentation links, and `git diff --check` passed; lint passed
   with the existing captions warning in `VideoPlayer.tsx`. No production
   build was run for this ticket while #63 owned the package build.
+- Follow-up review caught a custom Timeline that retained its release
+  callback at pointerdown. A real pointer test with a host-applied lock
+  between press and release emitted an invalid edit before the fix
+  (negative control), and now emits neither host callback. The combined
+  production build passed. Light and dark Chromium smoke checks passed on
+  static Storybook; Stryker killed 19/20 mutants in the resize-by-ID edit
+  path (the survivor skips a redundant early return for an undefined ID).

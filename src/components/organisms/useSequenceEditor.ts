@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useMemo, useState } from "react";
+import { type KeyboardEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type {
@@ -392,11 +392,18 @@ export function useSequenceEditor({
     return result.kind === "conflict" ? "conflict" : "blocked";
   }
 
-  function resizeTransition(intent: TransitionResizeIntent) {
-    if (!onSequenceChange || splitEnabled) return;
-    const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
-    if (result.kind === "edit") commitEdit(result.sequence);
-  }
+  // A replacement Timeline may retain the release callback from pointerdown.
+  const releaseTransitionResize = useRef<(intent: TransitionResizeIntent) => void>(() => {});
+  useLayoutEffect(() => {
+    releaseTransitionResize.current = (intent) => {
+      if (!onSequenceChange || splitEnabled) return;
+      const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
+      if (result.kind === "edit") commitEdit(result.sequence);
+    };
+    return () => {
+      releaseTransitionResize.current = () => {};
+    };
+  });
 
   const timelineProps: SequenceTimelineProps = {
     frameRate,
@@ -438,7 +445,9 @@ export function useSequenceEditor({
         }
       : undefined,
     previewTransitionResize: onSequenceChange ? previewTransitionResize : undefined,
-    resizeTransition: onSequenceChange ? resizeTransition : undefined,
+    resizeTransition: onSequenceChange
+      ? (intent) => releaseTransitionResize.current(intent)
+      : undefined,
     previewTrim: onSequenceChange
       ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
       : undefined,

@@ -207,3 +207,28 @@ test("a replacement Timeline previews and resizes either transition kind by ID",
     { ok: false, issues: [{ code: "unsupported-dissolve", transitionId: "closing-dissolve" }] },
   ]);
 });
+
+test("a replacement Timeline release honors a lock added by the host after pointerdown", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${resizeStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Frame-based timeline" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await timeline.getByLabel("Proposed transition duration").fill("12");
+  await timeline.getByRole("button", { name: "Preview resize" }).click();
+  const preview = timeline.getByRole("status", { name: "Transition resize preview" });
+  await expect(preview).toHaveText("Fits at 12 sequence frames");
+
+  const resize = timeline.getByRole("button", { name: "Resize transition" });
+  await resize.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: lock Main" }).press("Space");
+  await page.mouse.up();
+
+  // Disappearance confirms that the custom Timeline ran its release action.
+  await expect(preview).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+  await timeline.getByRole("button", { name: "Preview resize" }).click();
+  await expect(preview).toHaveText("blocked");
+});

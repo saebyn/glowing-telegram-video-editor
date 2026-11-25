@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import {
   SequenceClipPool,
@@ -190,6 +190,7 @@ function TransitionResizeControls({
   const [selected, setSelected] = useState(transitions[0]?.id);
   const [duration, setDuration] = useState("8");
   const [preview, setPreview] = useState<string>();
+  const releaseResize = useRef<(() => void) | undefined>(undefined);
   const transitionId = selected ?? transitions[0]?.id;
   const intent = transitionId ? { transitionId, durationFrames: Number(duration) } : undefined;
   return (
@@ -240,8 +241,16 @@ function TransitionResizeControls({
       <button
         type="button"
         disabled={!intent || !resizeTransition}
+        onPointerDown={() => {
+          if (intent && resizeTransition) releaseResize.current = () => resizeTransition(intent);
+        }}
+        onPointerCancel={() => {
+          releaseResize.current = undefined;
+        }}
         onClick={() => {
-          if (intent) resizeTransition?.(intent);
+          if (releaseResize.current) releaseResize.current();
+          else if (intent) resizeTransition?.(intent);
+          releaseResize.current = undefined;
           setPreview(undefined);
         }}
       >
@@ -279,6 +288,14 @@ function useControlledStory(manualFirstEdit = false, initialSequence = original)
   return {
     options,
     pending,
+    lockTopTrack() {
+      setSequence((current) => ({
+        ...current,
+        tracks: current.tracks.map((track, index) =>
+          index === 0 ? { ...track, locked: true } : track,
+        ),
+      }));
+    },
     acceptProposal() {
       if (!pending) return;
       setSequence(pending);
@@ -374,8 +391,15 @@ const transitionsExample: Sequence = {
 };
 
 function ResizeTransitionsExample() {
-  const { options } = useControlledStory(false, transitionsExample);
-  return <SequenceEditorPage {...options} slots={slots} />;
+  const { options, lockTopTrack } = useControlledStory(false, transitionsExample);
+  return (
+    <>
+      <button type="button" onClick={lockTopTrack}>
+        Host: lock Main
+      </button>
+      <SequenceEditorPage {...options} slots={slots} />
+    </>
+  );
 }
 
 export const ResizeATransition: StoryObj = {
