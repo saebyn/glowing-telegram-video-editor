@@ -155,6 +155,8 @@ export type SequenceSource = CutListSource & {
 
 export type PlacementEdge = "leading" | "trailing";
 
+export type TransitionResizeIntent = { transitionId: string; durationFrames: number };
+
 export interface PlacementTransition {
   /** Stable identity within the sequence. */
   id: string;

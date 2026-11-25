@@ -1,5 +1,5 @@
-import { type PointerEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import type { PlacementEdge } from "@/types";
+import { transitionResizeConflict, useTransitionResizeDrag } from "./useTransitionResizeDrag";
 export type SequenceFadeHandleProps = {
   label: string;
   edge: PlacementEdge;
@@ -25,36 +25,18 @@ export default function SequenceFadeHandle({
   onSelect,
   edit,
 }: SequenceFadeHandleProps) {
-  const drag = useRef<{ pointerId: number; x: number } | null>(null);
-  const [draft, setDraft] = useState<number | "blocked" | "conflict" | null>(null);
-  const feedbackId = useId();
-  const blocked = draft === "blocked" || draft === "conflict";
-  const percent = (100 * (typeof draft === "number" ? draft : frames)) / placementFrames;
   const isEntry = edge === "leading";
+  const { previewFrames, blocked, feedbackId, gripProps } = useTransitionResizeDrag(
+    edit,
+    frames,
+    (isEntry ? 1 : -1) / pixelsPerFrame,
+    placementFrames,
+  );
+  const percent = (100 * (previewFrames ?? frames)) / placementFrames;
   const styleEdge = isEntry ? "left" : "right";
   const fade = isEntry ? "entry fade" : "reveal fade";
   const name = `Adjust ${fade}: ${label}`;
   const Indicator = onSelect ? "button" : "span";
-
-  // The draft is relative to the authored fade and the scale at pointerdown.
-  useLayoutEffect(() => {
-    if (!drag.current) return;
-    drag.current = null;
-    setDraft(null);
-  }, [frames, placementFrames, pixelsPerFrame]);
-
-  function clearDrag() {
-    drag.current = null;
-    setDraft(null);
-  }
-
-  function proposedFrames(event: PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    const origin = drag.current;
-    return origin?.pointerId === event.pointerId
-      ? frames + Math.round(((event.clientX - origin.x) * (isEntry ? 1 : -1)) / pixelsPerFrame)
-      : null;
-  }
 
   return (
     <>
@@ -90,8 +72,6 @@ export default function SequenceFadeHandle({
         <button
           type="button"
           aria-label={name}
-          aria-describedby={blocked ? feedbackId : undefined}
-          data-state={blocked ? "blocked" : undefined}
           title={name}
           // Adjacent fades can share a frame boundary. Keep their grips on separate lines,
           // away from the middle of the indicator and the placement's trim corners.
@@ -99,45 +79,15 @@ export default function SequenceFadeHandle({
           style={{
             [styleEdge]: `clamp(min(6px, 50%), ${percent}%, calc(100% - min(6px, 50%)))`,
           }}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            if (!event.isPrimary || event.button !== 0) return;
-            drag.current = { pointerId: event.pointerId, x: event.clientX };
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const next = proposedFrames(event);
-            if (next === null) return;
-            if (next === frames) {
-              setDraft(null);
-              return;
-            }
-            const evaluated = edit.evaluate(next);
-            setDraft(evaluated === "valid" ? next : evaluated);
-          }}
-          onPointerUp={(event) => {
-            const next = proposedFrames(event);
-            if (next === null) return;
-            clearDrag();
-            edit.commit(next);
-          }}
-          onPointerCancel={(event) => {
-            event.stopPropagation();
-            if (drag.current?.pointerId === event.pointerId) clearDrag();
-          }}
-          onLostPointerCapture={(event) => {
-            event.stopPropagation();
-            if (drag.current?.pointerId === event.pointerId) clearDrag();
-          }}
+          {...gripProps}
         >
           ↔
         </button>
       )}
       {blocked && (
         <span id={feedbackId} className="sr-only">
-          {draft === "conflict"
-            ? "This transition competes with another transition on the same cut or visible frames."
+          {blocked === "conflict"
+            ? transitionResizeConflict
             : edit?.locked
               ? "Blocked: the track is locked."
               : `Fade duration must be between 1 and ${placementFrames} sequence frames.`}

@@ -168,9 +168,7 @@ test("the public HLS story shows and scrubs a three-placement edit with transiti
   await expect(timeline.getByRole("button", { name: /^Middle\b/ })).toBeVisible();
   await expect(timeline.getByRole("button", { name: /^Closing\b/ })).toBeVisible();
   await expect(timeline.getByRole("button", { name: "Select entry fade: Opening" })).toBeVisible();
-  await expect(
-    timeline.getByRole("button", { name: "Select centered dissolve: Middle" }),
-  ).toBeVisible();
+  await expect(timeline.getByRole("button", { name: "Select dissolve: Middle" })).toBeVisible();
   await expect(timeline.getByRole("button", { name: "Select reveal fade: Closing" })).toBeVisible();
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
   const bounds = (await ruler.boundingBox())!;

@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 import SequenceFadeHandle from "@/components/atoms/SequenceFadeHandle";
+import SequenceDissolveHandle from "@/components/atoms/SequenceDissolveHandle";
 import SequencePlayheadGrip from "@/components/atoms/SequencePlayheadGrip";
 import SequenceTrackHeaders from "@/components/molecules/SequenceTrackHeaders";
 import type {
@@ -26,10 +27,10 @@ import type {
   SequenceTrack,
   SequenceSource,
   SourcesById,
+  TransitionResizeIntent,
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
-import { getDissolveWindow } from "@/utils/dissolveWindow";
 import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
 import {
   formatFrames,
@@ -128,11 +129,6 @@ export type TimelineTrimIntent = {
   edge: PlacementEdge;
   sourceFrame: number;
 };
-export type TimelineFadeIntent = {
-  placementId: string;
-  edge: PlacementEdge;
-  durationFrames: number;
-};
 export type TimelinePlacementActivation = {
   placementId: string;
   sequenceFrame?: number;
@@ -150,8 +146,8 @@ export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   removeTrack?: (trackId: string) => void;
   removableTrackIds: readonly string[];
   toggleTrackLock?: (trackId: string) => void;
-  previewFade?: (intent: TimelineFadeIntent) => "valid" | "blocked" | "conflict";
-  editFade?: (intent: TimelineFadeIntent) => void;
+  previewTransitionResize?: (intent: TransitionResizeIntent) => "valid" | "blocked" | "conflict";
+  resizeTransition?: (intent: TransitionResizeIntent) => void;
   previewTrim?: (intent: TimelineTrimIntent) => boolean;
   trimPlacement?: (intent: TimelineTrimIntent) => void;
   trimRanges: ReadonlyMap<string, { sourceInFrame: number; sourceOutFrame: number }>;
@@ -224,8 +220,8 @@ export default function SequenceTimeline({
   snapEnabled,
   previewPlacementMove,
   movePlacement,
-  previewFade,
-  editFade,
+  previewTransitionResize,
+  resizeTransition,
   previewTrim,
   trimPlacement,
   trimRanges,
@@ -1108,6 +1104,18 @@ export default function SequenceTimeline({
                 if (!transition) return [];
                 const top = RULER_HEIGHT + item.trackIndex * ROW_HEIGHT + PLACEMENT_INSET_Y;
                 const selected = transition.id === selectedTransitionId;
+                const onSelect = splitEnabled ? undefined : () => selectTransition(transition.id);
+                const locked = tracks[item.trackIndex].locked;
+                const edit =
+                  !splitMode && previewTransitionResize && resizeTransition
+                    ? {
+                        evaluate: (durationFrames: number) =>
+                          previewTransitionResize({ transitionId: transition.id, durationFrames }),
+                        commit: (durationFrames: number) =>
+                          resizeTransition({ transitionId: transition.id, durationFrames }),
+                        locked,
+                      }
+                    : undefined;
                 if (transition.kind === "fade") {
                   return [
                     <div
@@ -1127,64 +1135,39 @@ export default function SequenceTimeline({
                         placementFrames={item.duration}
                         pixelsPerFrame={pixelsPerFrame}
                         selected={selected}
-                        onSelect={splitEnabled ? undefined : () => selectTransition(transition.id)}
-                        edit={
-                          !splitEnabled && previewFade && editFade && fadePlacementIds.has(id)
-                            ? {
-                                evaluate: (durationFrames) =>
-                                  previewFade({ placementId: id, edge, durationFrames }),
-                                commit: (durationFrames) =>
-                                  editFade({ placementId: id, edge, durationFrames }),
-                                locked: tracks[item.trackIndex].locked,
-                              }
-                            : undefined
-                        }
+                        onSelect={onSelect}
+                        edit={fadePlacementIds.has(id) ? edit : undefined}
                       />
                     </div>,
                   ];
                 }
                 const cut = item.sequenceFrame + (edge === "leading" ? 0 : item.duration);
-                const { startFrame, endFrame } = getDissolveWindow(
-                  cut,
-                  transition.durationFrames,
-                  durationFrames,
-                );
                 const details = dissolveDetails.get(transition.id);
-                const extensions = [details?.outgoingExtension, details?.incomingExtension]
-                  .map(
-                    (range, index) =>
-                      range &&
-                      `${index === 0 ? "Outgoing" : "Incoming"} extension: source frames [${range.startFrame}, ${range.endFrame})`,
-                  )
-                  .filter(Boolean);
-                const left = startFrame * pixelsPerFrame - visibleScrollLeft;
-                const right = endFrame * pixelsPerFrame - visibleScrollLeft;
-                if (right <= left || right <= 0 || left >= width) return [];
+                const extensions = [details?.outgoingExtension, details?.incomingExtension].flatMap(
+                  (range, index) =>
+                    range
+                      ? [
+                          `${index === 0 ? "Outgoing" : "Incoming"} extension: source frames [${range.startFrame}, ${range.endFrame})`,
+                        ]
+                      : [],
+                );
                 return [
-                  <button
+                  <SequenceDissolveHandle
                     key={transition.id}
-                    type="button"
-                    aria-label={`Select centered dissolve: ${item.label}`}
-                    aria-pressed={selected}
-                    title={[
-                      `Centered dissolve: sequence frames [${startFrame}, ${endFrame})`,
-                      ...extensions,
-                    ].join("\n")}
-                    disabled={splitEnabled}
-                    className={`absolute overflow-hidden rounded-sm bg-violet-200/85 text-[9px] text-violet-950 inset-ring inset-ring-violet-900 aria-pressed:bg-violet-500/95 aria-pressed:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${selected ? "z-[2]" : "z-[1]"} ${splitEnabled ? "" : "pointer-events-auto cursor-pointer"}`}
-                    style={{
-                      left,
-                      top,
-                      width: right - left,
-                      height: TRANSITION_HEIGHT,
-                    }}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      selectTransition(transition.id);
-                    }}
-                  >
-                    Dissolve
-                  </button>,
+                    label={item.label}
+                    frames={transition.durationFrames}
+                    cut={cut}
+                    sequenceDuration={durationFrames}
+                    pixelsPerFrame={pixelsPerFrame}
+                    scrollLeft={visibleScrollLeft}
+                    viewportWidth={width}
+                    top={top}
+                    height={TRANSITION_HEIGHT}
+                    selected={selected}
+                    extensions={extensions}
+                    onSelect={onSelect}
+                    edit={locked ? undefined : edit}
+                  />,
                 ];
               }),
             )}

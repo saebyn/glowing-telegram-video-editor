@@ -62,7 +62,6 @@ export {
   type PlacementMovePreviewIntent,
   type PlaceClipIntent,
   type SequenceTimelineProps,
-  type TimelineFadeIntent,
   type TimelinePlacementActivation,
   type TimelineTrimIntent,
 } from "./components/organisms/SequenceTimeline";

@@ -105,11 +105,18 @@ function FrameBasedTimeline({
   onSeek,
   previewClipPlacement,
   placeClip,
+  previewTransitionResize,
+  resizeTransition,
 }: SequenceTimelineProps) {
   const [showPreview, setShowPreview] = useState(false);
   const track = tracks[0];
   const intent = track && { clipId: "bridge", trackId: track.id, sequenceFrame: playheadFrame };
   const preview = showPreview && intent && previewClipPlacement?.(intent);
+  const transitions = track?.placements.flatMap((placement) =>
+    [placement.transitionIn, placement.transitionOut].flatMap((transition) =>
+      transition ? [{ ...transition, owner: placement.id }] : [],
+    ),
+  );
   return (
     <section aria-label="Frame-based timeline" className="space-y-2 rounded border p-3">
       <h2 className="font-semibold">Frame-based timeline</h2>
@@ -162,7 +169,86 @@ function FrameBasedTimeline({
             : `Blocked: ${preview.reason}`}
         </output>
       )}
+      {!!transitions?.length && (
+        <TransitionResizeControls
+          transitions={transitions}
+          previewTransitionResize={previewTransitionResize}
+          resizeTransition={resizeTransition}
+        />
+      )}
     </section>
+  );
+}
+
+function TransitionResizeControls({
+  transitions,
+  previewTransitionResize,
+  resizeTransition,
+}: Pick<SequenceTimelineProps, "previewTransitionResize" | "resizeTransition"> & {
+  transitions: { id: string; kind: "fade" | "dissolve"; owner: string }[];
+}) {
+  const [selected, setSelected] = useState(transitions[0]?.id);
+  const [duration, setDuration] = useState("8");
+  const [preview, setPreview] = useState<string>();
+  const transitionId = selected ?? transitions[0]?.id;
+  const intent = transitionId ? { transitionId, durationFrames: Number(duration) } : undefined;
+  return (
+    <fieldset className="space-x-2">
+      <legend>Resize an authored transition by ID</legend>
+      <label>
+        Transition to resize{" "}
+        <select
+          value={transitionId}
+          onChange={(event) => {
+            setSelected(event.currentTarget.value);
+            setPreview(undefined);
+          }}
+        >
+          {transitions.map(({ id, kind, owner }) => (
+            <option key={id} value={id}>
+              {kind === "fade" ? "Fade" : "Dissolve"} — {owner}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Proposed transition duration{" "}
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={duration}
+          onChange={(event) => {
+            setDuration(event.currentTarget.value);
+            setPreview(undefined);
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        disabled={!intent || !previewTransitionResize}
+        onClick={() => {
+          if (!intent || !previewTransitionResize) return;
+          const result = previewTransitionResize(intent);
+          setPreview(
+            result === "valid" ? `Fits at ${intent.durationFrames} sequence frames` : result,
+          );
+        }}
+      >
+        Preview resize
+      </button>
+      <button
+        type="button"
+        disabled={!intent || !resizeTransition}
+        onClick={() => {
+          if (intent) resizeTransition?.(intent);
+          setPreview(undefined);
+        }}
+      >
+        Resize transition
+      </button>
+      {preview && <output aria-label="Transition resize preview">{preview}</output>}
+    </fieldset>
   );
 }
 
@@ -172,8 +258,8 @@ const slots = {
   timeline: FrameBasedTimeline,
 } satisfies SequenceEditorSlots;
 
-function useControlledStory(manualFirstEdit = false) {
-  const [sequence, setSequence] = useState(original);
+function useControlledStory(manualFirstEdit = false, initialSequence = original) {
+  const [sequence, setSequence] = useState(initialSequence);
   const [pending, setPending] = useState<Sequence>();
   const [autoAccept, setAutoAccept] = useState(!manualFirstEdit);
   const options: SequenceEditorPageProps = {
@@ -264,4 +350,35 @@ export const ReplacePageSlots: StoryObj = {
 export const AssembleWithTheHook: StoryObj = {
   name: "Assemble with the hook",
   render: () => <HookExample />,
+};
+
+const transitionsExample: Sequence = {
+  durationFrames: 240,
+  tracks: [
+    {
+      id: "main",
+      label: "Main",
+      placements: [
+        {
+          ...original.tracks[0].placements[0],
+          transitionIn: { id: "opening-fade", kind: "fade", durationFrames: 8 },
+        },
+        { id: "bridge", clipId: "bridge", sequenceStartFrame: 60 },
+        {
+          ...original.tracks[0].placements[1],
+          transitionIn: { id: "closing-dissolve", kind: "dissolve", durationFrames: 6 },
+        },
+      ],
+    },
+  ],
+};
+
+function ResizeTransitionsExample() {
+  const { options } = useControlledStory(false, transitionsExample);
+  return <SequenceEditorPage {...options} slots={slots} />;
+}
+
+export const ResizeATransition: StoryObj = {
+  name: "Resize a transition",
+  render: () => <ResizeTransitionsExample />,
 };

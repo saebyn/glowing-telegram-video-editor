@@ -112,7 +112,7 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
-  const dissolve = timeline.getByRole("button", { name: "Select centered dissolve: Harbor" });
+  const dissolve = timeline.getByRole("button", { name: "Select dissolve: Harbor" });
   const p = await box(lighthouse);
   const frameWidth = (p.width + 2) / 120; // Placement outline is inset one pixel on each side.
   const cutX = (await box(harbor)).x - 1 + 120 * frameWidth;
@@ -156,7 +156,7 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
     cutListResults: [expect.objectContaining({ ok: false })],
   });
   await expect(
-    page.getByText("CutList unavailable: a centered dissolve competes with another transition."),
+    page.getByText("CutList unavailable: a dissolve competes with another transition."),
   ).toBeVisible();
 
   const f = await box(fade);

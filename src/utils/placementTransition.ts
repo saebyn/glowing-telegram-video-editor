@@ -8,6 +8,7 @@ import type {
   SourcesById,
   TransitionDraft,
   TransitionEditProblem,
+  TransitionResizeIntent,
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "./clipPlacements";
@@ -34,6 +35,34 @@ type TransitionEdit =
   | { kind: "edit"; sequence: Sequence; transition: PlacementTransition }
   | { kind: "unchanged" }
   | TransitionEditProblem;
+
+export function findTransition(sequence: Sequence, id: string | undefined) {
+  if (id === undefined) return undefined;
+  for (const track of sequence.tracks) {
+    for (const placement of track.placements) {
+      for (const edge of ["leading", "trailing"] as const) {
+        const transition = placement[transitionFields[edge]];
+        if (transition?.id === id) return { track, placement, edge, transition };
+      }
+    }
+  }
+}
+
+export function evaluateTransitionResize(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: SourcesById<SequenceSource>,
+  frameRate: FrameRate,
+  { transitionId, durationFrames }: TransitionResizeIntent,
+): TransitionEdit {
+  const existing = findTransition(sequence, transitionId);
+  if (!existing) return { kind: "unavailable" };
+  return evaluateTransitionEdit(sequence, clips, sources, frameRate, {
+    placementId: existing.placement.id,
+    edge: existing.edge,
+    transition: { kind: existing.transition.kind, durationFrames },
+  });
+}
 
 export function evaluateTransitionEdit(
   sequence: Sequence,

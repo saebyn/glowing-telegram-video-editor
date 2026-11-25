@@ -8,6 +8,7 @@ import {
 
 const pageStory = "examples-sequence-editor-composition--replace-page-slots";
 const hookStory = "examples-sequence-editor-composition--assemble-with-the-hook";
+const resizeStory = "examples-sequence-editor-composition--resize-a-transition";
 
 test("Storybook lists both composition examples separately from the default workflows", async ({
   request,
@@ -130,4 +131,79 @@ test("the host-built editor emits nothing for blocked or cancelled Timeline move
   await page.mouse.up();
   expect(await emissions()).toEqual(noEdits);
   await expect(host.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+});
+
+test("a replacement Timeline previews and resizes either transition kind by ID", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${resizeStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Frame-based timeline" });
+  const duration = timeline.getByLabel("Proposed transition duration");
+  const choice = timeline.getByLabel("Transition to resize");
+  const preview = timeline.getByRole("status", { name: "Transition resize preview" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+
+  await choice.selectOption({ label: "Fade — opening" });
+  await duration.fill("12");
+  await timeline.getByRole("button", { name: "Preview resize" }).click();
+  await expect(preview).toHaveText("Fits at 12 sequence frames");
+  expect(await emissions()).toEqual(noEdits);
+  await timeline.getByRole("button", { name: "Resize transition" }).click();
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                id: "opening",
+                clipId: "harbor",
+                sequenceStartFrame: 0,
+                transitionIn: { id: "opening-fade", kind: "fade", durationFrames: 12 },
+              },
+              { id: "bridge", clipId: "bridge", sequenceStartFrame: 60 },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 120,
+                sourceOutOffsetFrames: 60,
+                transitionIn: { id: "closing-dissolve", kind: "dissolve", durationFrames: 6 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      { ok: false, issues: [{ code: "unsupported-dissolve", transitionId: "closing-dissolve" }] },
+    ],
+  });
+
+  const afterFade = await emissions();
+  await choice.selectOption({ label: "Dissolve — closing" });
+  await duration.fill("9");
+  await timeline.getByRole("button", { name: "Preview resize" }).click();
+  await expect(preview).toHaveText("Fits at 9 sequence frames");
+  expect(await emissions()).toEqual(afterFade);
+  await timeline.getByRole("button", { name: "Resize transition" }).click();
+  await expect
+    .poll(async () => (await emissions()).sequences[1]?.tracks[0].placements)
+    .toEqual([
+      ...afterFade.sequences[0].tracks[0].placements.slice(0, 2),
+      {
+        id: "closing",
+        clipId: "harbor",
+        sequenceStartFrame: 120,
+        sourceOutOffsetFrames: 60,
+        transitionIn: { id: "closing-dissolve", kind: "dissolve", durationFrames: 9 },
+      },
+    ]);
+  expect((await emissions()).cutListResults).toEqual([
+    ...afterFade.cutListResults,
+    { ok: false, issues: [{ code: "unsupported-dissolve", transitionId: "closing-dissolve" }] },
+  ]);
 });

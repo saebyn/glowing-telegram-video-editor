@@ -168,7 +168,7 @@ export function TransitionProperties({
   problem,
 }: TransitionPropertiesProps) {
   const fadeLabel = edge === "leading" ? "Entry fade" : "Reveal fade";
-  const kindLabel = transition.kind === "dissolve" ? "Centered dissolve" : fadeLabel;
+  const kindLabel = transition.kind === "dissolve" ? "Dissolve" : fadeLabel;
   return (
     <>
       <h3 className="mb-2 font-semibold">Transition Properties</h3>
@@ -262,7 +262,7 @@ function TransitionForm({
           onChange={(event) => setKind(event.currentTarget.value === "fade" ? "fade" : "dissolve")}
         >
           <option value="fade">Fade</option>
-          <option value="dissolve">Centered dissolve</option>
+          <option value="dissolve">Dissolve</option>
         </select>
       </label>
       <label className="block space-y-1">

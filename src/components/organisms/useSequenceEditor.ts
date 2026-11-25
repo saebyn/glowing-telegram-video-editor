@@ -12,6 +12,7 @@ import type {
   SourcesById,
   TransitionDraft,
   TransitionEditProblem,
+  TransitionResizeIntent,
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
@@ -21,6 +22,8 @@ import { getProjectFrameCount, secondsToFrame } from "@/utils/frames";
 import { evaluatePlacementMove, evaluatePoolDrop, placeClipInGap } from "@/utils/placementDrag";
 import {
   evaluateTransitionEdit,
+  evaluateTransitionResize,
+  findTransition,
   getTransitionDurationBounds,
   removePlacementTransition,
   type TransitionEditIntent,
@@ -50,7 +53,6 @@ import type {
   PlacementMovePreview,
   PlacementMovePreviewIntent,
   SequenceTimelineProps,
-  TimelineFadeIntent,
   TimelinePlacementActivation,
   TimelineTrimIntent,
 } from "./SequenceTimeline";
@@ -75,24 +77,12 @@ const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = 
   "fade-interrupted": "CutList unavailable: an authored fade crosses a visible cut.",
   "fade-gap":
     "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
-  "unsupported-dissolve": "CutList unavailable: the format cannot represent a centered dissolve.",
-  "dissolve-conflict": "CutList unavailable: a centered dissolve competes with another transition.",
-  "dissolve-interrupted": "CutList unavailable: a visible cut interrupts a centered dissolve.",
+  "unsupported-dissolve": "CutList unavailable: the format cannot represent a dissolve.",
+  "dissolve-conflict": "CutList unavailable: a dissolve competes with another transition.",
+  "dissolve-interrupted": "CutList unavailable: a visible cut interrupts a dissolve.",
   "dissolve-gap":
-    "CutList unavailable: a centered dissolve meets a gap. The missing side contributes black picture and silence.",
+    "CutList unavailable: a dissolve meets a gap. The missing side contributes black picture and silence.",
 };
-
-function findTransition(sequence: Sequence, id: string | undefined) {
-  if (id === undefined) return undefined;
-  for (const track of sequence.tracks) {
-    for (const placement of track.placements) {
-      for (const edge of ["leading", "trailing"] as const) {
-        const transition = placement[transitionFields[edge]];
-        if (transition?.id === id) return { track, placement, edge, transition };
-      }
-    }
-  }
-}
 
 export function useSequenceEditor({
   sequence,
@@ -395,28 +385,17 @@ export function useSequenceEditor({
     }
   }
 
-  function previewFade(intent: TimelineFadeIntent) {
-    const result = proposeFadeGesture(intent);
-    if (result?.kind === "edit") return "valid";
-    return result?.kind === "conflict" ? "conflict" : "blocked";
+  function previewTransitionResize(intent: TransitionResizeIntent) {
+    if (!onSequenceChange || splitEnabled) return "blocked";
+    const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
+    if (result.kind === "edit") return "valid";
+    return result.kind === "conflict" ? "conflict" : "blocked";
   }
 
-  function editFade(intent: TimelineFadeIntent) {
-    const result = proposeFadeGesture(intent);
-    if (result?.kind === "edit") commitEdit(result.sequence);
-  }
-
-  function proposeFadeGesture({ placementId, edge, durationFrames }: TimelineFadeIntent) {
-    const owner = findPlacementTrack(sequence, placementId)?.placements.find(
-      ({ id }) => id === placementId,
-    );
-    // A fade gesture never converts an authored dissolve.
-    if (!onSequenceChange || !owner || owner[transitionFields[edge]]?.kind === "dissolve") return;
-    return proposeTransitionEdit({
-      placementId,
-      edge,
-      transition: { kind: "fade", durationFrames },
-    });
+  function resizeTransition(intent: TransitionResizeIntent) {
+    if (!onSequenceChange || splitEnabled) return;
+    const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
+    if (result.kind === "edit") commitEdit(result.sequence);
   }
 
   const timelineProps: SequenceTimelineProps = {
@@ -458,8 +437,8 @@ export function useSequenceEditor({
           if (next) commitEdit(next);
         }
       : undefined,
-    previewFade: onSequenceChange ? previewFade : undefined,
-    editFade: onSequenceChange ? editFade : undefined,
+    previewTransitionResize: onSequenceChange ? previewTransitionResize : undefined,
+    resizeTransition: onSequenceChange ? resizeTransition : undefined,
     previewTrim: onSequenceChange
       ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
       : undefined,

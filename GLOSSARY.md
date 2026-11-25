@@ -96,10 +96,11 @@ The timeline representation of a transition, not the change in picture or sound 
 Recorded material used by a transition before a placement’s in point or after its out point. It is not part of the placement trim.
 
 **Fade**:
-A transition that blends picture and sound over a window starting at a placement’s leading edge or ending at its trailing edge. Unlike a cut-spanning dissolve, its window is not centered on the cut.
+A transition that blends picture and sound over a window starting at a placement’s leading edge or ending at its trailing edge. Unlike a dissolve, its window is not centered on the cut.
 
-**Cut-spanning dissolve**:
+**Dissolve**:
 A transition that blends the outgoing and incoming picture and sound over a span centered on a cut. It can belong to either placement at the cut.
+_Avoid_: “Centered dissolve” as the transition name; a dissolve already spans the cut.
 
 **No media placeholder**:
 A visible stand-in for source media that failed to load, distinct from black picture contributed by a sequence gap or absent footage.

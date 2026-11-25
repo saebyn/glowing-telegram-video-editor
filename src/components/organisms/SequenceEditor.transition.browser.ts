@@ -23,7 +23,7 @@ test("one Apply converts type and duration together, without replacing the trans
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const inspector = page.getByRole("region", { name: "Inspector" });
-  const dissolve = timeline.getByRole("button", { name: "Select centered dissolve: Harbor" });
+  const dissolve = timeline.getByRole("button", { name: "Select dissolve: Harbor" });
   const fade = timeline.getByRole("button", { name: "Select reveal fade: Harbor" });
   const type = inspector.getByRole("combobox", { name: "Type", exact: true });
   const duration = inspector.getByRole("spinbutton", { name: "Duration (sequence frames)" });
@@ -85,7 +85,7 @@ test("one Apply converts type and duration together, without replacing the trans
   await expect(inspector.getByText("Dissolve window:")).toHaveCount(0);
   await expect(inspector.getByText("Edge: End", { exact: true })).toBeVisible();
 
-  await type.selectOption({ label: "Centered dissolve" });
+  await type.selectOption({ label: "Dissolve" });
   await duration.fill("15");
   await apply.click();
   const dissolved = structuredClone(faded);
@@ -124,7 +124,7 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   const inspector = page.getByRole("region", { name: "Inspector" });
   const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
-  const dissolve = timeline.getByRole("button", { name: "Select centered dissolve: Harbor" });
+  const dissolve = timeline.getByRole("button", { name: "Select dissolve: Harbor" });
   const remove = inspector.getByRole("button", { name: "Remove transition" });
   const accept = page.getByRole("button", { name: "Accept proposed edit" });
   const reject = page.getByRole("button", { name: "Reject proposed edit" });

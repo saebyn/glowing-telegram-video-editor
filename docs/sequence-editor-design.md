@@ -50,7 +50,7 @@ mode. A host-built page can do the same in its own layout.
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
 | Preview | Transport snapshot and latest sequence, clip, and source inputs. The default `SequencePreview` registers readiness while mounted; the session still owns the clock and play intent. |
 | Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, duration bounds by kind, and actions to apply type and duration together or remove the transition). The Inspector owns labels, drafts, and form rendering. |
-| Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. |
+| Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. For either transition kind, `previewTransitionResize` and `resizeTransition` take `{ transitionId, durationFrames }`; release revalidates the duration against the current transition and cannot create, remove, or change its kind. |
 
 Export the library-owned UI components and their props from the package root,
 including `SequenceWorkspace`, pane toggles, and individual controls. Exports
@@ -73,8 +73,8 @@ Inspector height cap is a separate change.
 The default `SequenceTimeline` uses **one widget instance** for the whole
 sequence, so tracks share a time scale, scroll position, and playhead. It
 projects authored tracks onto widget rows and placements onto actions, supplying the item visuals
-through `getActionRender`. Draw entry fades, reveal fades, and centered
-dissolves over roughly the top 80% of their track. Keep each indicator at
+  through `getActionRender`. Draw entry fades, reveal fades, and dissolves
+  over roughly the top 80% of their track. Keep each indicator at
 its true projected position and width, including windows that extend past
 the owning edge or overlap, and draw the selected indicator on top in the
 same lane. The bottom strip remains available for selecting and moving the
@@ -151,7 +151,7 @@ rows are not editor state or compiler input.
   resizing a transition does not change placement positions, placement
   trims, or sequence duration. Hard cuts stay implicit. First represent
   existing entry and reveal fades as objects, preserving the way their
-  windows are anchored. A cut-spanning dissolve is a separate feature.
+  windows are anchored. A dissolve is a separate feature.
   Replace the old fade fields directly and update the Storybook stories
   and test fixtures. There is no legacy sequence load path.
   Splitting a placement keeps each transition on the split piece that
@@ -165,7 +165,7 @@ rows are not editor state or compiler input.
   If a transition is partially covered but otherwise valid, preserve its
   original blend phase when the contribution becomes visible or audible
   again. These rules apply to both fades and dissolves.
-- **Cut-spanning dissolve:** Center the transition on the cut. It can be
+- **Dissolve:** Center the transition on the cut. It can be
   attached to either the trailing edge of the outgoing placement or the
   leading edge of the incoming placement, but not to both. Show the owning
   placement and edge when the dissolve is selected.
@@ -176,7 +176,7 @@ rows are not editor state or compiler input.
   sequence without shortening or retiming the authored blend. Dissolve
   authoring can ship before faithful `CutList` export is available.
   Separate audio effects, audio controls, and routing are follow-up work.
-- **Transition contributions:** A cut-spanning dissolve can use recorded
+- **Transition contributions:** A dissolve can use recorded
   material beyond either placement trim. Show these transition source
   extensions in the transition indicator, without changing the trims. The
   other side can come from a different track if it is visible at the cut.
@@ -291,7 +291,7 @@ of normal editor integration. The editor handles compilation for its edits.
   the draft type and duration together, retaining the transition's ID and
   edge. Changing the type does not change the draft duration. Both kinds
   require positive whole sequence frames; a fade cannot be longer than the
-  placement when authored or resized. Apply, Add, and timeline fade resizing
+  placement when authored or resized. Apply, Add, and timeline resizing
   use the same evaluator and reject competition at the same cut or over
   visible frames.
 - **Remove transition** clears the owned edge without moving or trimming its
@@ -299,9 +299,12 @@ of normal editor integration. The editor handles compilation for its edits.
   restores the transition without changing that selection. Zero duration is
   not removal. Read-only and locked tracks allow inspection, but not
   transition edits. Timeline placement edges still trim, and separate resize
-  grips adjust authored fades. Empty edges and dissolves have no transition
-  grips; creation starts only in Placement Properties. Short or obscured
-  transitions can still be inspected from their owning edges.
+  grips adjust authored fades and dissolves. A dissolve resize changes both
+  sides about the same cut and clips the displayed window at sequence bounds
+  without limiting the authored duration. Canceling the drag leaves the
+  transition unchanged. Empty edges have no transition grips; creation starts
+  only in Placement Properties. Short or obscured transitions can still be
+  inspected from their owning edges.
 - A move proposes the IDs of the placements being moved and the grabbed placement's
   destination track and sequence frame. Every placement gets the same signed
   sequence-frame offset and the same shift in track order. Source ranges and
@@ -492,7 +495,7 @@ changes nothing, and a valid extending drop emits one sequence change and one
 sections, track priority and source alignment, and fade type and duration
 without creating a separate story for each case.
 
-Add two composition examples: one that wraps a default slot component and
+Keep a composition example that wraps a default slot component and
 replaces the Timeline on `SequenceEditorPage`, and one that calls
 `useSequenceEditor` directly and rearranges public components without the
 default page. Across those examples, verify through the public interfaces
@@ -500,6 +503,8 @@ that seeking emits no edit, a valid edit uses the same host callbacks and
 acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
 nothing. A custom Preview slot can display the transport snapshot to verify
 that it receives the same sequence playhead as the Timeline without a player.
+**Resize a transition** uses a replacement Timeline to preview and resize both
+Fade and Dissolve by ID without depending on the default pointer adapter.
 
 The source review and range export workflow stays separate. These editing
 stories verify authoring and callback output. The separate Preview stories

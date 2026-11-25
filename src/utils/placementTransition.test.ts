@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { ClipPlacement, Sequence } from "@/types";
-import { evaluateTransitionEdit } from "./placementTransition";
+import { evaluateTransitionEdit, evaluateTransitionResize } from "./placementTransition";
 
 const rate = { numerator: 24, denominator: 1 };
 const clips = [
@@ -13,6 +13,52 @@ const b = { id: "b", clipId: "b", sequenceStartFrame: 24 };
 function sequence(a: ClipPlacement, b: ClipPlacement): Sequence {
   return { durationFrames: 48, tracks: [{ id: "picture", label: "Picture", placements: [a, b] }] };
 }
+
+test("resize by ID changes only the duration of the existing transition", () => {
+  const before = sequence(a, {
+    ...b,
+    transitionIn: { id: "blend", kind: "dissolve", durationFrames: 7 },
+  });
+  const transition = { id: "blend", kind: "dissolve", durationFrames: 31 } as const;
+  expect(
+    evaluateTransitionResize(before, clips, {}, rate, {
+      transitionId: "blend",
+      durationFrames: 31, // A dissolve can be longer than its 24-frame placement.
+    }),
+  ).toStrictEqual({
+    kind: "edit",
+    transition,
+    sequence: sequence(a, { ...b, transitionIn: transition }),
+  });
+});
+
+test("a resize intent is evaluated against the currently authored transition", () => {
+  const entry = { id: "entry", kind: "fade", durationFrames: 6 } as const;
+  const before = sequence(a, { ...b, transitionIn: entry });
+  const intent = { transitionId: "entry", durationFrames: 12 };
+  expect(evaluateTransitionResize(before, clips, {}, rate, intent).kind).toBe("edit");
+  expect(
+    evaluateTransitionResize(
+      sequence(a, { ...b, transitionIn: { ...entry, id: "replacement" } }),
+      clips,
+      {},
+      rate,
+      intent,
+    ),
+  ).toEqual({ kind: "unavailable" });
+  expect(
+    evaluateTransitionResize(
+      { ...before, tracks: [{ ...before.tracks[0], locked: true }] },
+      clips,
+      {},
+      rate,
+      intent,
+    ),
+  ).toEqual({ kind: "locked" });
+  expect(
+    evaluateTransitionResize(before, clips, {}, rate, { ...intent, durationFrames: 0 }),
+  ).toEqual({ kind: "invalid-duration", min: 1, max: 24 });
+});
 
 test("duration is a positive whole count in the proposed kind, not the existing kind", () => {
   const placement = {

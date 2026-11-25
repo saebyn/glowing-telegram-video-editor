@@ -167,6 +167,11 @@ components their corresponding props (`toolbarProps`, `clipPoolProps`,
 `previewProps`, `inspectorProps`, and `timelineProps`). `SequenceWorkspace`
 accepts rendered pane nodes. Render `notices` where appropriate and bind
 `handleEditorKeyDown` on a focusable editor root to opt in to shortcuts.
+For a replacement Timeline, `previewTransitionResize` and `resizeTransition`
+both take `{ transitionId, durationFrames }` for an existing Fade or Dissolve.
+Preview returns `"valid"`, `"blocked"`, or `"conflict"` without emitting an
+edit. `resizeTransition` checks the current transition again before proposing
+a duration change. See **Resize a transition** in the Storybook composition examples.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
@@ -200,14 +205,15 @@ trim can grow the sequence but never shortens it. In Placement Properties, use
 **Add transition** on an empty edge to add an entry or reveal fade of half a
 second (rounded to sequence frames and capped at the placement's duration).
 Use **Inspect transition** on an occupied edge or click its timeline indicator
-to see **Transition Properties**. Choose **Fade** or **Centered dissolve**
+to see **Transition Properties**. Choose **Fade** or **Dissolve**
 and enter the duration in sequence frames; **Apply** submits both together.
 **Remove transition** clears that edge and returns to Placement Properties
 once the host accepts the edit. On the timeline, transition indicators cover
 the top of the track at their actual time span. Click or drag the strip below
-to select or move the placement. Separate timeline grips adjust authored
-fades; there are no grips on empty edges or dissolves. Use the owning edge in
-**Placement Properties** to inspect a short or obscured transition.
+to select or move the placement. Drag a separate grip to resize an authored
+fade or dissolve without moving its cut. An odd dissolve puts its extra
+frame after the cut. Empty edges have no transition grips. Use the owning
+edge in **Placement Properties** to inspect a short or obscured transition.
 Hosts store transitions on placements as
 `transitionIn` on the leading edge or `transitionOut` on the trailing edge,
 with `{ id, kind, durationFrames }`. The same names in a compiled `CutList`
@@ -217,7 +223,7 @@ makes it unrepresentable in the `CutList`.
 The compiler gives the upper active placement precedence and omits fully covered fades.
 If an authored fade crosses a visible cut or overlaps another visible fade on
 its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
-For a centered dissolve, the timeline shows its centered
+For a dissolve, the timeline shows its centered
 window and Transition Properties shows the contributing footage
 beyond each placement trim. An active dissolve is retained and reported as a
 compilation issue; the published format cannot carry its timing and contributions.
