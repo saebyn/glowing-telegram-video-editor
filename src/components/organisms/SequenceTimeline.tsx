@@ -534,17 +534,17 @@ export default function SequenceTimeline({
     [splitEnabled, items, rows, tracks, secondsPerFrame],
   );
 
-  function poolDestination(event: PointerPosition) {
+  function poolDestination(event: PointerPosition, leftOffset = scrollLeft.current) {
     const { left, right, top } = surface.current!.getBoundingClientRect();
     if (event.clientX < left || event.clientX >= right) return;
     const trackIndex = Math.floor((event.clientY - top - RULER_HEIGHT) / ROW_HEIGHT);
     const track = tracks[trackIndex];
     if (!track) return;
-    const x = event.clientX - left + scrollLeft.current;
+    const x = event.clientX - left + leftOffset;
     return {
       trackIndex,
       sequenceFrame: secondsToFrame((x / scaleWidth) * scale, frameRate),
-      scrollLeft: scrollLeft.current,
+      scrollLeft: leftOffset,
     };
   }
 
@@ -1152,27 +1152,33 @@ export default function SequenceTimeline({
                 splitPointerOrigin.current = { clientX: event.clientX, clientY: event.clientY };
               }}
               onClickCapture={(event) => {
-                if (moved.current || event.detail === 0) {
-                  event.stopPropagation();
-                  return;
-                }
-                // Locked placements are absent from the blade's hit targets. Keep the
-                // editor's blocked-edit feedback when someone clicks one anyway.
-                const destination = poolDestination(event);
-                if (!destination || !tracks[destination.trackIndex]?.locked) return;
-                const seconds = framesToSeconds(destination.sequenceFrame, frameRate);
-                const action = rows[destination.trackIndex].actions.find(
-                  ({ start, end }) => start <= seconds && seconds < end,
+                // The blade's hover can refer to a different row after a host edit.
+                // Consume the click here and hit-test the current layout instead.
+                event.stopPropagation();
+                if (moved.current || event.detail === 0) return;
+                setSplitOverlayRevision((revision) => revision + 1);
+                const destination = poolDestination(
+                  event,
+                  surface.current?.querySelector(EDIT_GRID)?.scrollLeft,
                 );
-                if (action)
-                  activatePlacement({
-                    placementId: action.id,
-                    sequenceFrame: destination.sequenceFrame,
-                  });
+                if (!destination) return;
+                const { trackIndex, sequenceFrame } = destination;
+                const locked = tracks[trackIndex].locked;
+                const action = rows[trackIndex].actions.find(({ id }) => {
+                  const item = items.get(id)!;
+                  const start = item.sequenceFrame;
+                  // A locked placement still reports a blocked edit on its inclusive in edge.
+                  return (
+                    sequenceFrame < start + item.duration &&
+                    (locked ? start <= sequenceFrame : item.trimRange && start < sequenceFrame)
+                  );
+                });
+                if (!action) return;
+                activatePlacement({ placementId: action.id, sequenceFrame });
               }}
             >
               <CutOverlay
-                // The widget retains its hover until the pointer moves. Clear it on pan, zoom or cut.
+                // The widget retains its hover until the pointer moves. Clear it on pan, zoom or click.
                 key={`${visibleScrollLeft}:${pixelsPerFrame}:${splitOverlayRevision}`}
                 data={splitRows}
                 // Same pixels/second as the ruler, but snap the blade to sequence frames, not ruler ticks.
@@ -1188,13 +1194,7 @@ export default function SequenceTimeline({
                   formatPillLabel: (seconds) =>
                     `Split at sequence frame ${secondsToFrame(seconds, frameRate)}`,
                 }}
-                onCut={(_trackId, placementId, seconds) => {
-                  activatePlacement({
-                    placementId,
-                    sequenceFrame: secondsToFrame(seconds, frameRate),
-                  });
-                  setSplitOverlayRevision((revision) => revision + 1);
-                }}
+                onCut={() => {}}
               />
             </div>
           )}
