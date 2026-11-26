@@ -121,6 +121,38 @@ test("blocked Paste previews the requested frame, ignores an invalid click, then
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
 });
 
+test("a pointer press cannot confirm a Paste session that replaced it before release", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbors = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await harbors.last().click();
+  await page.keyboard.press("Control+c");
+  const ruler = (await timeline.locator(".timeline-editor-time-area-interact").boundingBox())!;
+  const row = (await harbors.last().boundingBox())!;
+  const y = row.y + row.height / 2;
+  const x = (frame: number) => ruler.x + ruler.width * (frame / 360);
+  const status = timeline.getByRole("status");
+
+  await page.mouse.move(x(121), y);
+  await page.keyboard.press("Control+v");
+  await expect(status).toContainText("Sequence frame 121 · Blocked");
+  await page.mouse.down();
+  await page.keyboard.press("Control+v"); // Supersede the first drop without placing anything.
+  await page.mouse.move(x(120), y); // One frame is less than the click/drag threshold.
+  await expect(status).toHaveText(/Main · Sequence frame 120$/);
+  await page.mouse.up();
+  await expect(status).toHaveText(/Main · Sequence frame 120$/);
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.click(x(120), y);
+  await expect(harbors).toHaveCount(3);
+  expect((await emissions()).cutListResults).toEqual([expect.objectContaining({ ok: true })]);
+});
+
 test("Paste without a hovered track enters drop mode; Escape after a locked click edits nothing", async ({
   page,
 }) => {

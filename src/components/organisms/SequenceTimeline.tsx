@@ -202,6 +202,7 @@ type MoveDraft = MoveDestination & {
   placementIds: readonly string[];
 };
 type PointerPosition = { clientX: number; clientY: number };
+type PastePress = PointerPosition & { confirm: (target: PlacementPasteTarget) => void };
 type SurfacePosition = { x: number; trackIndex: number };
 type PlacementDrag = {
   pointerId: number;
@@ -331,7 +332,7 @@ function SequenceTimelineWidget({
   const playheadVisible = playheadX >= 0 && playheadX <= width;
   const reportPasteTarget = placementPaste?.onTargetChange;
   const pasteDrop = placementPaste?.drop;
-  const pastePress = useRef<PointerPosition | null>(null);
+  const pastePress = useRef<PastePress | null>(null);
 
   function pasteTargetAt(point: PointerPosition | null): PlacementPasteTarget | null {
     if (!point || !width) return null;
@@ -1047,7 +1048,11 @@ function SequenceTimelineWidget({
               syncPasteTarget();
             }
             if (!pasteDrop || !pasteTargetAt(event)) return;
-            pastePress.current = { clientX: event.clientX, clientY: event.clientY };
+            pastePress.current = {
+              clientX: event.clientX,
+              clientY: event.clientY,
+              confirm: pasteDrop.confirm,
+            };
             event.stopPropagation();
             event.preventDefault();
             event.currentTarget.focus({ preventScroll: true });
@@ -1078,7 +1083,7 @@ function SequenceTimelineWidget({
                 Math.hypot(event.clientX - origin.clientX, event.clientY - origin.clientY) <
                   DRAG_THRESHOLD
               )
-                pasteDrop.confirm(target);
+                origin.confirm(target);
               return;
             }
             if (!(event.target as Element).closest(RULER)) return;

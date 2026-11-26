@@ -103,6 +103,8 @@ const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = 
     "CutList unavailable: a dissolve meets a gap. The missing side contributes black picture and silence.",
 };
 
+type PasteDropToken = { retired: boolean };
+
 export function useSequenceEditor({
   sequence,
   clips,
@@ -169,14 +171,17 @@ export function useSequenceEditor({
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
   const [clipboard, setClipboard] = useState<CopiedPlacements | null>(null);
-  const [pasteDrop, setPasteDrop] = useState<{ id: symbol; target: PlacementPasteTarget | null }>();
+  const [pasteDrop, setPasteDrop] = useState<{
+    token: PasteDropToken;
+    target: PlacementPasteTarget | null;
+  }>();
   const pasteTarget = useRef<PlacementPasteTarget | null>(null);
   const setPasteTarget = useCallback((target: PlacementPasteTarget | null) => {
     pasteTarget.current = target;
     setPasteDrop((drop) => (drop && drop.target !== target ? { ...drop, target } : drop));
   }, []);
   const pasteConfirmation = useRef<{
-    id: symbol;
+    token: PasteDropToken;
     confirm: (target: PlacementPasteTarget) => boolean;
   }>(undefined);
   const [snapEnabled, setSnapEnabled] = useState(false);
@@ -212,17 +217,22 @@ export function useSequenceEditor({
     return true;
   }
 
-  function cancelPasteDrop() {
-    // Retire the callback immediately, including before notifying the host of a successful drop.
+  function retirePasteConfirmation() {
+    // A synchronous host acknowledgement can commit before the drop state update.
+    if (pasteConfirmation.current) pasteConfirmation.current.token.retired = true;
     pasteConfirmation.current = undefined;
+  }
+
+  function cancelPasteDrop() {
+    retirePasteConfirmation();
     setPasteDrop(undefined);
   }
 
   useLayoutEffect(() => {
     // Retained confirmations are valid only for the same active drop session.
     pasteConfirmation.current =
-      onSequenceChange && pasteDrop && clipboard
-        ? { id: pasteDrop.id, confirm: commitPaste }
+      pasteDrop && !pasteDrop.token.retired
+        ? { token: pasteDrop.token, confirm: commitPaste }
         : undefined;
     return () => {
       pasteConfirmation.current = undefined;
@@ -631,7 +641,7 @@ export function useSequenceEditor({
                     : null,
                   confirm: (target) => {
                     const current = pasteConfirmation.current;
-                    if (current?.id === pasteDrop.id) current.confirm(target);
+                    if (current?.token === pasteDrop.token) current.confirm(target);
                   },
                 }
               : undefined,
@@ -693,9 +703,9 @@ export function useSequenceEditor({
         if (event.repeat) return;
         if (!commitPaste(pasteTarget.current)) {
           // A new Paste replaces any unfinished drop, even at the same target.
-          pasteConfirmation.current = undefined;
+          retirePasteConfirmation();
           setSplitMode(false);
-          setPasteDrop({ id: Symbol(), target: pasteTarget.current });
+          setPasteDrop({ token: { retired: false }, target: pasteTarget.current });
         }
       }
       return;

@@ -43,3 +43,7 @@ See the [edit proposal sequence diagram](../../../docs/sequence-editor-data-flow
 - All six isolated mutations were caught: stale Split, stale Reorder,
   unchecked Paste, wrong Paste session, stale active Paste, and clipboard
   retention after host replacement.
+- Follow-up review added two red → green cases: synchronous host acceptance
+  cannot make an already consumed session usable again, and an old pointer
+  press cannot confirm a new Paste session. Verified 30 Playwright tests,
+  the focused Storybook test, and both isolated mutants.
