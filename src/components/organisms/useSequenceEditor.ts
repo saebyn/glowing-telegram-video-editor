@@ -19,7 +19,7 @@ import type {
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
 import compileCutList from "@/utils/compileCutList";
 import { getFadeSourceExtension } from "@/utils/fadePlacement";
-import { getProjectFrameCount, secondsToFrame } from "@/utils/frames";
+import { getProjectFrameCount, isValidFrameRate, secondsToFrame } from "@/utils/frames";
 import {
   copyPlacements,
   duplicatePlacements,
@@ -198,11 +198,12 @@ export function useSequenceEditor({
     inspectedClip && inspectedPlacement
       ? getPlacementSourceRange(inspectedClip, inspectedPlacement)
       : null;
-  const inspectedFrameCount = inspectedSourceRange
-    ? getProjectFrameCount(inspectedSourceRange, frameRate)
-    : null;
+  const inspectedFrameCount =
+    inspectedSourceRange && isValidFrameRate(inspectedSourceRange.sourceFrameRate)
+      ? getProjectFrameCount(inspectedSourceRange, frameRate)
+      : null;
   const transitionPlacementFrames =
-    selectedTransition && transitionClip
+    selectedTransition && transitionClip && isValidFrameRate(transitionClip.sourceFrameRate)
       ? getProjectFrameCount(
           getPlacementSourceRange(transitionClip, selectedTransition.placement),
           frameRate,
@@ -215,6 +216,7 @@ export function useSequenceEditor({
           inspectorTarget.track,
           inspectedClip,
           frameRate,
+          clips,
         )
       : null;
 
@@ -370,7 +372,10 @@ export function useSequenceEditor({
     titles,
     thumbnails,
     beginClipDrag: onSequenceChange
-      ? (id) => setActiveClipId(clips.some((clip) => clip.id === id) ? id : undefined)
+      ? (id) => {
+          const clip = clips.find((clip) => clip.id === id);
+          setActiveClipId(clip && isValidFrameRate(clip.sourceFrameRate) ? id : undefined);
+        }
       : undefined,
     endClipDrag,
   };
@@ -381,7 +386,7 @@ export function useSequenceEditor({
     for (const track of sequence.tracks) {
       for (const placement of track.placements) {
         const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip) continue;
+        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) continue;
         const trimRange = getTrimmableSourceRange(placement, clip, frameRate);
         if (trimRange) trimRanges.set(placement.id, trimRange);
         if (

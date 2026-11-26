@@ -37,6 +37,9 @@ const meta = {
     separateRenditions: false,
     interrupted: false,
   },
+  argTypes: {
+    firstSourceRateNumerator: { control: "number", type: "number" },
+  },
   render: (args: PreviewHostArgs) => <PreviewHost {...args} />,
 } satisfies Meta<PreviewHostArgs>;
 export default meta;
@@ -46,9 +49,15 @@ interface PreviewHostArgs {
   previewHlsUrl: string;
   separateRenditions: boolean;
   interrupted: boolean;
+  firstSourceRateNumerator?: number;
 }
 
-function PreviewHost({ previewHlsUrl, separateRenditions, interrupted }: PreviewHostArgs) {
+function PreviewHost({
+  previewHlsUrl,
+  separateRenditions,
+  interrupted,
+  firstSourceRateNumerator,
+}: PreviewHostArgs) {
   const [edit, accept] = useState(() => {
     if (!interrupted) return sequence;
     const [main] = sequence.tracks;
@@ -90,10 +99,15 @@ function PreviewHost({ previewHlsUrl, separateRenditions, interrupted }: Preview
     }),
     [url, separateRenditions],
   );
-  const editorClips = useMemo(
-    () => (separateRenditions ? [clips[0], { ...clips[1], sourceId: "incoming" }] : clips),
-    [separateRenditions],
-  );
+  const editorClips = useMemo(() => {
+    const [first, second] = clips;
+    return [
+      firstSourceRateNumerator === undefined
+        ? first
+        : { ...first, sourceFrameRate: { ...rate, numerator: firstSourceRateNumerator } },
+      separateRenditions ? { ...second, sourceId: "incoming" } : second,
+    ];
+  }, [firstSourceRateNumerator, separateRenditions]);
   const [onCutListResult] = useState(() => fn());
   const [onSequenceChange] = useState(() => fn());
   return (

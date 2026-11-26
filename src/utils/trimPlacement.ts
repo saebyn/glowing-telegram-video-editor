@@ -1,6 +1,6 @@
 import type { ClipPlacement, FrameRate, Sequence, SequenceTrack, VideoClip } from "@/types";
 import { getPlacementSourceRange } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 
 /** Trimming requires matching source and project frame rates. */
 export function getTrimmableSourceRange(
@@ -11,8 +11,9 @@ export function getTrimmableSourceRange(
   const range = getPlacementSourceRange(clip, placement);
   const { sourceFrameRate } = range;
   if (
+    !isValidFrameRate(sourceFrameRate) ||
     BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
-    BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator)
+      BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator)
   ) {
     return null;
   }
@@ -25,18 +26,23 @@ export function getTrailingTrimBounds(
   track: SequenceTrack,
   clip: VideoClip,
   frameRate: FrameRate,
+  clips: readonly VideoClip[],
 ) {
   const range = getTrimmableSourceRange(placement, clip, frameRate);
   if (!range) return null;
   const { sourceInFrame, sourceOutFrame } = range;
 
-  const maxSequenceEnd = track.placements.reduce(
-    (end, other) =>
-      other.sequenceStartFrame > placement.sequenceStartFrame
-        ? Math.min(end, other.sequenceStartFrame)
-        : end,
-    Number.MAX_SAFE_INTEGER,
-  );
+  let maxSequenceEnd = Number.MAX_SAFE_INTEGER;
+  for (const other of track.placements) {
+    if (other.id === placement.id) continue;
+    if (other.sequenceStartFrame > placement.sequenceStartFrame) {
+      maxSequenceEnd = Math.min(maxSequenceEnd, other.sequenceStartFrame);
+    } else {
+      // An earlier placement may still cover the fixed leading edge.
+      const otherClip = clips.find(({ id }) => id === other.clipId);
+      if (!otherClip || !isValidFrameRate(otherClip.sourceFrameRate)) return null;
+    }
+  }
   const min = sourceInFrame + 1;
   const sourceEnd = clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame);
   const max = Math.min(sourceEnd, sourceInFrame + (maxSequenceEnd - placement.sequenceStartFrame));
@@ -58,7 +64,7 @@ export function applyTrailingTrim(
   const clip = clips.find(({ id }) => id === placement?.clipId);
   if (!track || track.locked || !placement || !clip) return null;
 
-  const bounds = getTrailingTrimBounds(placement, track, clip, frameRate);
+  const bounds = getTrailingTrimBounds(placement, track, clip, frameRate, clips);
   if (
     !bounds ||
     !Number.isSafeInteger(sourceOutFrame) ||
@@ -114,10 +120,12 @@ export function applyLeadingTrim(
   const sequenceStartFrame = placement.sequenceStartFrame + (sourceInFrame - range.sourceInFrame);
   if (!Number.isSafeInteger(sequenceStartFrame) || sequenceStartFrame < 0) return null;
 
+  const sequenceEndFrame =
+    placement.sequenceStartFrame + (range.sourceOutFrame - range.sourceInFrame);
   for (const other of track.placements) {
-    if (other.sequenceStartFrame >= placement.sequenceStartFrame) continue;
+    if (other.id === placement.id || other.sequenceStartFrame >= sequenceEndFrame) continue;
     const otherClip = clips.find(({ id }) => id === other.clipId);
-    if (!otherClip) return null;
+    if (!otherClip || !isValidFrameRate(otherClip.sourceFrameRate)) return null;
     const otherRange = getPlacementSourceRange(otherClip, other);
     const otherEnd = other.sequenceStartFrame + getProjectFrameCount(otherRange, frameRate);
     if (otherEnd > sequenceStartFrame) return null;

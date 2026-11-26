@@ -12,7 +12,7 @@ import type {
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 import { findPlacementTrack } from "./sequenceTracks";
 import { hasTransitionAuthoringConflict } from "./sequenceTransitions";
 
@@ -79,9 +79,8 @@ export function evaluateTransitionEdit(
   const field = transitionFields[edge];
   const current = placement[field];
   const clip = clips.find(({ id }) => id === placement.clipId);
-  const frames = clip
-    ? getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate)
-    : 0;
+  if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return { kind: "unavailable" };
+  const frames = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
   const bounds = getTransitionDurationBounds(transition.kind, frames);
   if (!bounds) return { kind: "unavailable" };
   const { durationFrames } = transition;

@@ -186,6 +186,49 @@ const straightCuts: Sequence = {
   ],
 };
 
+test("trims can respect an unresolved neighbor's known start, but cannot assume its end", () => {
+  const invalidHarbor = { ...harbor, sourceFrameRate: { numerator: 29.97, denominator: 1 } };
+  expect(
+    applyLeadingTrim(straightCuts, [invalidHarbor, lighthouse], frameRate, "lighthouse-next", 525),
+  ).toBeNull();
+  expect(
+    applyTrailingTrim(straightCuts, [invalidHarbor, lighthouse], frameRate, "lighthouse-next", 625),
+  ).toBeNull();
+  const invalidLighthouse = {
+    ...lighthouse,
+    sourceFrameRate: { numerator: 29.97, denominator: 1 },
+  };
+  expect(
+    applyTrailingTrim(straightCuts, [harbor, invalidLighthouse], frameRate, "harbor-open", 233),
+  ).toMatchObject({
+    tracks: [
+      { placements: [{ id: "harbor-open", sourceOutOffsetFrames: 0 }, { id: "lighthouse-next" }] },
+    ],
+  });
+  expect(
+    applyLeadingTrim(straightCuts, [harbor, invalidLighthouse], frameRate, "harbor-open", 115),
+  ).toMatchObject({
+    tracks: [
+      { placements: [{ id: "harbor-open", sequenceStartFrame: 1 }, { id: "lighthouse-next" }] },
+    ],
+  });
+  const overlapping: Sequence = {
+    ...straightCuts,
+    tracks: [
+      {
+        ...straightCuts.tracks[0],
+        placements: [
+          straightCuts.tracks[0].placements[0],
+          { ...straightCuts.tracks[0].placements[1], sequenceStartFrame: 100 },
+        ],
+      },
+    ],
+  };
+  expect(
+    applyLeadingTrim(overlapping, [harbor, invalidLighthouse], frameRate, "harbor-open", 115),
+  ).toBeNull();
+});
+
 test("a leading trim shifts the sequence start and source in without moving the trailing edge", () => {
   expect(
     applyLeadingTrim(straightCuts, [lighthouse, harbor], frameRate, "lighthouse-next", 525),

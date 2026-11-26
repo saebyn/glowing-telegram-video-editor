@@ -63,6 +63,27 @@ it("rejects an extending drop over the effective source range of a placement on 
   });
 });
 
+it("can fit a valid pool clip before an unresolved placement, not after its unknown end", () => {
+  const invalid = { ...clip, id: "invalid", sourceFrameRate: { numerator: 30, denominator: 0 } };
+  const loaded: Sequence = {
+    ...sequence,
+    tracks: [
+      {
+        ...sequence.tracks[0],
+        placements: [{ id: "unknown-end", clipId: "invalid", sequenceStartFrame: 55 }],
+      },
+    ],
+  };
+  const clips = [clip, invalid];
+  expect(placeClipInGap(loaded, clips, frameRate, "clip", "main", 80)).toBeNull();
+  expect(placeClipInGap(loaded, clips, frameRate, "invalid", "main", 0)).toBeNull();
+  expect(evaluatePoolDrop(loaded, clips, frameRate, "clip", "main", 50)).toStrictEqual({
+    kind: "place",
+    sequenceStartFrame: 35,
+    duration: 20,
+  });
+});
+
 it("rejects a clip longer than the bounded gap even when placements are stored out of order", () => {
   const bounded: Sequence = {
     durationFrames: 150,

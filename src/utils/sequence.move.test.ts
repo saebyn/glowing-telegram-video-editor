@@ -57,6 +57,64 @@ it("moves beyond the old endpoint and grows to the exclusive end of the effectiv
   });
 });
 
+it("can move up to, but not across or beyond, the start of an unresolved placement", () => {
+  const malformed = {
+    ...clips[0],
+    id: "malformed",
+    sourceFrameRate: { numerator: 0, denominator: 1 },
+  };
+  const sequence: Sequence = {
+    durationFrames: 160,
+    tracks: [
+      {
+        ...original.tracks[0],
+        placements: [
+          { id: "unknown-end", clipId: "malformed", sequenceStartFrame: 100 },
+          ...original.tracks[0].placements,
+        ],
+      },
+    ],
+  };
+  const pool = [...clips, malformed];
+  const moveTo = (start: number) =>
+    evaluatePlacementMove(sequence, pool, frameRate, "placement", "main", start);
+  expect(moveTo(76)).toMatchObject({ kind: "blocked" }); // [76, 101) would cross the known start.
+  expect(moveTo(150)).toMatchObject({ kind: "blocked" }); // We don't know whether the end is before 150.
+  expect(moveTo(65)).toMatchObject({
+    kind: "move",
+    sequence: {
+      durationFrames: 160,
+      tracks: [
+        {
+          placements: [
+            { id: "unknown-end", sequenceStartFrame: 100 },
+            { id: "placement", sequenceStartFrame: 65 },
+          ],
+        },
+      ],
+    },
+  });
+  // Snap scans all tracks for edges, even ones that aren't relevant to collision.
+  const snapped = evaluatePlacementMove(
+    sequence,
+    pool,
+    frameRate,
+    "placement",
+    "main",
+    74,
+    ["placement"],
+    {
+      unroundedStartFrame: 74,
+      toleranceFrames: 2,
+      playheadFrame: 72,
+    },
+  );
+  expect(snapped).toMatchObject({ kind: "move", snapTargetFrame: 72 });
+  expect(
+    evaluatePlacementMove(sequence, pool, frameRate, "unknown-end", "main", 105),
+  ).toMatchObject({ kind: "blocked" });
+});
+
 it("vacates the entire moving selection before applying a shared frame and track shift", () => {
   const sequence: Sequence = {
     durationFrames: 100,

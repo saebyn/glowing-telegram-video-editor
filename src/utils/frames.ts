@@ -1,6 +1,15 @@
 import type { FrameRate, SequenceLayout, SourceRange, VideoClip } from "@/types";
 import { formatSeconds, NANOSECONDS_PER_SECOND } from "./duration";
 
+export function isValidFrameRate({ numerator, denominator }: FrameRate): boolean {
+  return (
+    Number.isSafeInteger(numerator) &&
+    numerator > 0 &&
+    Number.isSafeInteger(denominator) &&
+    denominator > 0
+  );
+}
+
 export function framesToSeconds(frames: number, rate: FrameRate): number {
   return (frames * rate.denominator) / rate.numerator;
 }

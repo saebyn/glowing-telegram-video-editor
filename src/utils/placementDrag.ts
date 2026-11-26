@@ -1,6 +1,6 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
 import { getPlacementSourceRange, inSequenceOrder } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 
 /** Find the exact position and length of a pool clip before allocating a placement ID. */
 export function evaluatePoolDrop(
@@ -13,7 +13,13 @@ export function evaluatePoolDrop(
 ) {
   const track = sequence.tracks.find(({ id }) => id === trackId);
   const clip = clips.find((candidate) => candidate.id === clipId);
-  if (!track || !clip || !Number.isSafeInteger(atFrame) || atFrame < 0) {
+  if (
+    !track ||
+    !clip ||
+    !isValidFrameRate(clip.sourceFrameRate) ||
+    !Number.isSafeInteger(atFrame) ||
+    atFrame < 0
+  ) {
     return null;
   }
 
@@ -36,7 +42,7 @@ export function evaluatePoolDrop(
       break;
     }
     const placedClip = clips.find((candidate) => candidate.id === placement.clipId);
-    if (!placedClip) return null;
+    if (!placedClip || !isValidFrameRate(placedClip.sourceFrameRate)) return null;
     const range = getPlacementSourceRange(placedClip, placement);
     gapStart = Math.max(
       gapStart,
@@ -114,7 +120,7 @@ export function evaluatePlacementMove(
       for (const placement of placements) {
         const start = placement.sequenceStartFrame;
         const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip) continue;
+        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) continue;
         const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
         if (duration <= 0) continue;
         if (placement.id === grabbedId) grabbedStart = start;
@@ -212,7 +218,7 @@ function evaluateMove(
     const start = placement.sequenceStartFrame;
     if (start < 0) return block("negative-frame");
     const clip = clips.find(({ id }) => id === placement.clipId);
-    if (!clip) return block("invalid-placement");
+    if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return block("invalid-placement");
     const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
     const end = start + duration;
     if (duration <= 0 || !Number.isSafeInteger(end)) return block("invalid-placement");
@@ -220,7 +226,8 @@ function evaluateMove(
     for (const other of destination.placements) {
       if (moving.has(other.id) || other.sequenceStartFrame >= end) continue;
       const otherClip = clips.find(({ id }) => id === other.clipId);
-      if (!otherClip) return block("invalid-placement");
+      if (!otherClip || !isValidFrameRate(otherClip.sourceFrameRate))
+        return block("invalid-placement");
       const otherDuration = getProjectFrameCount(
         getPlacementSourceRange(otherClip, other),
         frameRate,

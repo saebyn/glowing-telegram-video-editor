@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ProjectProvider } from "@/context/ProjectContext";
 import type { FrameRate, SequenceSource, SourcesById } from "@/types";
 import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
+import { isValidFrameRate } from "@/utils/frames";
 import { getSource } from "@/utils/sourcesById";
 import ProjectClipPool, { type ProjectClipPoolProps } from "./ProjectClipPool";
 
@@ -23,23 +24,27 @@ export default function SequenceClipPool({
   sources,
   ...presentation
 }: SequenceClipPoolProps) {
+  const usableClips = useMemo(
+    () => clips.filter(({ sourceFrameRate }) => isValidFrameRate(sourceFrameRate)),
+    [clips],
+  );
   const keyframes = useMemo(() => {
     return Object.fromEntries(
-      clips.map((clip) => [
+      usableClips.map((clip) => [
         clip.id,
         frameThumbnailsInRange(getSource(sources, clip.sourceId)?.frameThumbnails, clip).map(
           ({ url }) => url,
         ),
       ]),
     );
-  }, [clips, sources]);
+  }, [usableClips, sources]);
 
   return (
     <div onDragEnd={endClipDrag}>
       <ProjectProvider frameRate={frameRate}>
         <ProjectClipPool
           {...presentation}
-          clips={clips}
+          clips={usableClips}
           sources={sources}
           keyframes={keyframes}
           clipWidth="136px"

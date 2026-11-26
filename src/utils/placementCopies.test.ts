@@ -56,6 +56,36 @@ it("duplicates after the last selected exclusive end on the original tracks", ()
   });
 });
 
+it("rejects a paste that needs an unresolved placement's end but allows edge contact at its start", () => {
+  const invalid = { ...clips[0], id: "invalid", sourceFrameRate: { numerator: 0, denominator: 1 } };
+  const pool = [...clips, invalid];
+  const sequence: Sequence = {
+    ...layered,
+    tracks: [
+      layered.tracks[0],
+      {
+        ...layered.tracks[1],
+        placements: [{ id: "unknown-end", clipId: "invalid", sequenceStartFrame: 55 }],
+      },
+      layered.tracks[2],
+    ],
+  };
+  const copied = copyPlacements(sequence, pool, frameRate, ["earliest"]);
+  expect(
+    pastePlacements(sequence, pool, frameRate, copied, { trackId: "middle", sequenceFrame: 60 }),
+  ).toBeNull();
+  expect(
+    pastePlacements(sequence, pool, frameRate, copied, { trackId: "middle", sequenceFrame: 35 }),
+  ).toMatchObject({
+    tracks: [
+      layered.tracks[0],
+      { placements: [{ id: "unknown-end" }, { clipId: "clip", sequenceStartFrame: 35 }] },
+      layered.tracks[2],
+    ],
+  });
+  expect(copyPlacements(sequence, pool, frameRate, ["unknown-end"])).toBeNull();
+});
+
 it("rejects an entire duplicate when a new placement would hit an unselected placement", () => {
   const sequence: Sequence = {
     durationFrames: 95,

@@ -1,6 +1,6 @@
 import type { FrameRate, Sequence, VideoClip } from "@/types";
 import { getPlacementSourceRange } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 
 export function shortenSequence(
   sequence: Sequence,
@@ -14,7 +14,7 @@ export function shortenSequence(
   for (const track of sequence.tracks) {
     for (const placement of track.placements) {
       const clip = clips.find(({ id }) => id === placement.clipId);
-      if (!clip) return null;
+      if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return null;
       const duration = getProjectFrameCount(getPlacementSourceRange(clip, placement), frameRate);
       if (placement.sequenceStartFrame + duration > endFrame) return null;
     }

@@ -8,7 +8,7 @@ import type {
 } from "@/types";
 import { getPlacementSourceRange } from "./clipPlacements";
 import { getDissolveWindow } from "./dissolveWindow";
-import { framesToSeconds, getProjectFrameCount } from "./frames";
+import { framesToSeconds, getProjectFrameCount, isValidFrameRate } from "./frames";
 import { getSource } from "./sourcesById";
 
 export interface PreviewSample {
@@ -41,7 +41,7 @@ export function createSequencePresentation(
   const placements = sequence.tracks.flatMap(({ placements }, track) =>
     placements.flatMap((placement) => {
       const clip = byId.get(placement.clipId);
-      if (!clip) return [];
+      if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return [];
       const range = getPlacementSourceRange(clip, placement);
       return {
         sourceId: clip.sourceId,

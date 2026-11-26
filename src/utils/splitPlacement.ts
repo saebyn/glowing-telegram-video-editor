@@ -1,5 +1,6 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
 import { getPlacementSourceRange } from "./clipPlacements";
+import { isValidFrameRate } from "./frames";
 
 function getSplitPoint(
   placement: ClipPlacement,
@@ -16,8 +17,9 @@ function getSplitPoint(
     placement,
   );
   if (
+    !isValidFrameRate(sourceFrameRate) ||
     BigInt(sourceFrameRate.numerator) * BigInt(frameRate.denominator) !==
-    BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator)
+      BigInt(frameRate.numerator) * BigInt(sourceFrameRate.denominator)
   ) {
     return null;
   }

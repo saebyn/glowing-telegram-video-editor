@@ -32,6 +32,20 @@ test("resize by ID changes only the duration of the existing transition", () => 
   });
 });
 
+test("resizing a transition requires a known duration for its placement", () => {
+  const before = sequence(a, {
+    ...b,
+    transitionIn: { id: "blend", kind: "dissolve", durationFrames: 7 },
+  });
+  const malformed = { ...clips[1], sourceFrameRate: { numerator: 29.97, denominator: 1 } };
+  expect(
+    evaluateTransitionResize(before, [clips[0], malformed], {}, rate, {
+      transitionId: "blend",
+      durationFrames: 31,
+    }),
+  ).toStrictEqual({ kind: "unavailable" });
+});
+
 test("a resize intent is evaluated against the currently authored transition", () => {
   const entry = { id: "entry", kind: "fade", durationFrames: 6 } as const;
   const before = sequence(a, { ...b, transitionIn: entry });

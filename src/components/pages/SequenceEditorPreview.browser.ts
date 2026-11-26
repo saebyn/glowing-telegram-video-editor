@@ -2,6 +2,16 @@ import { expect, test, type Locator } from "@playwright/test";
 
 const story = "/iframe.html?id=pages-sequenceeditorpreview--local-dissolve&viewMode=story";
 
+test("the default media Preview can mount with an invalid source frame rate", async ({ page }) => {
+  await page.goto(`${story}&args=firstSourceRateNumerator:0`);
+  const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
+  await expect(editor.getByRole("region", { name: "CutList issues" })).toContainText(
+    "Placement first has an invalid source frame rate.",
+    { timeout: 15_000 },
+  );
+  await expect(editor.getByRole("img", { name: "Sequence picture" })).toBeVisible();
+});
+
 async function marker(picture: Locator) {
   return picture.evaluate((el) => {
     const canvas = el as HTMLCanvasElement;

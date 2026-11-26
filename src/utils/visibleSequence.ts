@@ -10,7 +10,7 @@ import type {
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, inSequenceOrder, transitionFields } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 import { getSource } from "./sourcesById";
 
 export type ResolvedPlacement = {
@@ -37,15 +37,6 @@ export type ResolvedTransition = PlacementTransition & {
   edge: PlacementEdge;
 };
 
-function isValidRate({ numerator, denominator }: FrameRate) {
-  return (
-    Number.isSafeInteger(numerator) &&
-    numerator > 0 &&
-    Number.isSafeInteger(denominator) &&
-    denominator > 0
-  );
-}
-
 /**
  * Flatten ordered tracks into spans of the uppermost placement.
  * Layout-only resolution allows missing media and mixed frame rates for authoring checks.
@@ -62,7 +53,7 @@ export function resolveVisibleSequence(
   const issues: CutListIssue[] = [];
   const { durationFrames } = sequence;
   const validDuration = Number.isSafeInteger(durationFrames) && durationFrames >= 0;
-  const validProjectRate = isValidRate(frameRate);
+  const validProjectRate = isValidFrameRate(frameRate);
   if (!validDuration) issues.push({ code: "invalid-sequence-duration", durationFrames });
   if (!validProjectRate) issues.push({ code: "invalid-project-frame-rate", frameRate });
   let canResolveLayout = validDuration && validProjectRate;
@@ -106,7 +97,7 @@ export function resolveVisibleSequence(
         clip,
         placement,
       );
-      const validSourceRate = isValidRate(sourceFrameRate);
+      const validSourceRate = isValidFrameRate(sourceFrameRate);
       const matchingRates =
         validSourceRate &&
         validProjectRate &&

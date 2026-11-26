@@ -65,3 +65,8 @@ it("can remove all uncovered time from an empty sequence", () => {
 it("cannot shorten when a placement's duration cannot be resolved", () => {
   expect(shortenSequence(sequence, [], frameRate, 75)).toBeNull();
 });
+
+it("cannot shorten when a placement has an invalid source frame rate", () => {
+  const malformed = { ...clips[1], sourceFrameRate: { numerator: 30, denominator: 0 } };
+  expect(shortenSequence(sequence, [malformed], frameRate, 80)).toBeNull();
+});

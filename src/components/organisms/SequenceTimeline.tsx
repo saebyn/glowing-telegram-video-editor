@@ -38,6 +38,7 @@ import {
   formatFrames,
   framesToSeconds,
   getProjectFrameCount,
+  isValidFrameRate,
   secondsToFrame,
   snapFrame,
 } from "@/utils/frames";
@@ -475,7 +476,7 @@ export default function SequenceTimeline({
       id: track.id,
       actions: track.placements.flatMap((placement) => {
         const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip) return [];
+        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return [];
         const range = getPlacementSourceRange(clip, placement);
         const duration = getProjectFrameCount(range, frameRate);
         if (duration <= 0) return [];

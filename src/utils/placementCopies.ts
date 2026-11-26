@@ -7,7 +7,7 @@ import type {
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange } from "./clipPlacements";
-import { getProjectFrameCount } from "./frames";
+import { getProjectFrameCount, isValidFrameRate } from "./frames";
 
 type PastePlacement = PlacementPastePreview["placements"][number];
 type PasteBlockReason = Extract<PlacementPastePreview, { kind: "blocked" }>["reason"];
@@ -24,7 +24,7 @@ export function copyPlacements(
       .filter(({ id }) => selected.has(id))
       .flatMap((placement) => {
         const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip) return [];
+        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return [];
         const range = getPlacementSourceRange(clip, placement);
         return [
           {
@@ -87,6 +87,7 @@ function evaluatePaste(
     const clip = clips.find(({ id }) => id === placement.clipId);
     if (
       !clip ||
+      !isValidFrameRate(clip.sourceFrameRate) ||
       clip.sourceId !== member.sourceId ||
       clip.sourceFrameRate.numerator * range.sourceFrameRate.denominator !==
         range.sourceFrameRate.numerator * clip.sourceFrameRate.denominator ||
@@ -124,7 +125,7 @@ function evaluatePaste(
     for (const other of track.placements) {
       if (other.sequenceStartFrame >= end) continue;
       const otherClip = clips.find(({ id }) => id === other.clipId);
-      if (!otherClip) {
+      if (!otherClip || !isValidFrameRate(otherClip.sourceFrameRate)) {
         reason ??= "invalid-placement";
         break;
       }
