@@ -9,6 +9,7 @@ import type {
 import { framesToSeconds, secondsToFrame } from "@/utils/frames";
 import { previewHeight, previewWidth, createPreviewRendition } from "@/utils/previewRendition";
 import { createPreviewSound } from "@/utils/previewSound";
+import { previewSoundStops } from "@/utils/previewSoundStops";
 import { createSequencePresentation } from "@/utils/sequencePresentation";
 import { getSource } from "@/utils/sourcesById";
 
@@ -143,7 +144,7 @@ export default function SequencePreview({
     const lookahead = Math.max(1, secondsToFrame(0.5, frameRate));
     const lookaheadStep = Math.max(1, secondsToFrame(0.125, frameRate));
     const nearbyCount = Math.max(1, secondsToFrame(0.1, frameRate));
-    const unregister = registerPreview?.({
+    const gate: SequencePreviewGate = {
       readiness: (frame, direction) => {
         const audible = direction === 1;
         const prepared = instance.prepare(frame, audible);
@@ -184,16 +185,21 @@ export default function SequencePreview({
           sound.current?.play(frame, delay, framesToSeconds(1, frameRate), result.sound);
         }
       },
-    });
+    };
+    if (registerPreview) previewSoundStops.set(gate, () => sound.current?.stop());
+    const unregister = registerPreview?.(gate);
     return () => {
       reader.current = null;
       sound.current?.stop();
+      previewSoundStops.delete(gate);
       unregister?.();
       instance.dispose();
     };
   }, [sequence, clips, sources, frameRate, registerPreview]);
 
   useLayoutEffect(() => {
+    // A snapshot alone can't distinguish an endpoint seek from completion.
+    // The session cancels explicit transport actions through the mounted gate.
     if (playback !== "forward" && playheadFrame !== durationFrames) sound.current?.stop();
   }, [playback, playheadFrame, durationFrames]);
 

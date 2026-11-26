@@ -197,12 +197,15 @@ export const LocalTone: Story = {
   args: { media: toneMedia },
   parameters: {
     docs: {
-      description: { story: "Play a local reference tone at 60 sequence frames per second." },
+      description: {
+        story:
+          "Play a local reference tone at 60 sequence frames per second. Press End on the sequence playhead during playback to seek to the endpoint.",
+      },
     },
   },
   render: ({ media = toneMedia, frameRate }) => (
     <ProjectProvider frameRate={frameRate}>
-      <StandaloneHlsPreview {...media} />
+      <StandaloneHlsPreview {...media} showTimeline />
     </ProjectProvider>
   ),
 };

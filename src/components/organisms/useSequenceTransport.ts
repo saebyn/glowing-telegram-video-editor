@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { FrameRate, SequencePreviewGate } from "@/types";
 import { framesToSeconds, secondsToFrame, snapFrame } from "@/utils/frames";
+import { previewSoundStops } from "@/utils/previewSoundStops";
 
 type Direction = 1 | -1;
 type Playback = { direction: Direction; startFrame: number; startTime: number };
@@ -98,6 +99,7 @@ export function useSequenceTransport(durationFrames: number, frameRate: FrameRat
     isPlaying: playback !== null,
     isReversing: playback?.direction === -1,
     seek(frame: number) {
+      if (preview.current) previewSoundStops.get(preview.current)?.();
       setStoppedOn(undefined);
       setPlayback(null);
       setFrame(snapFrame(frame, durationFrames));
@@ -108,6 +110,7 @@ export function useSequenceTransport(durationFrames: number, frameRate: FrameRat
       setPlayback({ direction, startFrame: playheadFrame, startTime: performance.now() });
     },
     pause() {
+      if (preview.current) previewSoundStops.get(preview.current)?.();
       setStoppedOn(undefined);
       setPlayback(null);
     },
