@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ProjectProvider } from "@/context/ProjectContext";
 import type { FrameRate, SequenceSource, SourcesById } from "@/types";
+import { isValidSourceRange } from "@/utils/clipPlacements";
 import { frameThumbnailsInRange } from "@/utils/frameThumbnails";
 import { isValidFrameRate } from "@/utils/frames";
 import { getSource } from "@/utils/sourcesById";
@@ -28,12 +29,9 @@ export default function SequenceClipPool({
     () =>
       isValidFrameRate(frameRate)
         ? clips.filter(
-            ({ sourceFrameRate, sourceInFrame, sourceOutFrame }) =>
-              isValidFrameRate(sourceFrameRate) &&
-              Number.isSafeInteger(sourceInFrame) &&
-              sourceInFrame >= 0 &&
-              Number.isSafeInteger(sourceOutFrame) &&
-              sourceOutFrame > sourceInFrame,
+            (clip) =>
+              isValidFrameRate(clip.sourceFrameRate) &&
+              isValidSourceRange(clip, clip.sourceDurationFrames),
           )
         : [],
     [clips, frameRate],

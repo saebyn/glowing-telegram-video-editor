@@ -9,7 +9,7 @@ import type {
   SourcesById,
   VideoClip,
 } from "@/types";
-import { getPlacementSourceRange, transitionFields } from "./clipPlacements";
+import { getPlacementSourceRange, isValidSourceRange, transitionFields } from "./clipPlacements";
 import { getProjectFrameCount, isValidFrameRate } from "./frames";
 import { getSource } from "./sourcesById";
 
@@ -104,10 +104,8 @@ export function resolveSequencePlacements(
       const source = getSource(sources, clip.sourceId);
       if (!source && !layoutOnly)
         issues.push({ code: "missing-source", placementId, sourceId: clip.sourceId });
-      const { sourceInFrame, sourceOutFrame, sourceFrameRate } = getPlacementSourceRange(
-        clip,
-        placement,
-      );
+      const range = getPlacementSourceRange(clip, placement);
+      const { sourceInFrame, sourceOutFrame, sourceFrameRate } = range;
       const validSourceRate = isValidFrameRate(sourceFrameRate);
       const matchingRates =
         validSourceRate &&
@@ -119,12 +117,7 @@ export function resolveSequencePlacements(
       } else if (!layoutOnly && validProjectRate && !matchingRates) {
         issues.push({ code: "frame-rate-mismatch", placementId, sourceFrameRate });
       }
-      const validRange =
-        Number.isSafeInteger(sourceInFrame) &&
-        Number.isSafeInteger(sourceOutFrame) &&
-        sourceInFrame >= 0 &&
-        sourceOutFrame > sourceInFrame &&
-        (clip.sourceDurationFrames === undefined || sourceOutFrame <= clip.sourceDurationFrames);
+      const validRange = isValidSourceRange(range, clip.sourceDurationFrames);
       if (!validRange) {
         issues.push({ code: "invalid-source-range", placementId, sourceInFrame, sourceOutFrame });
       }
@@ -132,10 +125,7 @@ export function resolveSequencePlacements(
         canResolveLayout = false;
         continue;
       }
-      const frameCount = getProjectFrameCount(
-        { sourceInFrame, sourceOutFrame, sourceFrameRate },
-        frameRate,
-      );
+      const frameCount = getProjectFrameCount(range, frameRate);
       const sequenceEndFrame = sequenceStartFrame + frameCount;
       if (!Number.isSafeInteger(sequenceEndFrame)) {
         issues.push({ code: "placement-outside-sequence", placementId });

@@ -1,5 +1,5 @@
 import type { ClipPlacement, FrameRate, Sequence, VideoClip } from "@/types";
-import { getPlacementSourceRange, inSequenceOrder } from "./clipPlacements";
+import { getPlacementSourceRange, inSequenceOrder, isValidSourceRange } from "./clipPlacements";
 import { getProjectFrameCount, isValidFrameRate } from "./frames";
 
 /** Find the exact position and length of a pool clip before allocating a placement ID. */
@@ -17,6 +17,7 @@ export function evaluatePoolDrop(
     !track ||
     !clip ||
     !isValidFrameRate(clip.sourceFrameRate) ||
+    !isValidSourceRange(clip, clip.sourceDurationFrames) ||
     !Number.isSafeInteger(atFrame) ||
     atFrame < 0
   ) {

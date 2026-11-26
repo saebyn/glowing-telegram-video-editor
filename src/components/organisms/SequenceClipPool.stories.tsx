@@ -41,3 +41,23 @@ export const Empty: Story = {
     await expect(canvas.getByText("No clips available")).toBeVisible();
   },
 };
+
+const sourceBoundClip = {
+  id: "at-source-end",
+  sourceId: "source",
+  sourceFrameRate: sampleFrameRate,
+  sourceInFrame: 100,
+  sourceOutFrame: 129,
+  sourceDurationFrames: 129,
+};
+
+export const KnownSourceEnd: Story = {
+  args: {
+    clips: [sourceBoundClip, { ...sourceBoundClip, id: "past-source-end", sourceOutFrame: 130 }],
+    titles: { "at-source-end": "At source end", "past-source-end": "Past source end" },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("At source end", { exact: true })).toBeInTheDocument();
+    await expect(canvas.queryByText("Past source end", { exact: true })).not.toBeInTheDocument();
+  },
+};

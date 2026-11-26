@@ -1,4 +1,4 @@
-import type { ClipPlacement, VideoClip } from "@/types";
+import type { ClipPlacement, SourceRange, VideoClip } from "@/types";
 
 export const transitionFields = {
   leading: "transitionIn",
@@ -11,6 +11,19 @@ export function getPlacementSourceRange(clip: VideoClip, placement: ClipPlacemen
     sourceOutFrame: clip.sourceOutFrame + (placement.sourceOutOffsetFrames ?? 0),
     sourceFrameRate: clip.sourceFrameRate,
   };
+}
+
+export function isValidSourceRange(
+  { sourceInFrame, sourceOutFrame }: SourceRange,
+  sourceDurationFrames: number | undefined,
+): boolean {
+  return (
+    Number.isSafeInteger(sourceInFrame) &&
+    Number.isSafeInteger(sourceOutFrame) &&
+    sourceInFrame >= 0 &&
+    sourceOutFrame > sourceInFrame &&
+    (sourceDurationFrames === undefined || sourceOutFrame <= sourceDurationFrames)
+  );
 }
 
 export function inSequenceOrder(placements: readonly ClipPlacement[]) {

@@ -28,6 +28,53 @@ const sequence: Sequence = {
   ],
 };
 
+it("rejects a pool clip that extends past the known source end without blocking a valid clip", () => {
+  const invalid = {
+    ...clip,
+    id: "past-source-end",
+    sourceOutFrame: 130,
+    sourceDurationFrames: 129,
+  };
+  const clips = [clip, invalid];
+
+  expect(evaluatePoolDrop(sequence, clips, frameRate, invalid.id, "main", 107)).toBeNull();
+  expect(placeClipInGap(sequence, clips, frameRate, invalid.id, "main", 107)).toBeNull();
+  expect(evaluatePoolDrop(sequence, clips, frameRate, clip.id, "main", 107)).toStrictEqual({
+    kind: "place",
+    sequenceStartFrame: 107,
+    duration: 20,
+  });
+});
+
+it("rejects fractional source points before converting to the project frame rate", () => {
+  const fractional = {
+    ...clip,
+    id: "fractional",
+    sourceFrameRate: { numerator: 24, denominator: 1 },
+    sourceOutFrame: 129.5,
+  };
+
+  expect(
+    evaluatePoolDrop(sequence, [clip, fractional], frameRate, fractional.id, "main", 107),
+  ).toBeNull();
+  expect(
+    placeClipInGap(sequence, [clip, fractional], frameRate, fractional.id, "main", 107),
+  ).toBeNull();
+});
+
+it("can place a clip whose exclusive out point equals the known source end", () => {
+  const rightUpToEnd = {
+    ...clip,
+    id: "at-source-end",
+    sourceOutFrame: 130,
+    sourceDurationFrames: 130,
+  };
+
+  expect(
+    evaluatePoolDrop(sequence, [clip, rightUpToEnd], frameRate, rightUpToEnd.id, "main", 107),
+  ).toStrictEqual({ kind: "place", sequenceStartFrame: 107, duration: 30 });
+});
+
 it("places a pool clip at the requested frame past the endpoint using the current clip bounds", () => {
   const next = placeClipInGap(sequence, [clip], frameRate, "clip", "main", 107);
   expect(next).toStrictEqual({
