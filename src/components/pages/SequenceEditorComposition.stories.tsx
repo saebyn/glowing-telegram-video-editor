@@ -269,11 +269,12 @@ const slots = {
 
 function useControlledStory(manualFirstEdit = false, initialSequence = original) {
   const [sequence, setSequence] = useState(initialSequence);
+  const [pool, setPool] = useState(clips);
   const [pending, setPending] = useState<Sequence>();
   const [autoAccept, setAutoAccept] = useState(!manualFirstEdit);
   const options: SequenceEditorPageProps = {
     sequence,
-    clips,
+    clips: pool,
     sources,
     titles,
     onSequenceChange(next) {
@@ -288,6 +289,8 @@ function useControlledStory(manualFirstEdit = false, initialSequence = original)
   return {
     options,
     pending,
+    setSequence,
+    setPool,
     lockTopTrack() {
       setSequence((current) => ({
         ...current,
@@ -405,4 +408,127 @@ function ResizeTransitionsExample() {
 export const ResizeATransition: StoryObj = {
   name: "Resize a transition",
   render: () => <ResizeTransitionsExample />,
+};
+
+function RetainedPlacementTimeline({
+  previewClipPlacement,
+  placeClip,
+  previewPlacementMove,
+  movePlacement,
+  previewTrim,
+  trimPlacement,
+}: SequenceTimelineProps) {
+  const [release, setRelease] = useState<() => void>();
+  const drop = { clipId: "bridge", trackId: "main", sequenceFrame: 60 };
+  const move = {
+    placementId: "closing",
+    placementIds: ["closing"],
+    trackId: "main",
+    sequenceFrame: 60,
+  };
+  const trim = { placementId: "opening", edge: "trailing", sourceFrame: 220 } as const;
+
+  return (
+    <section aria-label="Retained placement actions" className="space-x-3 rounded border p-3">
+      <button
+        type="button"
+        disabled={!placeClip || previewClipPlacement?.(drop)?.kind !== "place"}
+        onClick={() => setRelease(() => () => placeClip?.(drop))}
+      >
+        Capture pool drop
+      </button>
+      <button
+        type="button"
+        disabled={!movePlacement || previewPlacementMove?.(move).kind !== "move"}
+        onClick={() => setRelease(() => () => movePlacement?.(move))}
+      >
+        Capture placement move
+      </button>
+      <button
+        type="button"
+        disabled={!trimPlacement || !previewTrim?.(trim)}
+        onClick={() => setRelease(() => () => trimPlacement?.(trim))}
+      >
+        Capture placement trim
+      </button>
+      <button
+        type="button"
+        disabled={!release}
+        onClick={() => {
+          release?.();
+          setRelease(undefined);
+        }}
+      >
+        Release retained action
+      </button>
+    </section>
+  );
+}
+
+function RetainedPlacementActionsExample() {
+  const { options, lockTopTrack, setSequence, setPool } = useControlledStory();
+
+  function addReserveTrack() {
+    setSequence((current) => ({
+      ...current,
+      tracks: [
+        ...current.tracks,
+        {
+          id: "reserve",
+          label: "Reserve",
+          placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
+        },
+      ],
+    }));
+  }
+
+  function trimHarborClip() {
+    setPool((current) =>
+      current.map((clip) => (clip.id === "harbor" ? { ...clip, sourceOutFrame: 148 } : clip)),
+    );
+    setSequence((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) => ({
+        ...track,
+        // Shortening the pool clip by 12 source frames keeps existing placements' out points.
+        placements: track.placements.map((placement) =>
+          placement.clipId === "harbor"
+            ? { ...placement, sourceOutOffsetFrames: (placement.sourceOutOffsetFrames ?? 0) + 12 }
+            : placement,
+        ),
+      })),
+    }));
+  }
+
+  return (
+    <>
+      <p>Capture an action, change the host inputs, then release the original callback.</p>
+      <button type="button" onClick={lockTopTrack}>
+        Host: lock Main
+      </button>
+      <button
+        type="button"
+        disabled={options.sequence.tracks.some(({ id }) => id === "reserve")}
+        onClick={addReserveTrack}
+      >
+        Host: add Reserve track
+      </button>
+      <button
+        type="button"
+        disabled={options.clips.find(({ id }) => id === "harbor")?.sourceOutFrame === 148}
+        onClick={trimHarborClip}
+      >
+        Host: trim Harbor pool clip
+      </button>
+      <SequenceEditorPage
+        {...options}
+        slots={{ timeline: RetainedPlacementTimeline, preview: PreviewSnapshot }}
+      />
+    </>
+  );
+}
+
+export const ReleaseRetainedPlacementActions: StoryObj = {
+  name: "Release retained placement actions",
+  render: () => <RetainedPlacementActionsExample />,
 };

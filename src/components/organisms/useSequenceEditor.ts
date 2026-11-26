@@ -62,7 +62,6 @@ import type {
   PlacementMovePreviewIntent,
   SequenceTimelineProps,
   TimelinePlacementActivation,
-  TimelineTrimIntent,
 } from "./SequenceTimeline";
 import type { SequenceToolbarProps } from "./SequenceToolbar";
 import { useSequenceHistory } from "./useSequenceHistory";
@@ -419,6 +418,26 @@ export function useSequenceEditor({
     return result.kind === "conflict" ? "conflict" : "blocked";
   }
 
+  // Retained Timeline releases must use the latest committed edit inputs.
+  const placementReleases = useRef<
+    Pick<SequenceTimelineProps, "placeClip" | "movePlacement" | "trimPlacement">
+  >({});
+  useLayoutEffect(() => {
+    placementReleases.current = onSequenceChange
+      ? {
+          placeClip,
+          movePlacement,
+          trimPlacement: ({ placementId, edge, sourceFrame }) => {
+            const next = proposeTrim(placementId, edge, sourceFrame);
+            if (next) commitEdit(next);
+          },
+        }
+      : {};
+    return () => {
+      placementReleases.current = {};
+    };
+  });
+
   // A replacement Timeline may retain the release callback from pointerdown.
   const releaseTransitionResize = useRef<(intent: TransitionResizeIntent) => void>(() => {});
   useLayoutEffect(() => {
@@ -444,10 +463,14 @@ export function useSequenceEditor({
     activeClipId,
     endClipDrag,
     previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
-    placeClip: onSequenceChange ? placeClip : undefined,
+    placeClip: onSequenceChange
+      ? (intent) => placementReleases.current.placeClip?.(intent)
+      : undefined,
     snapEnabled,
     previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
-    movePlacement: onSequenceChange ? movePlacement : undefined,
+    movePlacement: onSequenceChange
+      ? (intent) => placementReleases.current.movePlacement?.(intent)
+      : undefined,
     reorderTrack: onSequenceChange
       ? (trackId, destinationTrackId) => {
           const next = reorderSequenceTrack(
@@ -479,10 +502,7 @@ export function useSequenceEditor({
       ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
       : undefined,
     trimPlacement: onSequenceChange
-      ? ({ placementId, edge, sourceFrame }: TimelineTrimIntent) => {
-          const next = proposeTrim(placementId, edge, sourceFrame);
-          if (next) commitEdit(next);
-        }
+      ? (intent) => placementReleases.current.trimPlacement?.(intent)
       : undefined,
     trimRanges,
     fadePlacementIds,

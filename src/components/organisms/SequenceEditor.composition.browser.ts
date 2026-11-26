@@ -9,6 +9,7 @@ import {
 const pageStory = "examples-sequence-editor-composition--replace-page-slots";
 const hookStory = "examples-sequence-editor-composition--assemble-with-the-hook";
 const resizeStory = "examples-sequence-editor-composition--resize-a-transition";
+const retainedStory = "examples-sequence-editor-composition--release-retained-placement-actions";
 
 test("Storybook lists both composition examples separately from the default workflows", async ({
   request,
@@ -231,4 +232,146 @@ test("a replacement Timeline release honors a lock added by the host after point
   expect(await emissions()).toEqual(noEdits);
   await timeline.getByRole("button", { name: "Preview resize" }).click();
   await expect(preview).toHaveText("blocked");
+});
+
+test("a retained pool drop honors a destination track lock added by the host", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Retained placement actions" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  const capture = timeline.getByRole("button", { name: "Capture pool drop" });
+  const release = timeline.getByRole("button", { name: "Release retained action" });
+  await capture.click();
+  await expect(release).toBeEnabled();
+
+  await page.getByRole("button", { name: "Host: lock Main" }).click();
+  await expect(capture).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+
+  await release.click();
+  await expect(release).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("a retained placement move preserves a host-added track and compiles the proposed sequence", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Retained placement actions" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await timeline.getByRole("button", { name: "Capture placement move" }).click();
+  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
+  expect(await emissions()).toEqual(noEdits);
+
+  await timeline.getByRole("button", { name: "Release retained action" }).click();
+  expect(await emissions()).toEqual({
+    sequences: [
+      {
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              { id: "opening", clipId: "harbor", sequenceStartFrame: 0 },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 60,
+                sourceOutOffsetFrames: 60,
+              },
+            ],
+          },
+          {
+            id: "reserve",
+            label: "Reserve",
+            placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 160 },
+              { startFrame: 100, endFrame: 220 },
+            ],
+          },
+          {
+            s3Location: "s3://sequence-fixtures/bridge.mp4",
+            sections: [{ startFrame: 300, endFrame: 360 }],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+          { mediaIndex: 1, sectionIndex: 0 },
+        ],
+      }),
+    ],
+  });
+});
+
+test("a retained placement trim uses the current pool clip and preserves the other placement", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Retained placement actions" });
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await timeline.getByRole("button", { name: "Capture placement trim" }).click();
+  await page.getByRole("button", { name: "Host: trim Harbor pool clip" }).click();
+  expect(await emissions()).toEqual(noEdits);
+
+  await timeline.getByRole("button", { name: "Release retained action" }).click();
+  expect(await emissions()).toEqual({
+    sequences: [
+      {
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                id: "opening",
+                clipId: "harbor",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: 72,
+              },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 120,
+                sourceOutOffsetFrames: 72,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 220 },
+              { startFrame: 100, endFrame: 220 },
+            ],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+        ],
+      }),
+    ],
+  });
 });
