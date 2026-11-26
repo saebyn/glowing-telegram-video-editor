@@ -23,10 +23,9 @@ export function useSequenceTransport(
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [stoppedOn, setStoppedOn] = useState<Direction>();
   const lastTick = useRef<{ playback: Playback; frame: number }>(null);
-  const playheadFrame = enabled ? snapFrame(frame, durationFrames) : frame;
-  // A host shrink replaces the stored position so later growth can't restore it.
-  if (frame !== playheadFrame) setFrame(playheadFrame);
-  if (!enabled) {
+  const playheadFrame = frame;
+  const transportStopped = !enabled || frame > durationFrames || durationFrames === 0;
+  if (transportStopped) {
     if (playback) setPlayback(null);
     if (stoppedOn !== undefined) setStoppedOn(undefined);
   }
@@ -39,13 +38,13 @@ export function useSequenceTransport(
   }, [enabled, durationFrames, playheadFrame]);
 
   useLayoutEffect(() => {
-    if (enabled) return;
+    if (!transportStopped) return;
     if (preview.current) previewSoundStops.get(preview.current)?.();
-    preview.current = null;
-  }, [enabled]);
+    if (!enabled) preview.current = null;
+  }, [enabled, transportStopped]);
 
   useLayoutEffect(() => {
-    if (!enabled || !playback) return;
+    if (transportStopped || !playback) return;
     let animationFrame: number;
     let { startFrame, startTime } = playback;
     if (lastTick.current?.playback === playback) {
@@ -112,20 +111,17 @@ export function useSequenceTransport(
     };
     animationFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrame);
-  }, [durationFrames, frameRate, playback, enabled]);
+  }, [durationFrames, frameRate, playback, transportStopped]);
 
   function play(direction: Direction) {
     const current = latest.current;
-    if (
-      !current ||
-      (direction === 1
-        ? current.playheadFrame >= current.durationFrames
-        : current.playheadFrame <= 0)
-    )
-      return;
+    if (!current) return;
+    const startFrame = snapFrame(current.playheadFrame, current.durationFrames);
+    setFrame(startFrame);
+    if (direction === 1 ? startFrame >= current.durationFrames : startFrame <= 0) return;
     setStoppedOn(undefined);
     if (direction === 1) preview.current?.unlockSound?.();
-    setPlayback({ direction, startFrame: current.playheadFrame, startTime: performance.now() });
+    setPlayback({ direction, startFrame, startTime: performance.now() });
   }
 
   return {

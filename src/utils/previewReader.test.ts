@@ -84,6 +84,21 @@ function controlledDecoder({
   };
 }
 
+test("a parked playhead returns black and silence without opening a rendition", async () => {
+  const decoder = controlledDecoder();
+  const reader = createPreviewReader(consecutiveRenditions(1), projectRate, decoder.open);
+  try {
+    await expect(reader.prepare(11, true).value).resolves.toEqual({ picture: [], sound: [] });
+    expect(decoder.opened).toEqual([]);
+    await expect(reader.prepare(10, true).value).resolves.toMatchObject({
+      picture: [{ picture: { dataset: { time: "0.9" } } }],
+      sound: [],
+    });
+  } finally {
+    reader.dispose();
+  }
+});
+
 test("visiting many renditions releases evicted handles and can reopen them", async () => {
   const decoder = controlledDecoder();
   const reader = createPreviewReader(consecutiveRenditions(12), projectRate, decoder.open);

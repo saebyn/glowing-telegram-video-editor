@@ -93,9 +93,9 @@ export function createPreviewReader(
     activeFrames++;
     let batch: Promise<unknown>[] = [];
     try {
-      if (!durationFrames) return { picture: [], sound: [] };
-      audible &&= frame < durationFrames;
-      const position = Math.min(frame, durationFrames - 1);
+      if (!durationFrames || frame > durationFrames) return { picture: [], sound: [] };
+      audible &&= frame !== durationFrames;
+      const position = frame === durationFrames ? frame - 1 : frame;
       let presentation = at(position, kinds, audible);
       while (presentation.probes) {
         batch = presentation.probes.map(async (sourceId) => {

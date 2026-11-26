@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 type ScheduledSound = { start: number; stopped: boolean };
 type PreviewAudio = { currentTime: number; frozenTime?: number; blocks: ScheduledSound[] };
 
-async function openLocalTone(page: Page) {
+async function openLocalTone(page: Page, story = "molecules-sequencepreview--local-tone") {
   await page.addInitScript(() => {
     const audio: PreviewAudio = {
       get currentTime() {
@@ -28,7 +28,7 @@ async function openLocalTone(page: Page) {
       if (block) block.stopped = true;
     };
   });
-  await page.goto("/iframe.html?id=molecules-sequencepreview--local-tone&viewMode=story");
+  await page.goto(`/iframe.html?id=${story}&viewMode=story`);
   const start = new Date("2025-01-01T00:00:00Z");
   await page.clock.install({ time: start });
   await page.clock.pauseAt(new Date(start.getTime() + 1000));
@@ -69,6 +69,23 @@ test("End on the sequence playhead cancels all queued sound from the old positio
   await expect(page.getByText("Paused · Sequence frame 180 of 180")).toBeVisible();
   const { blocks } = await readSound(page);
   expect(queued.filter((index) => !blocks[index].stopped)).toEqual([]);
+});
+
+test("shortening a playing edit cancels queued sound at the parked playhead", async ({ page }) => {
+  await openLocalTone(page, "pages-sequenceeditorpreview--local-dissolve");
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const grid = timeline.locator(".timeline-editor-time-area-interact");
+  const clip = timeline.getByRole("button", { name: "Clip second Audio and video", exact: true });
+  await clip.click({ timeout: 20_000 });
+  const rail = await grid.boundingBox();
+  if (!rail) throw new Error("Expected the sequence ruler");
+  await grid.click({ position: { x: rail.width * (22 / 28), y: rail.height / 2 } });
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  const queued = await queuedSound(page);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText(/Paused · Sequence frame 2\d of 15/)).toBeVisible();
+  const after = await readSound(page);
+  expect(queued.filter((index) => !after.blocks[index].stopped)).toEqual([]);
 });
 
 test("natural completion lets the final queued sound drain, but an explicit pause cancels it", async ({

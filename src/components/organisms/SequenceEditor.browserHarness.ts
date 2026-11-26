@@ -13,6 +13,7 @@ type SequenceArgs = Record<
   readOnly?: string;
   reviewEdits?: string;
   startWithoutTracks?: string;
+  omitPreview?: string;
 };
 
 export async function openWorkflow(page: Page, story: Workflow, sequenceArgs: SequenceArgs = {}) {

@@ -7,7 +7,7 @@ import {
 
 type RecordingWindow = Window & { playheadEdits?: string[] };
 
-async function openSequence(page: Page, departureStart?: number) {
+async function openSequence(page: Page, departureStart?: number, omitPreview = false) {
   await page.addInitScript(() => {
     const emissions: string[] = [];
     (window as RecordingWindow).playheadEdits = emissions;
@@ -15,11 +15,10 @@ async function openSequence(page: Page, departureStart?: number) {
       window.addEventListener(name, () => emissions.push(name));
     }
   });
-  await openWorkflow(
-    page,
-    roughCutStoryId,
-    departureStart === undefined ? {} : roughCutDepartureAt(departureStart).args,
-  );
+  await openWorkflow(page, roughCutStoryId, {
+    ...(departureStart === undefined ? {} : roughCutDepartureAt(departureStart).args),
+    ...(omitPreview ? { omitPreview: "true" } : {}),
+  });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
   await expect(ruler).toBeVisible();
@@ -249,14 +248,12 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
   expect(await edits()).toEqual(trimEdits);
 });
 
-test("a shorter host sequence clamps the paused frame permanently, even after growth", async ({
-  page,
-}) => {
+test("a shorter host sequence leaves the playhead parked, even after growth", async ({ page }) => {
   await page.goto(`/?path=/story/${roughCutStoryId}`);
   const story = page.frameLocator("#storybook-preview-iframe");
   const timeline = story.getByRole("region", { name: "Sequence timeline" });
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
-  await expect(ruler).toBeVisible();
+  await expect(ruler).toBeVisible({ timeout: 20_000 });
   const rail = await ruler.boundingBox();
   if (!rail) throw new Error("Expected a visible sequence ruler");
   await ruler.click({ position: { x: rail.width * 0.75, y: rail.height / 2 } });
@@ -279,10 +276,70 @@ test("a shorter host sequence clamps the paused frame permanently, even after gr
     }),
   );
   await sequenceControl.blur();
-  await expect(frameReadout).toHaveText("Sequence frame 120");
+  await expect(timeline).toContainText("Duration: 00:02");
+  await expect(frameReadout).toHaveText("Sequence frame 270");
 
   await sequenceControl.fill(original);
   await sequenceControl.blur();
   await expect(timeline).toContainText("Duration: 00:06");
-  await expect(frameReadout).toHaveText("Sequence frame 120", { timeout: 2_000 });
+  await expect(frameReadout).toHaveText("Sequence frame 270", { timeout: 2_000 });
+});
+
+test("deleting the tail parks a playing playhead without Preview and transport recovers from the end", async ({
+  page,
+}) => {
+  const { timeline, frameReadout, edits } = await openSequence(page, undefined, true);
+  const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
+  const playhead = timeline.getByRole("slider", { name: "Sequence playhead", exact: true });
+  const play = editor.getByRole("button", { name: "Play", exact: true });
+  const reverse = editor.getByRole("button", { name: "Play reverse", exact: true });
+  const undo = editor.getByRole("button", { name: "Undo", exact: true });
+  const redo = editor.getByRole("button", { name: "Redo", exact: true });
+  await expect(editor.getByRole("region", { name: "Preview", exact: true })).toHaveCount(0);
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).last().click();
+  await playhead.press("End");
+  await editor.press("ArrowLeft");
+  const start = new Date("2025-01-01T00:00:00Z");
+  await page.clock.install({ time: start });
+  await page.clock.pauseAt(new Date(start.getTime() + 1_000));
+  await play.click();
+  await expect(editor.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+  await editor.getByRole("button", { name: "Delete", exact: true }).click();
+  const expectFrame = (frame: number) => expect(frameReadout).toHaveText(`Sequence frame ${frame}`);
+  await expect(play).toBeVisible();
+  await page.clock.runFor(500);
+  await expectFrame(359);
+
+  await undo.click();
+  await expect(timeline).toContainText("Duration: 00:06");
+  await expectFrame(359);
+  await redo.click();
+  await expect(timeline).toContainText("Duration: 00:02");
+  await expectFrame(359);
+  await editor.press("ArrowLeft");
+  await expectFrame(119); // Clamp to 120 first, then step.
+
+  async function parkAgain() {
+    await undo.click();
+    await expect(timeline).toContainText("Duration: 00:06");
+    await playhead.press("End");
+    await expectFrame(360);
+    await redo.click();
+    await expect(timeline).toContainText("Duration: 00:02");
+    await expectFrame(360);
+  }
+  await parkAgain();
+  await editor.getByRole("button", { name: "Rewind", exact: true }).click();
+  await expectFrame(60);
+  await parkAgain();
+  await play.click();
+  await expectFrame(120);
+  await expect(play).toBeVisible();
+  await parkAgain();
+  await reverse.click();
+  await expectFrame(120);
+  await page.clock.runFor(500);
+  await readPlaybackFrame(frameReadout, 90, 91);
+  // Only delete and the four Undo/Redo pairs emit host edits.
+  expect(await edits()).toHaveLength(18);
 });

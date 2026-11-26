@@ -28,7 +28,7 @@ import type {
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
 import compileCutList, { analyzeSequence } from "@/utils/compileCutList";
 import { getFadeSourceExtension } from "@/utils/fadePlacement";
-import { getProjectFrameCount, isValidFrameRate, secondsToFrame } from "@/utils/frames";
+import { getProjectFrameCount, isValidFrameRate, secondsToFrame, snapFrame } from "@/utils/frames";
 import {
   copyPlacements,
   duplicatePlacements,
@@ -666,7 +666,8 @@ export function useSequenceEditor({
 
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
-      transport.seek(transport.playheadFrame + (event.key === "ArrowLeft" ? -1 : 1));
+      const from = snapFrame(transport.playheadFrame, durationFrames);
+      transport.seek(from + (event.key === "ArrowLeft" ? -1 : 1));
     } else if (
       (event.key === "[" || event.key === "]") &&
       canEditLatest.current &&

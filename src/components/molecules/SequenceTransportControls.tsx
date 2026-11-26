@@ -1,6 +1,6 @@
 import { TransportBar } from "@keplar-404/react-timeline-editor";
 import type { SequenceTransportSnapshot } from "@/types";
-import { formatTimecode, framesToSeconds, secondsToFrame } from "@/utils/frames";
+import { formatTimecode, framesToSeconds, secondsToFrame, snapFrame } from "@/utils/frames";
 
 export interface SequenceTransportControlsProps extends SequenceTransportSnapshot {
   seek: (sequenceFrame: number) => void;
@@ -11,6 +11,7 @@ export interface SequenceTransportControlsProps extends SequenceTransportSnapsho
 
 export function SequenceTransportControls({
   playheadFrame,
+  durationFrames,
   frameRate,
   playback,
   seek,
@@ -19,6 +20,7 @@ export function SequenceTransportControls({
   pause,
 }: SequenceTransportControlsProps) {
   const jumpFrames = secondsToFrame(1, frameRate);
+  const inRangeFrame = snapFrame(playheadFrame, durationFrames);
   const reversing = playback === "reverse";
   return (
     <fieldset className="gtve-sequence-transport">
@@ -56,8 +58,8 @@ export function SequenceTransportControls({
             pause,
             stop: () => seek(0),
             toStart: () => seek(0),
-            rewind: () => seek(playheadFrame - jumpFrames),
-            forward: () => seek(playheadFrame + jumpFrames),
+            rewind: () => seek(inRangeFrame - jumpFrames),
+            forward: () => seek(inRangeFrame + jumpFrames),
             setTime: (seconds) => seek(secondsToFrame(seconds, frameRate)),
             setPlayRate: () => {},
           }}

@@ -31,7 +31,7 @@ export default function SequencePlayheadGrip({
       tabIndex={0}
       aria-label="Sequence playhead"
       aria-valuemin={0}
-      aria-valuemax={durationFrames}
+      aria-valuemax={Math.max(durationFrames, frame)}
       aria-valuenow={frame}
       className="pointer-events-none absolute top-0 z-20 h-4 w-4 -translate-x-1/2 rounded-b-md focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
       style={{
@@ -39,11 +39,12 @@ export default function SequencePlayheadGrip({
         visibility: x < 0 || x > viewportWidth ? "hidden" : undefined,
       }}
       onKeyDown={(event) => {
+        const inRangeFrame = snapFrame(frame, durationFrames);
         const positions: Record<string, number> = {
-          ArrowLeft: frame - 1,
-          ArrowDown: frame - 1,
-          ArrowRight: frame + 1,
-          ArrowUp: frame + 1,
+          ArrowLeft: inRangeFrame - 1,
+          ArrowDown: inRangeFrame - 1,
+          ArrowRight: inRangeFrame + 1,
+          ArrowUp: inRangeFrame + 1,
           Home: 0,
           End: durationFrames,
         };

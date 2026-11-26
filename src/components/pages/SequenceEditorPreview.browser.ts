@@ -19,6 +19,25 @@ async function marker(picture: Locator) {
   });
 }
 
+test("the parked Preview is black but seeking to the exclusive end holds the last picture", async ({
+  page,
+}) => {
+  await page.goto(story);
+  const picture = page.getByRole("img", { name: "Sequence picture" });
+  const timeline = page.getByRole("region", { name: "Sequence timeline", exact: true });
+  const playhead = timeline.getByRole("slider", { name: "Sequence playhead" });
+  await playhead.press("End", { timeout: 20_000 });
+  await expect.poll(() => marker(picture)).toBeGreaterThan(0);
+  await timeline.getByRole("button", { name: "Clip second Audio and video", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("Paused · Sequence frame 28 of 15")).toBeVisible();
+  await expect.poll(() => marker(picture)).toBe(0);
+
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByText("Paused · Sequence frame 15 of 15")).toBeVisible();
+  await expect.poll(() => marker(picture)).toBeGreaterThan(0);
+});
+
 test("the default Preview seeks to the rendition picture covering the authored source time", async ({
   page,
 }) => {
