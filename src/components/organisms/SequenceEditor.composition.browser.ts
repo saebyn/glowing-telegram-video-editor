@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   blockedOutput,
   compiled,
@@ -403,4 +403,301 @@ test("a retained placement trim uses the current pool clip and preserves the oth
       }),
     ],
   });
+});
+
+test("a retained Split activation honors a track lock added after pointerdown", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const activate = page.getByRole("button", { name: "Activate Opening at frame 30" });
+  await expect(activate).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Split mode" }).click();
+  await activate.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: lock Main" }).press("Space");
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+  await expect(page.getByText("Blocked: the track is locked.")).toBeVisible();
+});
+
+test("a retained Split activation selects after Split mode is turned off", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const activate = page.getByRole("button", { name: "Activate Opening at frame 30" });
+  await expect(activate).toBeVisible({ timeout: 20_000 });
+  const split = page.getByRole("button", { name: "Split mode" });
+  await split.click();
+  await activate.hover();
+  await page.mouse.down();
+  await split.press("Space");
+  await expect(split).toHaveAttribute("aria-pressed", "false");
+
+  await page.mouse.up();
+  await expect(page.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("a retained Split preserves a host-added track and compiles the proposal", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const activate = page.getByRole("button", { name: "Activate Opening at frame 30" });
+  await expect(activate).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Split mode" }).click();
+  await activate.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: add Bridge track" }).press("Space");
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.up();
+  expect(await emissions()).toEqual({
+    sequences: [
+      {
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                id: "opening",
+                clipId: "harbor",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: -30,
+              },
+              {
+                id: expect.any(String),
+                clipId: "harbor",
+                sequenceStartFrame: 30,
+                sourceInOffsetFrames: 30,
+              },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 120,
+                sourceOutOffsetFrames: 60,
+              },
+            ],
+          },
+          {
+            id: "bridge-track",
+            label: "Bridge",
+            placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 130 },
+              { startFrame: 130, endFrame: 160 },
+              { startFrame: 100, endFrame: 220 },
+            ],
+          },
+          {
+            s3Location: "s3://sequence-fixtures/bridge.mp4",
+            sections: [{ startFrame: 300, endFrame: 360 }],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+          { mediaIndex: 1, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 2 },
+        ],
+      }),
+    ],
+  });
+});
+
+test("a retained Reorder moves a locked track and preserves and compiles a host-added track", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const reorder = page.getByRole("button", { name: "Reorder Main to Reserve" });
+  await expect(reorder).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
+  await page.getByRole("button", { name: "Host: lock Main" }).click();
+  await reorder.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: add Bridge track" }).press("Space");
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.up();
+  expect(await emissions()).toEqual({
+    sequences: [
+      {
+        tracks: [
+          {
+            id: "reserve",
+            label: "Reserve",
+            placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
+          },
+          {
+            id: "main",
+            label: "Main",
+            locked: true,
+            placements: [
+              { id: "opening", clipId: "harbor", sequenceStartFrame: 0 },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 120,
+                sourceOutOffsetFrames: 60,
+              },
+            ],
+          },
+          {
+            id: "bridge-track",
+            label: "Bridge",
+            placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 160 },
+              { startFrame: 100, endFrame: 160 },
+            ],
+          },
+          {
+            s3Location: "s3://sequence-fixtures/bridge.mp4",
+            sections: [
+              { startFrame: 300, endFrame: 360 },
+              { startFrame: 300, endFrame: 360 },
+            ],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 1, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+          { mediaIndex: 1, sectionIndex: 1 },
+        ],
+      }),
+    ],
+  });
+});
+
+test("a retained Reorder cannot restore a destination track removed by the host", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
+  const reorder = page.getByRole("button", { name: "Reorder Main to Reserve" });
+  await reorder.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: replace sequence" }).press("Space");
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.up();
+  await expect(reorder).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+});
+
+async function openPasteDrop(page: Page) {
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  const activate = page.getByRole("button", { name: "Activate Opening at frame 30" });
+  await expect(activate).toBeVisible({ timeout: 20_000 });
+  await activate.click();
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  const drop = page.getByText("Paste drop active");
+  const confirm = page.getByRole("button", { name: "Confirm Paste at frame 60" });
+  await expect(drop).toBeVisible();
+  return { drop, confirm };
+}
+
+test("a retained Paste confirmation emits nothing after Escape cancels the drop", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  const { drop, confirm } = await openPasteDrop(page);
+  await confirm.hover();
+  await page.mouse.down();
+  await page.keyboard.press("Escape");
+  await expect(drop).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+
+  await page.mouse.up();
+  await expect(confirm).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("a retained Paste confirmation cannot use a superseding drop session", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  const { drop, confirm } = await openPasteDrop(page);
+  await confirm.hover();
+  await page.mouse.down();
+  await page.keyboard.press("Control+v");
+  await expect(drop).toBeVisible();
+
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+  await expect(drop).toBeVisible();
+  await confirm.click();
+  await expect(drop).toHaveCount(0);
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.sequences[0].tracks[0].placements.at(-1)).toEqual({
+    id: expect.any(String),
+    clipId: "harbor",
+    sequenceStartFrame: 60,
+  });
+  expect(result.cutListResults).toHaveLength(1);
+  expect(result.cutListResults[0].ok).toBe(true);
+});
+
+test("a retained Paste confirmation cannot revive the clipboard after a host replacement", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  const { drop, confirm } = await openPasteDrop(page);
+  await confirm.hover();
+  await page.mouse.down();
+  await page.getByRole("button", { name: "Host: replace sequence" }).press("Space");
+  await expect(drop).toHaveCount(0);
+
+  await page.mouse.up();
+  await expect(confirm).toBeDisabled();
+  await page.getByRole("button", { name: "Activate Opening at frame 30" }).press("Control+v");
+  await expect(drop).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("a retained Paste confirmation revalidates the same drop after an acknowledged lock", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  const { drop, confirm } = await openPasteDrop(page);
+  await confirm.hover();
+  await page.mouse.down();
+  const lock = page.getByRole("button", { name: "Lock Main", exact: true });
+  const unlock = page.getByRole("button", { name: "Unlock Main", exact: true });
+  await lock.press("Space");
+  await expect(unlock).toBeVisible();
+  const lockEdit = await emissions();
+  expect(lockEdit.sequences).toHaveLength(1);
+  expect(lockEdit.sequences[0].tracks[0].locked).toBe(true);
+  expect(lockEdit.cutListResults).toHaveLength(1);
+
+  await page.mouse.up();
+  expect(await emissions()).toEqual(lockEdit);
+  await expect(drop).toBeVisible();
 });

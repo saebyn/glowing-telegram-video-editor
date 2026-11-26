@@ -501,6 +501,31 @@ export const ResizeATransition: StoryObj = {
   render: () => <ResizeTransitionsExample />,
 };
 
+function RetainedPointerAction({ action, children }: { action?: () => void; children: string }) {
+  const [release, setRelease] = useState<() => void>();
+  return (
+    <button
+      type="button"
+      disabled={!action && !release}
+      onPointerDown={(event) => {
+        if (event.button !== 0 || !action) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setRelease(() => action);
+      }}
+      onPointerUp={() => {
+        release?.();
+        setRelease(undefined);
+      }}
+      onPointerCancel={() => setRelease(undefined)}
+      onClick={(event) => {
+        if (event.detail === 0) action?.();
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function RetainedPlacementTimeline({
   previewClipPlacement,
   placeClip,
@@ -508,6 +533,11 @@ function RetainedPlacementTimeline({
   movePlacement,
   previewTrim,
   trimPlacement,
+  activatePlacement,
+  reorderTrack,
+  tracks,
+  placementPaste,
+  toggleTrackLock,
 }: SequenceTimelineProps) {
   const [release, setRelease] = useState<() => void>();
   const drop = { clipId: "bridge", trackId: "main", sequenceFrame: 60 };
@@ -518,6 +548,7 @@ function RetainedPlacementTimeline({
     sequenceFrame: 60,
   };
   const trim = { placementId: "opening", edge: "trailing", sourceFrame: 220 } as const;
+  const confirmPaste = placementPaste?.drop?.confirm;
 
   return (
     <section aria-label="Retained placement actions" className="space-x-3 rounded border p-3">
@@ -542,6 +573,34 @@ function RetainedPlacementTimeline({
       >
         Capture placement trim
       </button>
+      <RetainedPointerAction
+        action={
+          activatePlacement &&
+          (() => activatePlacement({ placementId: "opening", sequenceFrame: 30 }))
+        }
+      >
+        Activate Opening at frame 30
+      </RetainedPointerAction>
+      <RetainedPointerAction
+        action={
+          reorderTrack && tracks.some(({ id }) => id === "reserve")
+            ? () => reorderTrack("main", "reserve")
+            : undefined
+        }
+      >
+        Reorder Main to Reserve
+      </RetainedPointerAction>
+      <RetainedPointerAction
+        action={confirmPaste && (() => confirmPaste({ trackId: "main", sequenceFrame: 60 }))}
+      >
+        Confirm Paste at frame 60
+      </RetainedPointerAction>
+      {confirmPaste && <output>Paste drop active</output>}
+      {toggleTrackLock && (
+        <button type="button" onClick={() => toggleTrackLock("main")}>
+          {tracks.find(({ id }) => id === "main")?.locked ? "Unlock Main" : "Lock Main"}
+        </button>
+      )}
       <button
         type="button"
         disabled={!release}
@@ -593,7 +652,10 @@ function RetainedPlacementActionsExample() {
 
   return (
     <>
-      <p>Capture an action, change the host inputs, then release the original callback.</p>
+      <p>
+        Capture an action or hold down a Timeline button, change the host inputs, then release the
+        original callback.
+      </p>
       <button type="button" onClick={lockTopTrack}>
         Host: lock Main
       </button>
@@ -603,6 +665,28 @@ function RetainedPlacementActionsExample() {
         onClick={addReserveTrack}
       >
         Host: add Reserve track
+      </button>
+      <button
+        type="button"
+        disabled={options.sequence.tracks.some(({ id }) => id === "bridge-track")}
+        onClick={() =>
+          setSequence((current) => ({
+            ...current,
+            tracks: [
+              ...current.tracks,
+              {
+                id: "bridge-track",
+                label: "Bridge",
+                placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
+              },
+            ],
+          }))
+        }
+      >
+        Host: add Bridge track
+      </button>
+      <button type="button" onClick={() => setSequence({ ...original })}>
+        Host: replace sequence
       </button>
       <button
         type="button"

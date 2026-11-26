@@ -169,12 +169,16 @@ export function useSequenceEditor({
   const [transitionId, setTransitionId] = useState<string>();
   const [splitMode, setSplitMode] = useState(false);
   const [clipboard, setClipboard] = useState<CopiedPlacements | null>(null);
-  const [dropTarget, setDropTarget] = useState<PlacementPasteTarget | null>();
+  const [pasteDrop, setPasteDrop] = useState<{ id: symbol; target: PlacementPasteTarget | null }>();
   const pasteTarget = useRef<PlacementPasteTarget | null>(null);
   const setPasteTarget = useCallback((target: PlacementPasteTarget | null) => {
     pasteTarget.current = target;
-    setDropTarget((previous) => (previous === undefined ? undefined : target));
+    setPasteDrop((drop) => (drop && drop.target !== target ? { ...drop, target } : drop));
   }, []);
+  const pasteConfirmation = useRef<{
+    id: symbol;
+    confirm: (target: PlacementPasteTarget) => boolean;
+  }>(undefined);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string>();
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
@@ -186,13 +190,13 @@ export function useSequenceEditor({
     emitEdit,
     () => {
       setClipboard(null);
-      setDropTarget(undefined);
+      setPasteDrop(undefined);
     },
     canEditLatest,
   );
   if (!hasValidInput) {
     if (activeClipId !== undefined) setActiveClipId(undefined);
-    if (dropTarget !== undefined) setDropTarget(undefined);
+    if (pasteDrop) setPasteDrop(undefined);
     if (splitMode) setSplitMode(false);
   }
   useLayoutEffect(() => {
@@ -203,10 +207,27 @@ export function useSequenceEditor({
     if (!canEditLatest.current || !clipboard || !target) return false;
     const next = pastePlacements(sequence, clips, frameRate, clipboard, target);
     if (!next) return false;
-    setDropTarget(undefined);
+    cancelPasteDrop();
     commitEdit(next);
     return true;
   }
+
+  function cancelPasteDrop() {
+    // Retire the callback immediately, including before notifying the host of a successful drop.
+    pasteConfirmation.current = undefined;
+    setPasteDrop(undefined);
+  }
+
+  useLayoutEffect(() => {
+    // Retained confirmations are valid only for the same active drop session.
+    pasteConfirmation.current =
+      onSequenceChange && pasteDrop && clipboard
+        ? { id: pasteDrop.id, confirm: commitPaste }
+        : undefined;
+    return () => {
+      pasteConfirmation.current = undefined;
+    };
+  });
   const lastReportedInput = useRef<string | undefined>(undefined);
   useEffect(() => {
     const [first, ...rest] = inputIssues;
@@ -501,23 +522,35 @@ export function useSequenceEditor({
     return result.kind === "conflict" ? "conflict" : "blocked";
   }
 
-  // Retained Timeline releases must use the latest committed edit inputs.
-  const placementReleases = useRef<
-    Pick<SequenceTimelineProps, "placeClip" | "movePlacement" | "trimPlacement">
+  // Retained Timeline actions must use the latest committed inputs.
+  const timelineActions = useRef<
+    Pick<
+      SequenceTimelineProps,
+      "placeClip" | "movePlacement" | "trimPlacement" | "activatePlacement" | "reorderTrack"
+    >
   >({});
   useLayoutEffect(() => {
-    placementReleases.current = onSequenceChange
-      ? {
-          placeClip,
-          movePlacement,
-          trimPlacement: ({ placementId, edge, sourceFrame }) => {
-            const next = proposeTrim(placementId, edge, sourceFrame);
-            if (next) commitEdit(next);
-          },
-        }
-      : {};
+    timelineActions.current = {
+      activatePlacement: hasValidInput ? activatePlacement : undefined,
+      ...(onSequenceChange && {
+        placeClip,
+        movePlacement,
+        reorderTrack: (trackId, destinationTrackId) => {
+          const next = reorderSequenceTrack(
+            sequence,
+            trackId,
+            sequence.tracks.findIndex(({ id }) => id === destinationTrackId),
+          );
+          if (next) commitEdit(next);
+        },
+        trimPlacement: ({ placementId, edge, sourceFrame }) => {
+          const next = proposeTrim(placementId, edge, sourceFrame);
+          if (next) commitEdit(next);
+        },
+      }),
+    };
     return () => {
-      placementReleases.current = {};
+      timelineActions.current = {};
     };
   });
 
@@ -548,23 +581,16 @@ export function useSequenceEditor({
     endClipDrag,
     previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
     placeClip: onSequenceChange
-      ? (intent) => placementReleases.current.placeClip?.(intent)
+      ? (intent) => timelineActions.current.placeClip?.(intent)
       : undefined,
     snapEnabled,
     previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
     movePlacement: onSequenceChange
-      ? (intent) => placementReleases.current.movePlacement?.(intent)
+      ? (intent) => timelineActions.current.movePlacement?.(intent)
       : undefined,
     reorderTrack: onSequenceChange
-      ? (trackId, destinationTrackId) => {
-          if (!canEditLatest.current) return;
-          const next = reorderSequenceTrack(
-            sequence,
-            trackId,
-            sequence.tracks.findIndex(({ id }) => id === destinationTrackId),
-          );
-          if (next) commitEdit(next);
-        }
+      ? (trackId, destinationTrackId) =>
+          timelineActions.current.reorderTrack?.(trackId, destinationTrackId)
       : undefined,
     removeTrack: onSequenceChange
       ? (trackId) => {
@@ -589,7 +615,7 @@ export function useSequenceEditor({
       ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
       : undefined,
     trimPlacement: onSequenceChange
-      ? (intent) => placementReleases.current.trimPlacement?.(intent)
+      ? (intent) => timelineActions.current.trimPlacement?.(intent)
       : undefined,
     trimRanges,
     fadePlacementIds,
@@ -598,20 +624,23 @@ export function useSequenceEditor({
       ? {
           onTargetChange: setPasteTarget,
           drop:
-            dropTarget !== undefined && clipboard
+            pasteDrop && clipboard
               ? {
-                  preview: dropTarget
-                    ? previewPlacementPaste(sequence, clips, frameRate, clipboard, dropTarget)
+                  preview: pasteDrop.target
+                    ? previewPlacementPaste(sequence, clips, frameRate, clipboard, pasteDrop.target)
                     : null,
                   confirm: (target) => {
-                    commitPaste(target);
+                    const current = pasteConfirmation.current;
+                    if (current?.id === pasteDrop.id) current.confirm(target);
                   },
                 }
               : undefined,
         }
       : undefined,
     splitMode: splitEnabled,
-    activatePlacement: hasValidInput ? activatePlacement : undefined,
+    activatePlacement: hasValidInput
+      ? (intent) => timelineActions.current.activatePlacement?.(intent)
+      : undefined,
     clearPlacementSelection: () => {
       if (!splitEnabled) selectPlacement(null, false);
     },
@@ -663,21 +692,18 @@ export function useSequenceEditor({
         event.preventDefault();
         if (event.repeat) return;
         if (!commitPaste(pasteTarget.current)) {
+          // A new Paste replaces any unfinished drop, even at the same target.
+          pasteConfirmation.current = undefined;
           setSplitMode(false);
-          setDropTarget(pasteTarget.current);
+          setPasteDrop({ id: Symbol(), target: pasteTarget.current });
         }
       }
       return;
     }
 
-    if (
-      event.key === "Escape" &&
-      !field &&
-      dropTarget !== undefined &&
-      !target.closest("dialog[open]")
-    ) {
+    if (event.key === "Escape" && !field && pasteDrop && !target.closest("dialog[open]")) {
       event.preventDefault();
-      setDropTarget(undefined);
+      cancelPasteDrop();
       return;
     }
     if (event.key === "Escape" && splitMode && !target.closest("dialog[open]")) {
@@ -766,7 +792,7 @@ export function useSequenceEditor({
     toggleSplitMode: onSequenceChange
       ? () => {
           if (!canEditLatest.current) return;
-          setDropTarget(undefined);
+          cancelPasteDrop();
           setSplitMode((active) => !active);
         }
       : undefined,
