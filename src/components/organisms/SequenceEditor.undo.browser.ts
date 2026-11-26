@@ -206,46 +206,38 @@ test("Undo restores successive accepted edits newest first without recording the
 });
 
 test("a host that declines a proposal does not add or consume an Undo entry", async ({ page }) => {
-  await page.goto(`/?path=/story/${roughCutStoryId}`);
-  const story = page.frameLocator("#storybook-preview-iframe");
-  const timeline = story.getByRole("region", { name: "Sequence timeline" });
-  const undo = story.getByRole("button", { name: "Undo", exact: true });
-  const trim = story.getByRole("button", { name: "Trim placement", exact: true });
-  const controls = page.getByRole("tab", { name: /Controls/ });
-  const actions = page.getByRole("tab", { name: /^Actions\b/ });
-  await expect(timeline).toBeVisible({ timeout: 20_000 });
-  await controls.click();
-  const acceptEditsRow = page.getByRole("row", { name: /^Accept edits\b/ });
-  const acceptEdits = acceptEditsRow.getByRole("switch");
-  async function setAcceptEdits(checked: boolean) {
-    if ((await acceptEdits.isChecked()) !== checked) {
-      await acceptEditsRow.locator('label[for="control-acceptEdits"]').click();
-    }
-    await expect(acceptEdits).toBeChecked({ checked });
-  }
-  await setAcceptEdits(false);
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, { reviewEdits: "true" });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  const trim = page.getByRole("button", { name: "Trim placement", exact: true });
+  const accept = page.getByRole("button", { name: "Accept proposed edit" });
+  const reject = page.getByRole("button", { name: "Reject proposed edit" });
+  const originalDuration = timeline.getByText("Duration: 00:06", { exact: true });
+  const extendedDuration = timeline.getByText("Duration: 00:06.5", { exact: true });
+
   await timeline.getByRole("button", { name: "Harbor", exact: true }).last().click();
-  await story.getByLabel("Source out (exclusive frame)").fill("270");
+  await page.getByLabel("Source out (exclusive frame)").fill("270");
   await trim.click();
+  await reject.click();
   await expect(undo).toBeDisabled();
-  await expect(timeline).toContainText("Duration: 00:06");
-  await actions.click();
-  const actionLog = page.getByRole("tabpanel", { name: "Actions" });
-  await expect(actionLog.getByText("onSequenceChange", { exact: true })).toBeVisible();
-  await expect(actionLog.getByText("onCutListResult", { exact: true })).toBeVisible();
+  await expect(originalDuration).toBeVisible();
 
-  await controls.click();
-  await setAcceptEdits(true);
   await trim.click();
-  await expect(timeline).toContainText("Duration: 00:06.5");
-  await expect(undo).toBeEnabled();
-  await setAcceptEdits(false);
-  await undo.click();
-  await expect(timeline).toContainText("Duration: 00:06.5");
+  await accept.click();
+  await expect(extendedDuration).toBeVisible();
   await expect(undo).toBeEnabled();
 
-  await setAcceptEdits(true);
   await undo.click();
-  await expect(timeline).toContainText("Duration: 00:06");
+  await reject.click();
+  await expect(extendedDuration).toBeVisible();
+  await expect(undo).toBeEnabled();
+
+  await undo.click();
+  await accept.click();
+  await expect(originalDuration).toBeVisible();
   await expect(undo).toBeDisabled();
+  const { sequences, cutListResults } = await emissions();
+  expect(sequences.map(({ durationFrames }) => durationFrames)).toEqual([390, 390, 360, 360]);
+  expect(cutListResults).toHaveLength(4);
 });

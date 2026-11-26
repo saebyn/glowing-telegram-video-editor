@@ -42,3 +42,8 @@ question in #34.
   only the existing `VideoPlayer` captions warning.
 - The isolated mutation restoring latest-proposal-only tracking failed the
   Storybook regression at the Undo availability assertion.
+- A full-suite failure exposed a timing race in the older rejection test:
+  the Storybook Controls switch could update separately from the preview,
+  and the duration assertion matched both `00:06` and `00:06.5`. The test
+  now accepts or rejects proposals explicitly inside the preview and checks
+  exact durations and both callback counts. It passed five focused runs.
