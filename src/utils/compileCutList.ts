@@ -40,9 +40,7 @@ function compileResolvedSequence({
 }: ReturnType<typeof resolveVisibleSequence>): CutListResult {
   if (layout) {
     for (const gap of layout.gaps) issues.push({ code: "sequence-gap", ...gap });
-    issues.push(
-      ...applyCutListTransitions(layout.spans, layout.transitions, layout.durationFrames),
-    );
+    issues.push(...applyCutListTransitions(layout));
   }
   const [issue, ...otherIssues] = issues;
   if (issue) return { ok: false, issues: [issue, ...otherIssues] };

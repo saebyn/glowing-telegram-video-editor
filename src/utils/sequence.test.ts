@@ -2,6 +2,7 @@ import type { CutList } from "@saebyn/glowing-telegram-types";
 import { expect, it } from "vitest";
 import { compileCutList } from "@/index";
 import type {
+  ClipPlacement,
   CutListResult,
   CutListSource,
   Sequence,
@@ -10,6 +11,8 @@ import type {
   VideoClip,
 } from "@/types";
 import { getSequenceDissolves, hasTransitionAuthoringConflict } from "./sequenceTransitions";
+import { splitPlacementsAtPlayhead } from "./splitPlacement";
+import { applyLeadingTrim, applyTrailingTrim } from "./trimPlacement";
 
 const frameRate = { numerator: 30, denominator: 1 };
 const clips: readonly VideoClip[] = [
@@ -875,6 +878,170 @@ it("omits a covered entry ending exactly where its owner becomes visible", () =>
         { mediaIndex: 1, sectionIndex: 0 },
       ],
     },
+  });
+});
+
+const layeredClips = [...clips, { ...clips[1], id: "middle", sourceId: "source-middle" }];
+const layeredSources: SourcesById<SequenceSource> = {
+  "source-a": {
+    s3Location: "s3://media/a.mp4",
+    mediaKind: "audio-video",
+    previewHlsUrl: "/fixtures/a.m3u8",
+  },
+  "source-b": {
+    s3Location: "s3://media/b.mp4",
+    mediaKind: "audio-video",
+    previewHlsUrl: "/fixtures/b.m3u8",
+  },
+  "source-middle": {
+    s3Location: "s3://media/middle.mp4",
+    mediaKind: "audio-video",
+    previewHlsUrl: "/fixtures/middle.m3u8",
+  },
+};
+
+function layeredFade(
+  coverStartFrame: number,
+  transition: Pick<ClipPlacement, "transitionIn" | "transitionOut">,
+): Sequence {
+  return {
+    tracks: [
+      {
+        id: "top",
+        label: "Top",
+        placements: [
+          {
+            id: "cover",
+            clipId: "a",
+            sequenceStartFrame: coverStartFrame,
+            sourceOutOffsetFrames: -90,
+          },
+        ],
+      },
+      {
+        id: "middle",
+        label: "Middle",
+        placements: [{ id: "faded", clipId: "middle", sequenceStartFrame: 0, ...transition }],
+      },
+      {
+        id: "bottom",
+        label: "Bottom",
+        placements: [{ id: "bed", clipId: "b", sequenceStartFrame: 0 }],
+      },
+    ],
+  };
+}
+
+it("keeps an authored entry fade after a trim but cuts straight to the bed when the fade is fully hidden", () => {
+  const sequence = layeredFade(0, { transitionIn: fade("entry", 15) });
+  const trimmed = applyTrailingTrim(sequence, layeredClips, frameRate, "faded", 510);
+  if (!trimmed) throw new Error("Expected to trim the middle placement to 10 sequence frames");
+  expect(compileCutList(trimmed, layeredClips, layeredSources, frameRate)).toStrictEqual({
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 110 }] },
+        { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 510, endFrame: 520 }] },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 0 },
+      ],
+    },
+  });
+  expect(trimmed.tracks[1].placements[0]).toStrictEqual({
+    id: "faded",
+    clipId: "middle",
+    sequenceStartFrame: 0,
+    sourceOutOffsetFrames: -10,
+    transitionIn: { id: "entry", kind: "fade", durationFrames: 15 },
+  });
+});
+
+it("omits a fully hidden reveal after a leading trim even when the bed is visible earlier in the window", () => {
+  const sequence = layeredFade(10, { transitionOut: fade("reveal", 15) });
+  const trimmed = applyLeadingTrim(sequence, layeredClips, frameRate, "faded", 510);
+  if (!trimmed) throw new Error("Expected to trim the middle placement to 10 sequence frames");
+  expect(compileCutList(trimmed, layeredClips, layeredSources, frameRate)).toStrictEqual({
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 510 }] },
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 110 }] },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 0 },
+      ],
+    },
+  });
+  expect(trimmed.tracks[1].placements[0]).toStrictEqual({
+    id: "faded",
+    clipId: "middle",
+    sequenceStartFrame: 10,
+    sourceInOffsetFrames: 10,
+    transitionOut: { id: "reveal", kind: "fade", durationFrames: 15 },
+  });
+});
+
+it("still diagnoses an overhanging entry fade when the trimmed owner is visible before the cut to the bed", () => {
+  const sequence = layeredFade(20, { transitionIn: fade("entry", 15) });
+  const trimmed = applyTrailingTrim(sequence, layeredClips, frameRate, "faded", 510);
+  if (!trimmed) throw new Error("Expected to trim the middle placement to 10 sequence frames");
+  expect(compileCutList(trimmed, layeredClips, layeredSources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-interrupted", transitionId: "entry" }],
+  });
+});
+
+it.each([
+  ["entry", "transitionIn", 0],
+  ["reveal", "transitionOut", 10],
+] as const)(
+  "still diagnoses a covered %s when a source-continuous split piece exposes it",
+  (id, field, coverStartFrame) => {
+    const sequence = layeredFade(coverStartFrame, { [field]: fade(id, 15) });
+    const split = splitPlacementsAtPlayhead(
+      sequence,
+      layeredClips,
+      frameRate,
+      ["faded"],
+      10,
+      () => "right",
+    );
+    if (!split) throw new Error("Expected to split the middle placement inside its fade");
+    expect(compileCutList(split, layeredClips, layeredSources, frameRate)).toStrictEqual({
+      ok: false,
+      issues: [{ code: "fade-interrupted", transitionId: id }],
+    });
+  },
+);
+
+it("omits a covered entry fade when visible same-track footage jumps in source time", () => {
+  const sequence = layeredFade(0, { transitionIn: fade("entry", 15) });
+  const trimmed = applyTrailingTrim(sequence, layeredClips, frameRate, "faded", 510);
+  if (!trimmed) throw new Error("Expected to trim the middle placement to 10 sequence frames");
+  const [top, middle, bottom] = trimmed.tracks;
+  const withSourceJump: Sequence = {
+    tracks: [
+      top,
+      {
+        ...middle,
+        placements: [
+          ...middle.placements,
+          { id: "next", clipId: "middle", sequenceStartFrame: 10, sourceInOffsetFrames: 11 },
+        ],
+      },
+      bottom,
+    ],
+  };
+  expect(compileCutList(withSourceJump, layeredClips, layeredSources, frameRate)).toMatchObject({
+    ok: true,
+    issues: [],
   });
 });
 

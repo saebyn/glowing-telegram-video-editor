@@ -231,6 +231,7 @@ export function resolveVisibleSequence(
     issues,
     layout: {
       durationFrames,
+      placements,
       spans,
       gaps,
       transitions: includeSource

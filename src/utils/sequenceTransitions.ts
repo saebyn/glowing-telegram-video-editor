@@ -28,7 +28,33 @@ function firstSpanEndingAfter(spans: readonly VisibleSpan[], frame: number) {
 
 type TransitionOutputIssue = Extract<CutListIssue, { transitionId: string }>;
 
+function getFadeContinuations(
+  placements: readonly ResolvedPlacement[],
+  owner: ResolvedPlacement,
+  entry: boolean,
+  start: number,
+  end: number,
+) {
+  const pieces = new Set<ResolvedPlacement>();
+  let edge = owner;
+  while (entry ? edge.sequenceEndFrame < end : edge.sequenceStartFrame > start) {
+    const join = entry ? edge.sequenceEndFrame : edge.sequenceStartFrame;
+    const next = placements.find(
+      (candidate) =>
+        candidate.trackIndex === owner.trackIndex &&
+        (entry ? candidate.sequenceStartFrame : candidate.sequenceEndFrame) === join &&
+        candidate.sourceId === owner.sourceId &&
+        sourceAt(candidate, join) === sourceAt(owner, join),
+    );
+    if (!next) break;
+    pieces.add(next);
+    edge = next;
+  }
+  return pieces;
+}
+
 function* applyVisibleFades(
+  placements: readonly ResolvedPlacement[],
   spans: readonly VisibleSpan[],
   transitions: readonly ResolvedTransition[],
   durationFrames: number,
@@ -41,7 +67,6 @@ function* applyVisibleFades(
     const end = entry ? start + duration : placement.sequenceEndFrame;
     const index = firstSpanEndingAfter(spans, start);
     const first = spans[index];
-    let visible = true;
     let overlaps = false;
     if (
       first?.placement === placement &&
@@ -62,24 +87,25 @@ function* applyVisibleFades(
         (first.transitionIn?.duration ?? 0) + (first.transitionOut?.duration ?? 0) >
         first.end - first.start;
     } else {
-      // A hidden edge is harmless only when higher tracks obscure the entire window.
-      visible = false;
-      let coveredTo = Math.max(0, start);
-      const visibleEnd = Math.min(durationFrames, end);
-      for (let i = index; i < spans.length && spans[i].start < visibleEnd; i++) {
-        const span = spans[i];
-        if (span.placement === placement) {
-          visible = true;
+      // Beyond the trim, only a source-continuous split can expose a covered owner.
+      let ownerVisible = false;
+      let continuationVisible = false;
+      let continuations: Set<ResolvedPlacement> | undefined;
+      for (let i = index; i < spans.length && spans[i].start < end; i++) {
+        const visible = spans[i].placement;
+        if (visible === placement) {
+          ownerVisible = true;
           break;
         }
-        if (span.start <= coveredTo && span.placement.trackIndex < placement.trackIndex) {
-          coveredTo = span.end;
+        if (!continuationVisible && visible.trackIndex === placement.trackIndex) {
+          continuations ??= getFadeContinuations(placements, placement, entry, start, end);
+          continuationVisible = continuations.has(visible);
         }
       }
-      if (coveredTo < visibleEnd) yield { code: "fade-interrupted", transitionId: id };
+      if (ownerVisible || continuationVisible) yield { code: "fade-interrupted", transitionId: id };
+      if (!ownerVisible) continue;
     }
-    // Even an interrupted fade claims its cut if its owner is visible anywhere in the window.
-    if (!visible) continue;
+    // Even an interrupted fade claims its cut if its owner is visible.
     const cut = entry ? start : end;
     if (overlaps || claimedCuts.has(cut)) yield { code: "fade-overlap", transitionId: id };
     claimedCuts.add(cut);
@@ -328,13 +354,14 @@ function* getDissolveIssues(
 }
 
 /** Attach fades to visible spans in place and collect output issues. */
-export function applyCutListTransitions(
-  spans: readonly VisibleSpan[],
-  transitions: readonly ResolvedTransition[],
-  durationFrames: number,
-) {
+export function applyCutListTransitions({
+  placements,
+  spans,
+  transitions,
+  durationFrames,
+}: NonNullable<ReturnType<typeof resolveVisibleSequence>["layout"]>) {
   return [
     ...getDissolveIssues(spans, transitions, durationFrames),
-    ...applyVisibleFades(spans, transitions, durationFrames),
+    ...applyVisibleFades(placements, spans, transitions, durationFrames),
   ];
 }
