@@ -90,10 +90,16 @@ async function open(
   const pictures = cachedWindows(async (start, end) => {
     const result: WrappedCanvas[] = [];
     if (pictureSink) {
-      for await (const picture of pictureSink.canvases(origin + start, origin + end)) {
-        result.push(picture);
-        // A proxy with unusual cadence must not grow the decoded cache without bound.
-        if (result.length === 32) break;
+      try {
+        for await (const picture of pictureSink.canvases(origin + start, origin + end)) {
+          result.push(picture);
+          // A proxy with unusual cadence must not grow the decoded cache without bound.
+          if (result.length === 32) break;
+        }
+      } catch (error) {
+        // A later segment can fail after earlier pictures in this window have decoded.
+        // pictureAt still checks coverage and will try an exact read for a miss.
+        if (!result.length) throw error;
       }
     }
     return result;
