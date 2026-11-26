@@ -1,4 +1,5 @@
 import type { Input, WrappedAudioBuffer, WrappedCanvas } from "mediabunny";
+import { previewWindowEnd, previewWindowStart, previewWindowStarts } from "./previewWindows";
 
 export const previewWidth = 480;
 export const previewHeight = 270;
@@ -48,10 +49,10 @@ async function selectPreviewVideo(input: Input) {
 function cachedWindows<T>(read: (start: number, end: number) => Promise<T>) {
   const windows = new Map<number, Promise<T>>();
   return (time: number) => {
-    const start = Math.floor(time * 2) / 2;
+    const start = previewWindowStart(time);
     let window = windows.get(start);
     if (window) windows.delete(start);
-    else window = read(start, start + 0.5);
+    else window = read(start, previewWindowEnd(start));
     windows.set(start, window);
     if (windows.size > decodedWindowLimit) windows.delete(windows.keys().next().value!);
     return window;
@@ -142,11 +143,7 @@ async function open(
     if (!(await (soundCodec ??= audio.canDecode())))
       throw new Error("This browser cannot decode the rendition sound.");
     const end = time + duration;
-    const windows = [audioBlocks(time)];
-    for (let boundary = (Math.floor(time * 2) + 1) / 2; boundary < end - 1e-9; boundary += 0.5) {
-      windows.push(audioBlocks(boundary));
-    }
-    const decoded = await Promise.all(windows);
+    const decoded = await Promise.all(previewWindowStarts(time, duration).map(audioBlocks));
     const blocks = decoded.flatMap((window) => window.blocks);
     const buffers = [...new Map(blocks.map((block) => [block.timestamp, block])).values()].filter(
       ({ timestamp, buffer }) => timestamp < end && time < timestamp + buffer.duration,

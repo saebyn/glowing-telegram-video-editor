@@ -113,9 +113,12 @@ export default function SequencePreview({
       context.fillStyle = "black";
       context.fillRect(0, 0, previewWidth, previewHeight);
     };
+    // Gate polling also checks future sound. Only the displayed frame can
+    // displace work, including a warm-up request now reached by the playhead.
     const prepared = reader.current?.prepare(
       playheadFrame,
       playback === "forward" || !!stoppedOnSound,
+      "current",
     );
     if (prepared?.state === "loading") setMessage("Loading preview…");
     void prepared?.value.then(

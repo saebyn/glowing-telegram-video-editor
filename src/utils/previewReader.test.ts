@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers/promises";
 import { expect, test } from "vitest";
 import type { MediaKind, SequencePreviewMedia } from "@/types";
 import { createPreviewReader } from "./previewReader";
@@ -35,7 +36,11 @@ function controlledDecoder({
 }: {
   kinds?: Record<string, MediaKind>;
   beforeReady?: (renditionUrl: string) => Promise<void> | undefined;
-  beforeRead?: (renditionUrl: string, channel: "picture" | "sound") => Promise<void> | undefined;
+  beforeRead?: (
+    renditionUrl: string,
+    channel: "picture" | "sound",
+    time: number,
+  ) => Promise<void> | undefined;
 } = {}) {
   const live = new Set<string>();
   const opened: string[] = [];
@@ -52,7 +57,7 @@ function controlledDecoder({
       async pictureAt(time: number) {
         if (closed) throw new Error("Read used a closed rendition.");
         if (kind === "audio-only") throw new Error("The rendition has no picture.");
-        await beforeRead?.(renditionUrl, "picture");
+        await beforeRead?.(renditionUrl, "picture", time);
         const canvas = document.createElement("canvas");
         canvas.dataset.url = renditionUrl;
         canvas.dataset.time = String(time);
@@ -61,7 +66,7 @@ function controlledDecoder({
       async soundBetween(time: number) {
         if (closed) throw new Error("Read used a closed rendition.");
         if (kind === "video-only") throw new Error("The rendition has no sound.");
-        await beforeRead?.(renditionUrl, "sound");
+        await beforeRead?.(renditionUrl, "sound", time);
         return [{ timestamp: time, duration: 0.1, buffer: { duration: 0.1 } as AudioBuffer }];
       },
     }));
@@ -223,6 +228,237 @@ test("rapid seeks cannot accumulate decoded pictures behind a slow sound read", 
   } finally {
     finishSound.resolve();
     reader.dispose();
+  }
+});
+
+const scrubRate = { numerator: 60, denominator: 1 };
+
+function separatedRenditions(): SequencePreviewMedia {
+  const { sources, clips } = consecutiveRenditions(2);
+  return {
+    sources,
+    clips: clips.map((clip) => ({ ...clip, sourceFrameRate: scrubRate, sourceOutFrame: 60 })),
+    sequence: {
+      tracks: [
+        {
+          id: "picture",
+          label: "Picture",
+          placements: [
+            { id: "stalled", clipId: "source-0", sequenceStartFrame: 0 },
+            { id: "available", clipId: "source-1", sequenceStartFrame: 90 },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+test("a seek into a sequence gap is ready while preparation slots are stalled", async () => {
+  const finishPlaylist = Promise.withResolvers<void>();
+  const decoder = controlledDecoder({ beforeReady: () => finishPlaylist.promise });
+  const reader = createPreviewReader(separatedRenditions(), scrubRate, decoder.open);
+  try {
+    for (let frame = 0; frame < 23; frame++) reader.prepare(frame, false);
+    const gap = reader.prepare(70, true);
+
+    await setImmediate();
+    expect(gap.state).toBe("ready");
+    expect(gap.result).toEqual({ picture: [], sound: [] });
+    expect(decoder.opened).toEqual([url("source-0")]);
+  } finally {
+    reader.dispose();
+    finishPlaylist.resolve();
+  }
+});
+
+test("a seek can prepare available picture and sound before obsolete playlists settle", async () => {
+  const finishPlaylist = Promise.withResolvers<void>();
+  const decoder = controlledDecoder({
+    kinds: { [url("source-1")]: "audio-video" },
+    beforeReady: (renditionUrl) =>
+      renditionUrl === url("source-0") ? finishPlaylist.promise : undefined,
+  });
+  const reader = createPreviewReader(separatedRenditions(), scrubRate, decoder.open);
+  try {
+    const old = Array.from({ length: 23 }, (_, frame) => reader.prepare(frame, false, "current"));
+    const gap = reader.prepare(70, true, "current");
+    const seek = reader.prepare(90, true, "current");
+
+    await setImmediate();
+    expect(seek.state).toBe("ready");
+    const expected = {
+      picture: [{ picture: { dataset: { url: url("source-1"), time: "0" } } }],
+      sound: [{ sourceId: "source-1", buffers: [{ timestamp: 0 }] }],
+    };
+    expect(seek.result).toMatchObject(expected);
+    expect(gap.result).toEqual({ picture: [], sound: [] });
+
+    finishPlaylist.resolve();
+    await Promise.allSettled(old.map(({ value }) => value));
+    await setImmediate();
+    expect(old.every(({ result }) => result === undefined)).toBe(true);
+    expect(reader.prepare(90, true, "current")).toBe(seek);
+    expect(seek.state).toBe("ready");
+    expect(seek.result).toMatchObject(expected);
+    await expect(reader.prepare(22, false, "current").value).resolves.toMatchObject({
+      picture: [{ picture: { dataset: { url: url("source-0") } } }],
+    });
+  } finally {
+    reader.dispose();
+    finishPlaylist.resolve();
+  }
+});
+
+test("promoting a warm-up frame can reclaim one of four leased rendition slots", async () => {
+  const finishReads = Promise.withResolvers<void>();
+  const decoder = controlledDecoder({
+    kinds: soundKinds,
+    beforeRead: (renditionUrl) => (renditionUrl === url("later") ? undefined : finishReads.promise),
+  });
+  const reader = createPreviewReader(staggeredDissolves(false), projectRate, decoder.open);
+  try {
+    const old = reader.prepare(10, true, "current");
+    await setImmediate();
+    expect(decoder.live.size).toBe(4);
+    const warmup = reader.prepare(25, false);
+    const current = reader.prepare(25, false, "current");
+    await setImmediate();
+    expect(warmup.state).toBe("ready");
+    expect(current.result).toMatchObject({
+      picture: [{ picture: { dataset: { url: url("later"), time: "0.5" } } }],
+      sound: [],
+    });
+    expect(decoder.peak).toBe(4);
+
+    finishReads.resolve();
+    await Promise.allSettled([old.value]);
+    expect(current.state).toBe("ready");
+  } finally {
+    reader.dispose();
+    finishReads.resolve();
+  }
+});
+
+test("a seek under preparation pressure keeps a still-needed rendition and its active read", async () => {
+  const finishRead = Promise.withResolvers<void>();
+  const decoder = controlledDecoder({
+    beforeReady: (renditionUrl) =>
+      renditionUrl === url("source-0") ? finishRead.promise : undefined,
+    beforeRead: (renditionUrl, _, time) =>
+      renditionUrl === url("source-1") && time > 0 ? finishRead.promise : undefined,
+  });
+  const reader = createPreviewReader(separatedRenditions(), scrubRate, decoder.open);
+  try {
+    const neighbor = reader.prepare(105, false);
+    for (let frame = 0; frame < 22; frame++) reader.prepare(frame, false, "current");
+    await setImmediate();
+    const seek = reader.prepare(90, false, "current");
+    await setImmediate();
+    expect(seek.state).toBe("ready");
+    expect(decoder.opened).toEqual([url("source-1"), url("source-0")]);
+
+    finishRead.resolve();
+    await expect(neighbor.value).resolves.toMatchObject({
+      picture: [{ picture: { dataset: { url: url("source-1"), time: "0.25" } } }],
+    });
+  } finally {
+    reader.dispose();
+    finishRead.resolve();
+  }
+});
+
+test("scrubbing a single stalled playlist at capacity does not restart its shared load", async () => {
+  const finishPlaylist = Promise.withResolvers<void>();
+  const decoder = controlledDecoder({ beforeReady: () => finishPlaylist.promise });
+  const reader = createPreviewReader(separatedRenditions(), scrubRate, decoder.open);
+  try {
+    for (let frame = 0; frame < 23; frame++) reader.prepare(frame, false, "current");
+    const seek = reader.prepare(23, false, "current");
+    await setImmediate();
+    expect(decoder.opened).toEqual([url("source-0")]);
+
+    finishPlaylist.resolve();
+    await expect(seek.value).resolves.toMatchObject({
+      picture: [{ picture: { dataset: { url: url("source-0") } } }],
+    });
+  } finally {
+    reader.dispose();
+    finishPlaylist.resolve();
+  }
+});
+
+test("a seek to an available window can pass stalled reads of an old window of the same rendition", async () => {
+  const finishOldWindow = Promise.withResolvers<void>();
+  let startedOldReads = 0;
+  const decoder = controlledDecoder({
+    beforeRead: (_, _channel, time) => {
+      if (time >= 0.5) return;
+      startedOldReads++;
+      return finishOldWindow.promise;
+    },
+  });
+  const reader = createPreviewReader(separatedRenditions(), scrubRate, decoder.open);
+  try {
+    const old = Array.from({ length: 23 }, (_, frame) => reader.prepare(frame, false, "current"));
+    await setImmediate();
+    expect(startedOldReads).toBeGreaterThan(0);
+    const warmup = reader.prepare(45, false);
+    await setImmediate();
+    expect(warmup.state).toBe("loading");
+    expect(decoder.opened).toEqual([url("source-0")]);
+
+    const seek = reader.prepare(45, false, "current");
+    await setImmediate();
+    expect(seek).toBe(warmup);
+    const expected = {
+      picture: [{ picture: { dataset: { url: url("source-0"), time: "0.75" } } }],
+    };
+    expect(seek.result).toMatchObject(expected);
+    expect(decoder.peak).toBe(1);
+
+    finishOldWindow.resolve();
+    await Promise.allSettled(old.map(({ value }) => value));
+    await setImmediate();
+    expect(old.every(({ result }) => result === undefined)).toBe(true);
+    expect(reader.prepare(45, false, "current")).toBe(seek);
+    expect(seek.result).toMatchObject(expected);
+  } finally {
+    reader.dispose();
+    finishOldWindow.resolve();
+  }
+});
+
+test("a seek preserves a pending sound read that crosses into the required window", async () => {
+  const finishSound = Promise.withResolvers<void>();
+  const base = separatedRenditions();
+  const media = {
+    ...base,
+    clips: base.clips.map((clip) => ({
+      ...clip,
+      sourceFrameRate: { numerator: 120, denominator: 1 },
+      sourceInFrame: 1,
+      sourceOutFrame: 121,
+    })),
+  };
+  const decoder = controlledDecoder({
+    kinds: { [url("source-0")]: "audio-video" },
+    beforeRead: (_rendition, channel) => (channel === "sound" ? finishSound.promise : undefined),
+  });
+  const reader = createPreviewReader(media, scrubRate, decoder.open);
+  try {
+    // Frame 29 starts before the half-second boundary, but its sound spans it.
+    const old = Array.from({ length: 23 }, (_, i) => reader.prepare(i + 7, true, "current"));
+    await setImmediate();
+    const seek = reader.prepare(30, true, "current");
+    await setImmediate();
+    expect(decoder.opened).toEqual([url("source-0")]);
+
+    finishSound.resolve();
+    await expect(Promise.all(old.map(({ value }) => value))).resolves.toHaveLength(23);
+    await expect(seek.value).resolves.toMatchObject({ sound: [{ sourceId: "source-0" }] });
+  } finally {
+    reader.dispose();
+    finishSound.resolve();
   }
 });
 
