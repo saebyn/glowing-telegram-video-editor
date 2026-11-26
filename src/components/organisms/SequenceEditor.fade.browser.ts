@@ -358,6 +358,89 @@ test("opening a gap preserves both adjoining fades and reports their missing con
   await expect(page.getByText("CutList unavailable: an authored fade meets a gap.")).toBeVisible();
 });
 
+test("nudging two fades onto the same cut preserves both and reports an output conflict", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, layeredEditStoryId, {
+    "sequence.tracks[0].placements[0].transitionOut.id": "lighthouse-reveal",
+    "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,
+    "sequence.tracks[1].placements[0].sequenceStartFrame": 61,
+    "sequence.tracks[1].placements[0].sourceOutOffsetFrames": 0,
+    "sequence.tracks[1].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[1].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[1].placements[0].transitionIn.durationFrames": 24,
+    // The lower placement fills the frame between the two fades and the tail.
+    "sequence.tracks[2].placements[0].sequenceStartFrame": 0,
+    "sequence.tracks[2].placements[0].sourceInOffsetFrames": undefined,
+    "sequence.tracks[2].placements[0].sourceOutOffsetFrames": 120,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const conflict = page.getByText(
+    "CutList unavailable: authored fades overlap or compete at the same cut.",
+  );
+  await expect(page.getByText(/^CutList unavailable:/)).toHaveCount(0);
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Inspector" })).toContainText(
+    "Sequence start/end (sequence frames): 61 inclusive – 181 exclusive",
+  );
+  expect(await emissions()).toStrictEqual(noEdits);
+  await page.keyboard.press("[");
+
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        durationFrames: 240,
+        tracks: [
+          {
+            id: "cutaways",
+            label: "Cutaways",
+            placements: [
+              {
+                id: "lighthouse-open",
+                clipId: "lighthouse",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: -60,
+                transitionOut: { id: "lighthouse-reveal", kind: "fade", durationFrames: 12 },
+              },
+            ],
+          },
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              {
+                id: "harbor-bed",
+                clipId: "harbor",
+                sequenceStartFrame: 60,
+                sourceOutOffsetFrames: 0,
+                transitionIn: { id: "harbor-entry", kind: "fade", durationFrames: 24 },
+              },
+            ],
+          },
+          {
+            id: "alternate",
+            label: "Alternate",
+            placements: [
+              {
+                id: "lighthouse-alternate",
+                clipId: "lighthouse",
+                sequenceStartFrame: 0,
+                sourceOutOffsetFrames: 120,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      { ok: false, issues: [{ code: "fade-overlap", transitionId: "harbor-entry" }] },
+    ],
+  });
+  await expect(conflict).toBeVisible();
+});
+
 test("dragging Lighthouse's entry handle previews 30 frames and commits once without moving the cut", async ({
   page,
 }) => {
@@ -573,7 +656,9 @@ test("a trim preserves both fades and reports unsupported overlapping output", a
     sequences: [next],
     cutListResults: [blockedOutput],
   });
-  await expect(page.getByText("CutList unavailable: authored fades overlap.")).toBeVisible();
+  await expect(
+    page.getByText("CutList unavailable: authored fades overlap or compete at the same cut."),
+  ).toBeVisible();
 });
 
 test("an entry fade keeps the recorded source extension after a trailing trim", async ({

@@ -648,6 +648,141 @@ it("rejects a placement whose source rate differs from the project rate", () => 
   );
 });
 
+it("rejects visible fades that claim the same cut without overlapping in time", () => {
+  const sequence: Sequence = {
+    durationFrames: 120,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "outgoing",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            transitionOut: fade("outgoing-reveal", 2),
+          },
+          {
+            id: "incoming",
+            clipId: "b",
+            sequenceStartFrame: 100,
+            transitionIn: fade("incoming-entry", 2),
+          },
+        ],
+      },
+    ],
+  };
+
+  // The reveal covers [98, 100); the entry covers [100, 102).
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [{ code: "fade-overlap", transitionId: "incoming-entry" }],
+  });
+});
+
+it("reports both interruption and conflict when a partly covered fade still claims a cut", () => {
+  const sequence: Sequence = {
+    durationFrames: 120,
+    tracks: [
+      {
+        id: "upper",
+        label: "Upper",
+        placements: [
+          {
+            id: "cover",
+            clipId: "b",
+            sequenceStartFrame: 90,
+            sourceOutOffsetFrames: -10,
+          },
+          {
+            id: "incoming",
+            clipId: "b",
+            sequenceStartFrame: 100,
+            transitionIn: fade("incoming-entry", 2),
+          },
+        ],
+      },
+      {
+        id: "lower",
+        label: "Lower",
+        placements: [
+          {
+            id: "outgoing",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            transitionOut: fade("interrupted-reveal", 12),
+          },
+        ],
+      },
+    ],
+  };
+
+  // The reveal's owner is visible at [88, 90) but not at the cut at 100.
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: false,
+    issues: [
+      { code: "fade-interrupted", transitionId: "interrupted-reveal" },
+      { code: "fade-overlap", transitionId: "interrupted-reveal" },
+    ],
+  });
+});
+
+it("does not count a fully covered reveal against a visible entry at the same cut", () => {
+  const sequence: Sequence = {
+    durationFrames: 120,
+    tracks: [
+      {
+        id: "upper",
+        label: "Upper",
+        placements: [
+          { id: "cover", clipId: "b", sequenceStartFrame: 80 },
+          {
+            id: "incoming",
+            clipId: "b",
+            sequenceStartFrame: 100,
+            transitionIn: fade("incoming-entry", 2),
+          },
+        ],
+      },
+      {
+        id: "lower",
+        label: "Lower",
+        placements: [
+          {
+            id: "outgoing",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            transitionOut: fade("covered-reveal", 2),
+          },
+        ],
+      },
+    ],
+  };
+
+  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+    ok: true,
+    issues: [],
+    cutList: {
+      version: "1.0.0",
+      inputMedia: [
+        { s3Location: "s3://media/a.mp4", sections: [{ startFrame: 100, endFrame: 180 }] },
+        {
+          s3Location: "s3://media/b.mp4",
+          sections: [
+            { startFrame: 500, endFrame: 520 },
+            { startFrame: 500, endFrame: 520 },
+          ],
+        },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 0 },
+        { mediaIndex: 1, sectionIndex: 1, transitionIn: { type: "fade", duration: 2 } },
+      ],
+    },
+  });
+});
+
 it("compiles the same entry and reveal fades with or without empty tracks above and below", () => {
   const main = {
     id: "main",
@@ -657,13 +792,13 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
         id: "placement-a",
         clipId: "a",
         sequenceStartFrame: 0,
+        transitionIn: fade("a-entry", 5),
         transitionOut: fade("a-reveal", 15),
       },
       {
         id: "placement-b",
         clipId: "b",
         sequenceStartFrame: 100,
-        transitionIn: fade("b-entry", 5),
       },
     ],
   };
@@ -683,8 +818,13 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
       { s3Location: "s3://media/b.mp4", sections: [{ startFrame: 500, endFrame: 520 }] },
     ],
     outputTrack: [
-      { mediaIndex: 0, sectionIndex: 0, transitionOut: { type: "fade", duration: 15 } },
-      { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 5 } },
+      {
+        mediaIndex: 0,
+        sectionIndex: 0,
+        transitionIn: { type: "fade", duration: 5 },
+        transitionOut: { type: "fade", duration: 15 },
+      },
+      { mediaIndex: 1, sectionIndex: 0 },
     ],
   };
 

@@ -33,6 +33,7 @@ function* applyVisibleFades(
   transitions: readonly ResolvedTransition[],
   durationFrames: number,
 ): Generator<TransitionOutputIssue> {
+  const claimedCuts = new Set<number>();
   for (const { id, placement, edge, durationFrames: duration, kind } of transitions) {
     if (kind !== "fade") continue;
     const entry = edge === "leading";
@@ -40,6 +41,8 @@ function* applyVisibleFades(
     const end = entry ? start + duration : placement.sequenceEndFrame;
     const index = firstSpanEndingAfter(spans, start);
     const first = spans[index];
+    let visible = true;
+    let overlaps = false;
     if (
       first?.placement === placement &&
       first.end >= end &&
@@ -55,25 +58,31 @@ function* applyVisibleFades(
       }
       if (entry) first.transitionIn = { type: "fade", duration };
       else first.transitionOut = { type: "fade", duration };
-      if (
+      overlaps =
         (first.transitionIn?.duration ?? 0) + (first.transitionOut?.duration ?? 0) >
-        first.end - first.start
-      ) {
-        yield { code: "fade-overlap", transitionId: id };
-      }
+        first.end - first.start;
     } else {
       // A hidden edge is harmless only when higher tracks obscure the entire window.
+      visible = false;
       let coveredTo = Math.max(0, start);
       const visibleEnd = Math.min(durationFrames, end);
       for (let i = index; i < spans.length && spans[i].start < visibleEnd; i++) {
         const span = spans[i];
-        if (span.start > coveredTo || span.placement.trackIndex >= placement.trackIndex) {
+        if (span.placement === placement) {
+          visible = true;
           break;
         }
-        coveredTo = span.end;
+        if (span.start <= coveredTo && span.placement.trackIndex < placement.trackIndex) {
+          coveredTo = span.end;
+        }
       }
       if (coveredTo < visibleEnd) yield { code: "fade-interrupted", transitionId: id };
     }
+    // Even an interrupted fade claims its cut if its owner is visible anywhere in the window.
+    if (!visible) continue;
+    const cut = entry ? start : end;
+    if (overlaps || claimedCuts.has(cut)) yield { code: "fade-overlap", transitionId: id };
+    claimedCuts.add(cut);
   }
 }
 

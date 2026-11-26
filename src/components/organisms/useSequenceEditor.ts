@@ -80,7 +80,7 @@ export interface UseSequenceEditorOptions {
 }
 
 const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = {
-  "fade-overlap": "CutList unavailable: authored fades overlap.",
+  "fade-overlap": "CutList unavailable: authored fades overlap or compete at the same cut.",
   "fade-interrupted": "CutList unavailable: an authored fade crosses a visible cut.",
   "fade-gap":
     "CutList unavailable: an authored fade meets a gap. The missing side contributes black picture and silence.",
