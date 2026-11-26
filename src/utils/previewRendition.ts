@@ -121,13 +121,17 @@ async function open(
     return picture;
   }
   const audioBlocks = cachedWindows(async (start, end) => {
-    const result: WrappedAudioBuffer[] = [];
+    const blocks: WrappedAudioBuffer[] = [];
     if (soundSink) {
-      for await (const block of soundSink.buffers(origin + start, origin + end)) {
-        result.push({ ...block, timestamp: block.timestamp - origin });
+      try {
+        for await (const block of soundSink.buffers(origin + start, origin + end)) {
+          blocks.push({ ...block, timestamp: block.timestamp - origin });
+        }
+      } catch (error) {
+        return { blocks, failure: { error } };
       }
     }
-    return result;
+    return { blocks };
   });
   async function soundBetween(
     time: number,
@@ -142,10 +146,29 @@ async function open(
     for (let boundary = (Math.floor(time * 2) + 1) / 2; boundary < end - 1e-9; boundary += 0.5) {
       windows.push(audioBlocks(boundary));
     }
-    const blocks = (await Promise.all(windows)).flat();
+    const decoded = await Promise.all(windows);
+    const blocks = decoded.flatMap((window) => window.blocks);
     const buffers = [...new Map(blocks.map((block) => [block.timestamp, block])).values()].filter(
       ({ timestamp, buffer }) => timestamp < end && time < timestamp + buffer.duration,
     );
+    const failure = decoded.find((window) => window.failure)?.failure;
+    if (failure) {
+      // A failed window can still serve requests covered by the decoded buffers.
+      let coveredUntil = time;
+      for (const { timestamp, buffer } of buffers.sort((a, b) => a.timestamp - b.timestamp)) {
+        if (timestamp > coveredUntil + 1e-9) break;
+        coveredUntil = Math.max(coveredUntil, timestamp + buffer.duration);
+      }
+      if (coveredUntil >= end - 1e-9) return buffers;
+      // Only the portion beyond the recorded sound is allowed to be silent.
+      if (
+        extension &&
+        origin + coveredUntil >= (await (soundEnd ??= audio.computeDuration())) - 1e-7
+      ) {
+        return buffers;
+      }
+      throw failure.error;
+    }
     if (
       !buffers.length &&
       !(extension && origin + time >= (await (soundEnd ??= audio.computeDuration())) - 1e-7)
