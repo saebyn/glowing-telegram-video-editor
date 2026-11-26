@@ -502,15 +502,31 @@ function SequenceTimelineWidget({
   useLayoutEffect(() => {
     if (drag.current) clearMove();
     if (trimDrag.current) clearTrim();
-  }, [
-    tracks,
-    durationFrames,
-    clips,
-    frameRate.numerator,
-    frameRate.denominator,
-    clearMove,
-    clearTrim,
-  ]);
+  }, [tracks, durationFrames, frameRate.numerator, frameRate.denominator, clearMove, clearTrim]);
+
+  const previousClips = useRef(clips);
+  useLayoutEffect(() => {
+    const previous = previousClips.current;
+    previousClips.current = clips;
+    if (!drag.current && !trimDrag.current) return;
+    const sameGeometry =
+      previous.length === clips.length &&
+      clips.every((clip, index) => {
+        const old = previous[index];
+        return (
+          clip.id === old.id &&
+          clip.sourceId === old.sourceId &&
+          clip.sourceInFrame === old.sourceInFrame &&
+          clip.sourceOutFrame === old.sourceOutFrame &&
+          clip.sourceDurationFrames === old.sourceDurationFrames &&
+          clip.sourceFrameRate.numerator === old.sourceFrameRate.numerator &&
+          clip.sourceFrameRate.denominator === old.sourceFrameRate.denominator
+        );
+      });
+    if (sameGeometry) return;
+    if (drag.current) clearMove();
+    if (trimDrag.current) clearTrim();
+  }, [clips, clearMove, clearTrim]);
 
   useLayoutEffect(() => {
     if (!isDragging && !isPoolDragging && !isTrailingTrim) return;

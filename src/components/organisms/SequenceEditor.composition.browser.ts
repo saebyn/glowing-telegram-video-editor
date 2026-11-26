@@ -166,6 +166,156 @@ test("the host-built editor emits nothing for blocked or cancelled Timeline move
   await expect(host.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
 });
 
+test("a host-built Timeline move survives a new array of equivalent clips", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await expect(harbor).toHaveCount(2, { timeout: 20_000 });
+  const opening = (await harbor.first().boundingBox())!;
+  const closing = (await harbor.last().boundingBox())!;
+  const x = closing.x + closing.width / 3;
+  const y = closing.y + closing.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - (closing.x - opening.x) / 2, y, { steps: 12 });
+  await expect(timeline.getByRole("status")).toHaveText("Harbor → Main · Sequence frame 60");
+  await expect(page.getByRole("button", { name: "Zoom in", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.up();
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              { id: "opening", clipId: "harbor", sequenceStartFrame: 0 },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 60,
+                sourceOutOffsetFrames: 60,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 160 },
+              { startFrame: 100, endFrame: 220 },
+            ],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+        ],
+      }),
+    ],
+  });
+});
+
+test("a host-built Timeline trim survives a new array of equivalent clips", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await expect(harbor).toHaveCount(2, { timeout: 20_000 });
+  const opening = (await harbor.first().boundingBox())!;
+  const closing = (await harbor.last().boundingBox())!;
+  const trim = timeline.getByRole("button", { name: "Trim trailing edge: Harbor" }).first();
+  const grip = (await trim.boundingBox())!;
+  const x = grip.x + grip.width / 2;
+  const y = grip.y + grip.height / 2;
+  // Extend the first placement from 60 to 120 frames, filling the gap.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + (closing.x - opening.x) / 2, y, { steps: 12 });
+  await expect(timeline.getByRole("figure", { name: "Proposed trim: Harbor" })).toBeVisible();
+  await expect(timeline.getByRole("status")).toHaveText("Harbor · Sequence frame 120");
+  await expect(page.getByRole("button", { name: "Zoom in", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.up();
+  await expect.poll(emissions).toEqual({
+    sequences: [
+      {
+        tracks: [
+          {
+            id: "main",
+            label: "Main",
+            placements: [
+              { id: "opening", clipId: "harbor", sequenceStartFrame: 0, sourceOutOffsetFrames: 60 },
+              {
+                id: "closing",
+                clipId: "harbor",
+                sequenceStartFrame: 120,
+                sourceOutOffsetFrames: 60,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 100, endFrame: 220 },
+              { startFrame: 100, endFrame: 220 },
+            ],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+        ],
+      }),
+    ],
+  });
+});
+
+test("shifting a clip’s source range cancels a Timeline draft even when duration is unchanged", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await expect(harbor).toHaveCount(2, { timeout: 20_000 });
+  const opening = (await harbor.first().boundingBox())!;
+  const closing = (await harbor.last().boundingBox())!;
+  const x = closing.x + closing.width / 3;
+  const y = closing.y + closing.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - (closing.x - opening.x) / 2, y, { steps: 12 });
+  await expect(timeline.getByRole("status")).toHaveText("Harbor → Main · Sequence frame 60");
+
+  // A host can update clips while the editor still owns pointer capture.
+  await page
+    .getByRole("button", { name: "Host shifts Harbor source range" })
+    .evaluate((button: HTMLButtonElement) => button.click());
+  await expect(timeline.getByRole("status")).toHaveCount(0);
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+  await harbor.last().click();
+  await expect(page.getByRole("region", { name: "Inspector" })).toContainText(
+    "Source in/out (source frames): 102 inclusive – 222 exclusive",
+  );
+});
+
 test("a replacement Timeline previews and resizes either transition kind by ID", async ({
   page,
 }) => {

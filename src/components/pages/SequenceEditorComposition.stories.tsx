@@ -345,7 +345,7 @@ function FitOnlyTimeline({ registerNavigation }: SequenceTimelineProps) {
 }
 
 function HookExample() {
-  const { options } = useControlledStory();
+  const { options, setPool } = useControlledStory();
   const [showTimeline, setShowTimeline] = useState(true);
   const [fitOnly, setFitOnly] = useState(false);
   const {
@@ -356,7 +356,11 @@ function HookExample() {
     inspectorProps,
     notices,
     handleEditorKeyDown,
-  } = useSequenceEditor(options);
+  } = useSequenceEditor({
+    ...options,
+    // Hosts may derive a new array from their library on every render.
+    clips: options.clips.filter(({ sourceId }) => Object.hasOwn(sources, sourceId)),
+  });
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
@@ -373,6 +377,24 @@ function HookExample() {
       </button>
       <button type="button" onClick={() => setShowTimeline((current) => !current)}>
         {showTimeline ? "Hide timeline" : "Show timeline"}
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          setPool((pool) =>
+            pool.map((clip) =>
+              clip.id === "harbor"
+                ? {
+                    ...clip,
+                    sourceInFrame: clip.sourceInFrame + 2,
+                    sourceOutFrame: clip.sourceOutFrame + 2,
+                  }
+                : clip,
+            ),
+          )
+        }
+      >
+        Host shifts Harbor source range
       </button>
       {notices.map((notice) => (
         <output key={notice}>{notice}</output>
