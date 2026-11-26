@@ -5,14 +5,33 @@ a `Resolution:` line closes it even if an old `Status:` line remains.
 
 ## Ready for an agent
 
-No unresolved tickets are ready for an agent.
+Work in the order below. The performance investigations come after the
+correctness fixes and are not release blockers.
 
-## Needs triage
-
-- [66 — Reuse decoders across sequential Preview reads](issues/66-reuse-sequential-preview-decoders.md):
-  compare persistent decode readers with the bounded window cache.
-- [67 — Reduce main-thread work during warm Preview playback](issues/67-profile-warm-preview-playback.md):
-  profile ready-frame work separately from decode stalls before optimizing.
+1. [68 — Revalidate retained Timeline actions on release](issues/68-revalidate-retained-timeline-actions.md) (P1):
+   stale callbacks can discard a newer host edit.
+2. [70 — Diagnose invalid source frame rates](issues/70-handle-invalid-source-frame-rates.md) (P2):
+   malformed metadata crashes the editor before it can explain the issue.
+3. [74 — Preserve history on delayed acknowledgement](issues/74-preserve-history-on-delayed-acknowledgement.md) (P2):
+   accepting an earlier pending proposal clears Undo.
+4. [71 — Hit-test Split mode at click time](issues/71-split-current-placement-at-click.md) (P2):
+   a stationary pointer can retain the wrong target after a host reorder.
+5. [69 — Reject competing fades at the same cut](issues/69-reject-competing-fades-at-one-cut.md) (P2):
+   the compiler accepts an arrangement Preview rejects.
+6. [73 — Detect audio transition conflicts](issues/73-detect-audio-transition-conflicts.md) (P2):
+   a video-only placement can mask a sound conflict from the authoring check.
+7. [72 — Preserve fades across source-continuous splits](issues/72-preserve-preview-fades-across-splits.md) (P2):
+   Preview treats the split as an interruption.
+8. [75 — Cancel queued audio on an endpoint seek](issues/75-cancel-audio-on-seek-to-endpoint.md) (P2):
+   queued sound remains after an explicit seek stops playback.
+9. [76 — Keep decodable frames before an HLS failure](issues/76-keep-decodable-frames-before-hls-failure.md) (P2):
+   a later segment failure invalidates earlier frames in the same decode window.
+10. [77 — Bound decoded media across renditions](issues/77-bound-preview-cache-across-renditions.md) (P2):
+    retained decoded media grows with every rendition visited.
+11. [66 — Reuse decoders across sequential Preview reads](issues/66-reuse-sequential-preview-decoders.md) (P3, investigation):
+    compare persistent decode readers with the bounded window cache.
+12. [67 — Reduce main-thread work during warm Preview playback](issues/67-profile-warm-preview-playback.md) (P3, investigation):
+    profile ready-frame work separately from decode stalls before optimizing.
 
 ## Needs more information
 

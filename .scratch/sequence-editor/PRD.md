@@ -2,7 +2,10 @@
 
 Resolution: implementation batch completed in `dc35b6b`
 
-See [Triage](TRIAGE.md) for the current queue. This PRD records the first batch.
+See [Triage](TRIAGE.md) for the current queue. The original batch is preserved
+below: its scope and callback names are historical. See
+[Shipped: HLS sequence preview](#shipped-hls-sequence-preview) for the playback
+update.
 
 ## Problem Statement
 
@@ -139,3 +142,38 @@ needed; the duration change and placement changes commit as one edit.
   adds both edge gestures and reuses that rule.
 - [07: Consolidate Storybook editing setups](issues/07-consolidate-storybook-editing-setups.md)
   is final curation. Earlier tickets can use or adapt existing fixtures.
+
+## Shipped: HLS sequence preview
+
+The default `SequencePreview` lets editors play, scrub, and step through the
+latest host-supplied sequence, including fades and dissolves, without a
+pre-rendered sequence or a successful `CutList` compile. Forward playback
+includes sound; reverse is picture-only. Preview is for judging authored
+timing, picture, and sound, not verifying the downstream render. For the
+current compiler callback contract, see
+[`onCutListResult` and `result.ok`](../../README.md#L105).
+
+For sources with video or an undeclared media kind, the host supplies a
+`previewHlsUrl` separate from the render `s3Location`. It points to a finite,
+seekable rendition aligned to the whole source's elapsed time. The browser
+must be able to fetch the playlist and its segments and decode the rendition
+codecs through WebCodecs. Desktop Chromium is the verification baseline, not
+a guarantee for every browser or codec.
+
+The editing session still owns the playhead. When Preview is hidden or
+omitted, transport runs without waiting for media. When required media is
+buffering, playback holds and resumes only if the play request is still
+current. Gaps play as black and silence except where a transition contributes.
+Missing media and undefined transitions stop playback with distinct
+diagnostics, and editors can seek past them.
+
+[#49](issues/49-design-hls-playback-for-sequence-preview.md) was accepted
+after real-stream testing. Audio-only source delivery and timing metadata
+remain open in [#50](issues/50-design-audio-only-sequence-preview.md).
+[Triage](TRIAGE.md) tracks transition correctness, endpoint audio, and HLS
+reliability separately from non-blocking performance investigations.
+
+See the [sequence preview design](../../docs/sequence-editor-design.md#sequence-preview-target)
+for the behavior contract and the
+[verification checklist](../../docs/development.md#manual-sequence-preview-checks)
+for local fixture and real-stream checks.
