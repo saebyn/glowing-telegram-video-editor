@@ -75,11 +75,9 @@ export function applyTrailingTrim(
     return null;
   }
 
-  const endFrame = placement.sequenceStartFrame + (sourceOutFrame - bounds.sourceInFrame);
   const trimmed = { ...placement, sourceOutOffsetFrames: sourceOutFrame - clip.sourceOutFrame };
   return {
     ...sequence,
-    durationFrames: Math.max(sequence.durationFrames, endFrame),
     tracks: sequence.tracks.map((candidate) =>
       candidate === track
         ? {

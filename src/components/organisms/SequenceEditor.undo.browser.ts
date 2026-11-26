@@ -11,7 +11,6 @@ import {
 } from "./SequenceEditor.browserHarness";
 
 const layeredSequence: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "cutaways",
@@ -147,7 +146,6 @@ test("an independent host replacement clears Undo without emitting either callba
   const sequenceControl = page.getByRole("textbox", { name: "Edit sequence as JSON" });
   await sequenceControl.fill(
     JSON.stringify({
-      durationFrames: 180,
       tracks: [
         {
           id: "main",
@@ -158,7 +156,7 @@ test("an independent host replacement clears Undo without emitting either callba
     }),
   );
   await sequenceControl.blur();
-  await expect(timeline).toContainText("Duration: 00:03");
+  await expect(timeline).toContainText("Duration: 00:02");
   await expect(timeline.getByText("Replacement", { exact: true })).toBeVisible();
   await expect(undo).toBeDisabled();
 
@@ -200,7 +198,9 @@ test("Undo restores successive accepted edits newest first without recording the
   await trim.click();
   await expect(undo).toBeDisabled();
   const { sequences, cutListResults } = await emissions();
-  expect(sequences.map(({ durationFrames }) => durationFrames)).toEqual([390, 420, 390, 360]);
+  expect(sequences.map(({ tracks }) => tracks[0].placements[1].sourceOutOffsetFrames)).toEqual([
+    36, 66, 36, 6,
+  ]);
   const gap = { ok: false, issues: [{ code: "sequence-gap", startFrame: 120, endFrame: 240 }] };
   expect(cutListResults).toEqual([gap, gap, gap, gap]);
 });
@@ -238,6 +238,8 @@ test("a host that declines a proposal does not add or consume an Undo entry", as
   await expect(originalDuration).toBeVisible();
   await expect(undo).toBeDisabled();
   const { sequences, cutListResults } = await emissions();
-  expect(sequences.map(({ durationFrames }) => durationFrames)).toEqual([390, 390, 360, 360]);
+  expect(sequences.map(({ tracks }) => tracks[0].placements[1].sourceOutOffsetFrames)).toEqual([
+    36, 36, 6, 6,
+  ]);
   expect(cutListResults).toHaveLength(4);
 });

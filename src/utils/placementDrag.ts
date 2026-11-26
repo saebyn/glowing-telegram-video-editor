@@ -79,11 +79,10 @@ export function placeClipInGap(
 ): Sequence | null {
   const drop = evaluatePoolDrop(sequence, clips, frameRate, clipId, trackId, atFrame);
   if (drop?.kind !== "place") return null;
-  const { sequenceStartFrame, duration } = drop;
+  const { sequenceStartFrame } = drop;
   const placement: ClipPlacement = { id: crypto.randomUUID(), clipId, sequenceStartFrame };
   return {
     ...sequence,
-    durationFrames: Math.max(sequence.durationFrames, sequenceStartFrame + duration),
     tracks: sequence.tracks.map((other) =>
       other.id === trackId ? { ...other, placements: [...other.placements, placement] } : other,
     ),
@@ -205,7 +204,6 @@ function evaluateMove(
     return block("outside-tracks");
   if (trackShift === 0 && frameOffset === 0) return { kind: "unchanged", destinations };
 
-  let durationFrames = sequence.durationFrames;
   const arrivals = sequence.tracks.map((): ClipPlacement[] => []);
   for (const { placement, trackIndex, originIndex: origin } of moves.values()) {
     if (trackIndex === null) return block("outside-tracks");
@@ -234,7 +232,6 @@ function evaluateMove(
       );
       if (other.sequenceStartFrame + otherDuration > start) return block("overlap", destination.id);
     }
-    durationFrames = Math.max(durationFrames, end);
     arrivals[trackIndex].push(placement);
   }
 
@@ -243,7 +240,6 @@ function evaluateMove(
     destinations,
     sequence: {
       ...sequence,
-      durationFrames,
       tracks: sequence.tracks.map((track, index) => ({
         ...track,
         placements:

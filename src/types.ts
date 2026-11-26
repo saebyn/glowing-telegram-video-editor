@@ -194,7 +194,6 @@ export interface SequenceTrack {
 }
 
 export interface Sequence {
-  durationFrames: number;
   /** Tracks in visual order, top first. */
   tracks: readonly SequenceTrack[];
 }
@@ -239,7 +238,6 @@ export interface SequencePreviewGate {
 
 /** Host inputs that prevent the editor from resolving placement geometry. */
 export type SequenceInputIssue =
-  | { code: "invalid-sequence-duration"; durationFrames: number }
   | { code: "invalid-project-frame-rate"; frameRate: FrameRate }
   | { code: "missing-clip"; placementId: string; clipId: string }
   | {

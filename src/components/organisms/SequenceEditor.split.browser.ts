@@ -19,7 +19,6 @@ async function seek(page: Page, timeline: Locator, fraction: number, frame: numb
 }
 
 const layeredBeforeSplit: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "cutaways",
@@ -78,7 +77,6 @@ test("Split cuts visible and covered placements at the playhead without a select
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "cutaways",
@@ -228,7 +226,6 @@ test("Split blocks an edge touch but still commits an interior split when the se
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 360,
         tracks: [
           {
             id: "main",

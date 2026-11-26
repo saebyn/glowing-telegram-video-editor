@@ -237,7 +237,7 @@ export function getSequenceDissolves(
         details.set(
           transition.id,
           dissolvePresentation(
-            resolveDissolve(layout.spans, layout.transitions, transition, sequence.durationFrames),
+            resolveDissolve(layout.spans, layout.transitions, transition, layout.durationFrames),
             sources,
           ),
         );
@@ -269,7 +269,7 @@ export function hasTransitionAuthoringConflict(
       hasVisibleTransitionConflict(
         layout.spans,
         layout.transitions,
-        sequence.durationFrames,
+        layout.durationFrames,
         transitionId,
       )
     );

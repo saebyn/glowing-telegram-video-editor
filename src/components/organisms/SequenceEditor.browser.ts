@@ -79,7 +79,6 @@ test("adding at the start edge proposes one default entry fade and selects it on
   page,
 }) => {
   const expectedSequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -162,7 +161,6 @@ test("adding at the start edge proposes one default entry fade and selects it on
     .toStrictEqual([
       expectedSequence,
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "main",
@@ -193,7 +191,6 @@ test("adding at the end edge caps the reveal fade at the placement duration with
   page,
 }) => {
   const expectedSequence = {
-    durationFrames: 144,
     tracks: [
       {
         id: "main",
@@ -232,7 +229,6 @@ test("adding at the end edge caps the reveal fade at the placement duration with
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 144,
     "sequence.tracks[0].placements[0].sourceOutOffsetFrames": -96,
     "sequence.tracks[0].placements[1].sequenceStartFrame": 24,
   });
@@ -274,9 +270,9 @@ test("adding at the end edge caps the reveal fade at the placement duration with
   expect(fadeBox.width).toBeCloseTo(placementBox.width + 2, 0);
 });
 
-for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
-  { rate: [25, 1], expected: 13, sourceOutOffset: 0, secondStart: 50, duration: 100 },
-  { rate: [1, 2], expected: 1, sourceOutOffset: 360, secondStart: 4, duration: 5 },
+for (const { rate, expected, sourceOutOffset, secondStart } of [
+  { rate: [25, 1], expected: 13, sourceOutOffset: 0, secondStart: 50 },
+  { rate: [1, 2], expected: 1, sourceOutOffset: 360, secondStart: 4 },
 ]) {
   test(`Add rounds half a second at ${rate.join("/")} fps to ${expected} whole sequence frames`, async ({
     page,
@@ -288,7 +284,6 @@ for (const { rate, expected, sourceOutOffset, secondStart, duration } of [
       "projectRate.denominator": rate[1],
       "sequence.tracks[0].placements[0].sourceOutOffsetFrames": sourceOutOffset,
       "sequence.tracks[0].placements[1].sequenceStartFrame": secondStart,
-      "sequence.durationFrames": duration,
     });
     await page
       .getByRole("region", { name: "Sequence timeline" })

@@ -90,7 +90,6 @@ test("a companion's snap shows the guide and both destinations, then commits and
   await expect.poll(emissions).toMatchObject({
     sequences: [
       {
-        durationFrames: 300,
         tracks: [
           {
             id: "cutaways",
@@ -133,7 +132,6 @@ test("a companion's snap shows the guide and both destinations, then commits and
   expect(undone.sequences).toHaveLength(2);
   expect(undone.cutListResults).toHaveLength(2);
   expect(undone.sequences[1]).toMatchObject({
-    durationFrames: 240,
     tracks: [
       { id: "cutaways", placements: [{ id: "lighthouse-open", sequenceStartFrame: 0 }] },
       { id: "main", placements: [{ id: "harbor-bed", sequenceStartFrame: 0 }] },

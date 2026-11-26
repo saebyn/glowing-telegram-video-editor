@@ -12,7 +12,6 @@ import {
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
 const straightCut: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "main",
@@ -217,7 +216,6 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
   await expect.poll(emissions).toEqual({
     sequences: [
       expect.objectContaining({
-        durationFrames: 240,
         tracks: [
           {
             id: "cutaways",
@@ -245,20 +243,27 @@ test("the Inspector authors a reveal to the lower track in a layered edit", asyn
   });
 });
 
+// Put material after Main so the unrelated [240, 260) gap is part of the edit.
+const layeredGapArgs = {
+  "sequence.tracks[2].placements[1].id": "after-gap",
+  "sequence.tracks[2].placements[1].clipId": "harbor",
+  "sequence.tracks[2].placements[1].sequenceStartFrame": 260,
+} as const;
+
 test("a layered timeline fade commits but explains a window interrupted by another visible placement", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
-    "sequence.durationFrames": 260, // An unrelated trailing gap must not hide transition feedback.
+    ...layeredGapArgs,
     "sequence.tracks[1].placements[0].transitionIn.id": "harbor-entry",
     "sequence.tracks[1].placements[0].transitionIn.kind": "fade",
     "sequence.tracks[1].placements[0].transitionIn.durationFrames": 12,
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
-  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true }).first();
   const width = (await harbor.boundingBox())!.width;
-  await dragFade(page, timeline.getByLabel("Adjust entry fade: Harbor"), (width * 68) / 240);
+  await dragFade(page, timeline.getByLabel("Adjust entry fade: Harbor"), ((width + 2) * 68) / 240);
   expect(await emissions()).toStrictEqual(noEdits);
   await page.mouse.up();
 
@@ -296,7 +301,7 @@ test("a layered timeline fade commits but explains a window interrupted by anoth
 test("a gap elsewhere does not block a locally representable layered fade", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, layeredEditStoryId, {
-    "sequence.durationFrames": 260,
+    ...layeredGapArgs,
     "sequence.tracks[0].placements[0].transitionOut.id": "lighthouse-reveal",
     "sequence.tracks[0].placements[0].transitionOut.kind": "fade",
     "sequence.tracks[0].placements[0].transitionOut.durationFrames": 6,
@@ -333,7 +338,6 @@ test("opening a gap preserves both adjoining fades and reports their missing con
   await expect.poll(emissions).toEqual({
     sequences: [
       {
-        durationFrames: 241,
         tracks: [
           {
             id: "main",
@@ -391,7 +395,6 @@ test("nudging two fades onto the same cut preserves both and reports an output c
   await expect.poll(emissions).toEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "cutaways",
@@ -593,7 +596,6 @@ test("a placement stays trimmable after adding a fade in Placement Properties", 
   await page.mouse.up();
 
   const trimmed: Sequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",

@@ -28,7 +28,6 @@ it("compiles two clips from the same source ID into ordered sections of one rend
     },
   ];
   const sequence: Sequence = {
-    durationFrames: 15,
     tracks: [
       {
         id: "main",
@@ -67,6 +66,70 @@ it("compiles two clips from the same source ID into ordered sections of one rend
   });
 });
 
+it("ends output at the last placement before and after a trailing trim or removal", () => {
+  const frameRate = { numerator: 30, denominator: 1 };
+  const clips = [
+    {
+      id: "harbor",
+      sourceId: "recording",
+      sourceFrameRate: frameRate,
+      sourceInFrame: 20,
+      sourceOutFrame: 30,
+    },
+    {
+      id: "departure",
+      sourceId: "recording",
+      sourceFrameRate: frameRate,
+      sourceInFrame: 50,
+      sourceOutFrame: 60,
+    },
+  ];
+  const sources = { recording: { s3Location: "s3://archive/harbor.mp4" } };
+  const opening = { id: "opening", clipId: "harbor", sequenceStartFrame: 0 };
+  const closing = { id: "closing", clipId: "departure", sequenceStartFrame: 10 };
+  const cases = [
+    {
+      placements: [opening, closing],
+      sections: [
+        { startFrame: 20, endFrame: 30 },
+        { startFrame: 50, endFrame: 60 },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 0, sectionIndex: 1 },
+      ],
+    },
+    {
+      placements: [opening, { ...closing, sourceOutOffsetFrames: -4 }],
+      sections: [
+        { startFrame: 20, endFrame: 30 },
+        { startFrame: 50, endFrame: 56 },
+      ],
+      outputTrack: [
+        { mediaIndex: 0, sectionIndex: 0 },
+        { mediaIndex: 0, sectionIndex: 1 },
+      ],
+    },
+    {
+      placements: [opening],
+      sections: [{ startFrame: 20, endFrame: 30 }],
+      outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
+    },
+  ];
+  for (const { placements, sections, outputTrack } of cases) {
+    const sequence: Sequence = { tracks: [{ id: "main", label: "Main", placements }] };
+    expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
+      ok: true,
+      issues: [],
+      cutList: {
+        version: "1.0.0",
+        inputMedia: [{ s3Location: "s3://archive/harbor.mp4", sections }],
+        outputTrack,
+      },
+    });
+  }
+});
+
 it("reports a missing source when metadata is inherited instead of owned by the record", () => {
   const frameRate = { numerator: 30, denominator: 1 };
   const clips = [
@@ -79,7 +142,6 @@ it("reports a missing source when metadata is inherited instead of owned by the 
     },
   ];
   const sequence: Sequence = {
-    durationFrames: 10,
     tracks: [
       {
         id: "main",
@@ -115,7 +177,6 @@ it("compiles both placement fades without changing the output shape or loading p
     },
   ];
   const sequence: Sequence = {
-    durationFrames: 20,
     tracks: [
       {
         id: "main",

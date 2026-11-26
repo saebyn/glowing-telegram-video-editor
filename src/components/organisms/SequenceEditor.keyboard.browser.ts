@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { CutList } from "@saebyn/glowing-telegram-types";
 import {
-  blockedOutput,
   compiled,
   layeredEditStoryId,
   noEdits,
@@ -40,7 +39,7 @@ test("the focused editor steps one sequence frame in either direction without ed
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
-test("brackets nudge the whole selection by one sequence frame and only grow when needed", async ({
+test("brackets nudge the whole selection by one sequence frame and update the sequence end", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -61,7 +60,6 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
   // Harbor originally fills [0, 240), with Lighthouse covering the first 60 frames.
   await page.keyboard.press("]");
   const shifted = {
-    durationFrames: 241,
     tracks: [
       {
         id: "cutaways",
@@ -126,13 +124,12 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(alternate).toHaveAttribute("aria-pressed", "true");
 
-  // Moving back leaves the newly uncovered trailing frame; it does not shrink the edit.
+  // Moving back restores the previous end and source range without leaving a trailing gap.
   await page.keyboard.press("[");
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       shifted,
       {
-        durationFrames: 241,
         tracks: [
           shifted.tracks[0],
           {
@@ -163,9 +160,18 @@ test("brackets nudge the whole selection by one sequence frame and only grow whe
         ],
       },
     ],
-    cutListResults: [compiled(cutList), blockedOutput],
+    cutListResults: [
+      compiled(cutList),
+      compiled({
+        ...cutList,
+        inputMedia: [
+          cutList.inputMedia[0],
+          { ...cutList.inputMedia[1], sections: [{ startFrame: 174, endFrame: 354 }] },
+        ],
+      }),
+    ],
   });
-  await expect(grip).toHaveAttribute("aria-valuemax", "241");
+  await expect(grip).toHaveAttribute("aria-valuemax", "240");
   await expect(grip).toHaveAttribute("aria-valuenow", "0");
 });
 

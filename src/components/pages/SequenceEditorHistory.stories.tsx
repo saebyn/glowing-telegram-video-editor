@@ -13,7 +13,6 @@ const meta = {
 export default meta;
 
 const original: Sequence = {
-  durationFrames: 120,
   tracks: [{ id: "main", label: "Main", placements: [] }],
 };
 

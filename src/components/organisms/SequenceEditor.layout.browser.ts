@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  blockedOutput,
+  compiled,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
@@ -73,7 +73,6 @@ test("move feedback does not cancel a drag when the editor just fits the viewpor
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 360,
         tracks: [
           {
             id: "main",
@@ -92,6 +91,23 @@ test("move feedback does not cancel a drag when the editor just fits the viewpor
         ],
       },
     ],
-    cutListResults: [blockedOutput],
+    cutListResults: [
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [
+              { startFrame: 114, endFrame: 234 },
+              { startFrame: 120, endFrame: 240 },
+            ],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 0, sectionIndex: 1 },
+        ],
+      }),
+    ],
   });
 });

@@ -14,7 +14,6 @@ const clip: VideoClip = {
 
 const placement = { id: "open", clipId: "harbor", sequenceStartFrame: 20 };
 const sequence: Sequence = {
-  durationFrames: 60,
   tracks: [{ id: "main", label: "Main", placements: [placement] }],
 };
 
@@ -32,7 +31,6 @@ test("the exclusive source endpoint can grow the sequence but the trim cannot go
   const projectRate = { numerator: 72, denominator: 3 };
 
   expect(applyTrailingTrim(sequence, clips, projectRate, "open", 200)).toStrictEqual({
-    durationFrames: 120,
     tracks: [
       {
         id: "main",
@@ -47,9 +45,8 @@ test("the exclusive source endpoint can grow the sequence but the trim cannot go
   expect(harbor.sourceOutFrame).toBe(140);
 });
 
-test("shortening the last placement preserves the uncovered sequence frames", () => {
+test("a trailing trim can move the last placement's out point earlier", () => {
   expect(applyTrailingTrim(sequence, [clip], frameRate, "open", 130)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         id: "main",
@@ -64,7 +61,6 @@ test("shortening the last placement preserves the uncovered sequence frames", ()
 
 test("a trailing trim can leave exactly one source frame but cannot leave zero", () => {
   expect(applyTrailingTrim(sequence, [clip], frameRate, "open", 101)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         id: "main",
@@ -96,11 +92,9 @@ test("a trailing trim can shorten a placement below its fade without changing ei
   const withFades: Sequence = { ...sequence, tracks: [track] };
 
   expect(applyTrailingTrim(withFades, [clip], frameRate, "open", 115)).toStrictEqual({
-    durationFrames: 60,
     tracks: [{ ...track, placements: [{ ...faded, sourceOutOffsetFrames: -25 }] }],
   });
   expect(applyTrailingTrim(withFades, [clip], frameRate, "open", 109)).toStrictEqual({
-    durationFrames: 60,
     tracks: [{ ...track, placements: [{ ...faded, sourceOutOffsetFrames: -31 }] }],
   });
 });
@@ -121,10 +115,9 @@ test("a trailing trim can touch but cannot cross the next same-track edge", () =
   const next = { id: "next", clipId: "harbor", sequenceStartFrame: 90 };
   const trimmed = { ...placement, sourceInOffsetFrames: 5 };
   const track = { id: "main", label: "Main", placements: [later, trimmed, next] };
-  const cuts: Sequence = { durationFrames: 190, tracks: [track] };
+  const cuts: Sequence = { tracks: [track] };
 
   expect(applyTrailingTrim(cuts, [clip], frameRate, "open", 175)).toStrictEqual({
-    durationFrames: 190,
     tracks: [{ ...track, placements: [later, { ...trimmed, sourceOutOffsetFrames: 35 }, next] }],
   });
   expect(applyTrailingTrim(cuts, [clip], frameRate, "open", 176)).toBeNull();
@@ -143,7 +136,6 @@ test("without the source duration a trailing trim cannot extend beyond the known
 
 test("a trailing trim cannot extend beyond safe whole sequence frame positions", () => {
   const longSequence: Sequence = {
-    durationFrames: Number.MAX_SAFE_INTEGER - 1,
     tracks: [
       {
         id: "main",
@@ -168,7 +160,6 @@ const lighthouse: VideoClip = {
 };
 const harbor = { ...clip, sourceInFrame: 114, sourceOutFrame: 233, sourceDurationFrames: 1_000 };
 const straightCuts: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "main",
@@ -233,7 +224,6 @@ test("a leading trim shifts the sequence start and source in without moving the 
   expect(
     applyLeadingTrim(straightCuts, [lighthouse, harbor], frameRate, "lighthouse-next", 525),
   ).toStrictEqual({
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -267,7 +257,6 @@ test("a leading trim keeps both transition IDs and durations even when they over
   const withFades: Sequence = { ...sequence, tracks: [track] };
 
   expect(applyLeadingTrim(withFades, [clip], frameRate, "open", 125)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         ...track,
@@ -276,7 +265,6 @@ test("a leading trim keeps both transition IDs and durations even when they over
     ],
   });
   expect(applyLeadingTrim(withFades, [clip], frameRate, "open", 126)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         ...track,
@@ -300,7 +288,6 @@ test("a leading trim cannot overlap the previous placement even within the sourc
   ).toBeNull();
 
   const withGap: Sequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -325,7 +312,6 @@ test("a leading trim cannot overlap the previous placement even within the sourc
   expect(
     applyLeadingTrim(withGap, [shortClip, lighthouse, harbor], frameRate, "lighthouse-next", 501),
   ).toStrictEqual({
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -351,7 +337,6 @@ test("a leading trim cannot overlap the previous placement even within the sourc
 
 test("a leading trim can reach sequence frame zero without crossing it", () => {
   expect(applyLeadingTrim(sequence, [clip], frameRate, "open", 80)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         id: "main",
@@ -371,7 +356,6 @@ test("a leading trim can leave the last source frame but cannot reach the exclus
   const withShortenedPlacement = { ...sequence, tracks: [track] };
 
   expect(applyLeadingTrim(withShortenedPlacement, [clip], frameRate, "open", 129)).toStrictEqual({
-    durationFrames: 60,
     tracks: [
       {
         ...track,

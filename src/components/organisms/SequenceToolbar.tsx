@@ -8,9 +8,6 @@ import {
   SequenceTransportControls,
   type SequenceTransportControlsProps,
 } from "@/components/molecules/SequenceTransportControls";
-import ShortenSequenceForm, {
-  type ShortenSequenceFormProps,
-} from "@/components/molecules/ShortenSequenceForm";
 
 export interface SequenceToolbarProps {
   transport: SequenceTransportControlsProps;
@@ -22,7 +19,6 @@ export interface SequenceToolbarProps {
   undo?: () => void;
   redo?: () => void;
   deleteSelection?: () => void;
-  shorten?: ShortenSequenceFormProps;
   addTrack?: () => void;
   renameTrack?: RenameSequenceTrackProps;
   /** Layout action controls supplied by the default page or a host layout. */
@@ -39,7 +35,6 @@ export default function SequenceToolbar({
   undo,
   redo,
   deleteSelection,
-  shorten,
   addTrack,
   renameTrack,
   paneToggles,
@@ -72,7 +67,6 @@ export default function SequenceToolbar({
       <SequenceEditButton onClick={undo}>Undo</SequenceEditButton>
       <SequenceEditButton onClick={redo}>Redo</SequenceEditButton>
       <SequenceEditButton onClick={deleteSelection}>Delete</SequenceEditButton>
-      {shorten && <ShortenSequenceForm {...shorten} />}
       {addTrack && <AddSequenceTrack onAddTrack={addTrack} />}
       {renameTrack && <RenameSequenceTrack {...renameTrack} />}
       {paneToggles}

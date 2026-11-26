@@ -15,7 +15,7 @@ export default meta;
 
 export const TwoEditors: StoryObj = {
   render() {
-    const sequence = { durationFrames: 120, tracks: [] };
+    const sequence = { tracks: [] };
     return (
       <>
         <button type="button">Outside both editors</button>
@@ -35,12 +35,16 @@ export const TwoEditors: StoryObj = {
 };
 
 const clipboardSequence: Sequence = {
-  durationFrames: 360,
   tracks: [
     {
       id: "main",
       label: "Main",
       placements: [{ id: "opening", clipId: "harbor", sequenceStartFrame: 0 }],
+    },
+    {
+      id: "reference",
+      label: "Reference",
+      placements: [{ id: "tail", clipId: "lighthouse", sequenceStartFrame: 240 }],
     },
   ],
 };

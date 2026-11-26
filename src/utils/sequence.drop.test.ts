@@ -11,7 +11,6 @@ const clip: VideoClip = {
   sourceFrameRate: frameRate,
 };
 const sequence: Sequence = {
-  durationFrames: 100,
   tracks: [
     {
       id: "main",
@@ -32,7 +31,6 @@ const sequence: Sequence = {
 it("places a pool clip at the requested frame past the endpoint using the current clip bounds", () => {
   const next = placeClipInGap(sequence, [clip], frameRate, "clip", "main", 107);
   expect(next).toStrictEqual({
-    durationFrames: 127,
     tracks: [
       {
         id: "main",
@@ -86,7 +84,6 @@ it("can fit a valid pool clip before an unresolved placement, not after its unkn
 
 it("rejects a clip longer than the bounded gap even when placements are stored out of order", () => {
   const bounded: Sequence = {
-    durationFrames: 150,
     tracks: [
       {
         id: "main",

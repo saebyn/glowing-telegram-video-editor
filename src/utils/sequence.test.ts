@@ -37,7 +37,6 @@ const fade = (id: string, durationFrames: number) =>
 
 it("reports each sequence gap alongside a visible unsupported dissolve regardless of source presentation", () => {
   const sequence: Sequence = {
-    durationFrames: 150,
     tracks: [
       {
         id: "main",
@@ -50,6 +49,7 @@ it("reports each sequence gap alongside a visible unsupported dissolve regardles
             sequenceStartFrame: 110,
             transitionIn: { id: "blend", kind: "dissolve", durationFrames: 8 },
           },
+          { id: "after-gap", clipId: "b", sequenceStartFrame: 150 },
         ],
       },
     ],
@@ -81,7 +81,6 @@ it("reports each sequence gap alongside a visible unsupported dissolve regardles
 
 it("collects missing references without claiming that an unresolved placement leaves a gap", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "main",
@@ -104,7 +103,6 @@ it("collects missing references without claiming that an unresolved placement le
 
 it("omits a dissolve clipped to zero visible frames at the exclusive sequence end", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "main",
@@ -129,7 +127,6 @@ it("omits a dissolve clipped to zero visible frames at the exclusive sequence en
 
 it("still finds two competing dissolve owners when unrelated footage has another frame rate", () => {
   const sequence: Sequence = {
-    durationFrames: 150,
     tracks: [
       {
         id: "main",
@@ -160,7 +157,6 @@ it("still finds two competing dissolve owners when unrelated footage has another
 
 it("omits a centered dissolve when a higher track hides the owning cut", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       { id: "top", label: "Top", placements: [{ id: "a", clipId: "a", sequenceStartFrame: 0 }] },
       {
@@ -192,7 +188,6 @@ it("omits a centered dissolve when a higher track hides the owning cut", () => {
 
 it("does not count continuous same-source split pieces as an interruption", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "main",
@@ -239,7 +234,6 @@ it("does not count continuous same-source split pieces as an interruption", () =
     issues: [{ code: "unsupported-dissolve", transitionId: "dissolve" }],
   });
   const withMissingSource: Sequence = {
-    durationFrames: 140,
     tracks: [
       ...interrupted.tracks,
       {
@@ -263,7 +257,6 @@ it("does not count continuous same-source split pieces as an interruption", () =
 
 it("uses the upper placement during overlap and resumes the lower source in sequence time", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -308,7 +301,6 @@ it("uses the upper placement during overlap and resumes the lower source in sequ
 
 it("keeps a reveal fade on the upper section before the lower source resumes", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -360,7 +352,6 @@ it("keeps a reveal fade on the upper section before the lower source resumes", (
 
 it("follows a reveal with the uppermost placement starting at the same boundary", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -429,7 +420,6 @@ it("follows a reveal with the uppermost placement starting at the same boundary"
 
 it("attaches an entry and a reveal fade to the distinct fragments containing their edges", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -493,7 +483,6 @@ it("attaches an entry and a reveal fade to the distinct fragments containing the
 
 it("compiles unsorted placements in frame order without splitting at covered boundaries", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "upper",
@@ -531,7 +520,6 @@ it("compiles unsorted placements in frame order without splitting at covered bou
 
 it("rejects overlap on one track even when an upper placement covers it", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -573,7 +561,6 @@ it.each([
   "does not skip an uncovered gap after %s to reach a placement on another track",
   (_, transition, transitionIssues) => {
     const sequence: Sequence = {
-      durationFrames: 140,
       tracks: [
         {
           id: "upper",
@@ -595,27 +582,8 @@ it.each([
   },
 );
 
-it("rejects an uncovered tail rather than shortening the sequence", () => {
-  const sequence: Sequence = {
-    durationFrames: 120,
-    tracks: [
-      {
-        id: "lower",
-        label: "Lower",
-        placements: [{ id: "placement-a", clipId: "a", sequenceStartFrame: 0 }],
-      },
-    ],
-  };
-
-  expect(compileCutList(sequence, clips, sources, frameRate)).toStrictEqual({
-    ok: false,
-    issues: [{ code: "sequence-gap", startFrame: 100, endFrame: 120 }],
-  });
-});
-
 it("has no CutList for an empty sequence", () => {
   const sequence: Sequence = {
-    durationFrames: 0,
     tracks: [{ id: "upper", label: "Upper", placements: [] }],
   };
 
@@ -627,7 +595,6 @@ it("has no CutList for an empty sequence", () => {
 
 it("rejects a placement whose source rate differs from the project rate", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "lower",
@@ -642,7 +609,6 @@ it("rejects a placement whose source rate differs from the project rate", () => 
       ok: false,
       issues: [
         { code: "frame-rate-mismatch", placementId: "placement-a", sourceFrameRate: frameRate },
-        { code: "sequence-gap", startFrame: 50, endFrame: 100 },
       ],
     },
   );
@@ -650,7 +616,6 @@ it("rejects a placement whose source rate differs from the project rate", () => 
 
 it("rejects visible fades that claim the same cut without overlapping in time", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "main",
@@ -682,7 +647,6 @@ it("rejects visible fades that claim the same cut without overlapping in time", 
 
 it("reports both interruption and conflict when a partly covered fade still claims a cut", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "upper",
@@ -729,7 +693,6 @@ it("reports both interruption and conflict when a partly covered fade still clai
 
 it("does not count a fully covered reveal against a visible entry at the same cut", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "upper",
@@ -802,7 +765,7 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
       },
     ],
   };
-  const sequence: Sequence = { durationFrames: 120, tracks: [main] };
+  const sequence: Sequence = { tracks: [main] };
   const padded: Sequence = {
     ...sequence,
     tracks: [
@@ -842,7 +805,6 @@ it("compiles the same entry and reveal fades with or without empty tracks above 
 
 it("omits a fully covered reveal window even when the owner is visible earlier", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -883,7 +845,6 @@ it("omits a fully covered reveal window even when the owner is visible earlier",
 
 it("omits a covered entry ending exactly where its owner becomes visible", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -919,7 +880,6 @@ it("omits a covered entry ending exactly where its owner becomes visible", () =>
 
 it("rejects a fade when its authored edge is covered but its last frame is visible", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",
@@ -946,7 +906,6 @@ it("rejects a fade when its authored edge is covered but its last frame is visib
 
 it("rejects a reveal fade when the visible trailing fragment is shorter than the fade", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "upper",
@@ -980,7 +939,6 @@ it("rejects a reveal fade when the visible trailing fragment is shorter than the
 
 it("rejects an entry fade when the visible leading fragment is shorter than the fade", () => {
   const sequence: Sequence = {
-    durationFrames: 120,
     tracks: [
       {
         id: "upper",
@@ -1014,7 +972,6 @@ it("rejects an entry fade when the visible leading fragment is shorter than the 
 
 it("does not compile entry and reveal fades whose regions intersect", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "main",
@@ -1040,7 +997,6 @@ it("does not compile entry and reveal fades whose regions intersect", () => {
 
 it("retains entry and reveal fades that meet without intersecting", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "main",
@@ -1088,7 +1044,6 @@ it.each([
   ],
 ] as const)("rejects a %s fade even when its edge is visible", (_, transition, transitionId) => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         id: "upper",

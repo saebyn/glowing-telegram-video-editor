@@ -94,7 +94,6 @@ export const EditingControls: Story = {
       ],
       onRename: fn(),
     },
-    shorten: { durationFrames: 360, onShorten: fn((endFrame: number) => endFrame < 360) },
   },
   parameters: {
     docs: {
@@ -120,19 +119,6 @@ export const EditingControls: Story = {
     await userEvent.type(name, "Ambience");
     await userEvent.click(dialog.getByRole("button", { name: "Save name" }));
     await expect(args.renameTrack?.onRename).toHaveBeenCalledWith("sound", "Ambience");
-
-    await userEvent.click(canvas.getByText("Sequence endpoint"));
-    const shorten = canvas.getByRole("button", { name: "Shorten sequence" });
-    await userEvent.click(shorten);
-    await expect(args.shorten?.onShorten).toHaveBeenCalledWith(360);
-    await expect(canvas.getByRole("alert")).toHaveTextContent("leaves every placement intact");
-    const endpoint = canvas.getByRole("spinbutton", { name: "Sequence end (exclusive frame)" });
-    await userEvent.clear(endpoint);
-    await userEvent.type(endpoint, "300");
-    await userEvent.click(shorten);
-    await expect(args.shorten?.onShorten).toHaveBeenCalledWith(300);
-    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByText("Sequence endpoint"));
   },
 };
 

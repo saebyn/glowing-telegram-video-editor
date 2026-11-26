@@ -35,7 +35,6 @@ test("renaming a track commits only its display name and preserves the compiled 
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "cutaways",

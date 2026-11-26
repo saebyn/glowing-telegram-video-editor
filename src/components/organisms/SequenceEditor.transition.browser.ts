@@ -14,7 +14,6 @@ test("one Apply converts type and duration together, without replacing the trans
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 144,
     "sequence.tracks[0].placements[0].sourceOutOffsetFrames": -96,
     "sequence.tracks[0].placements[0].transitionOut.id": "harbor-transition",
     "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
@@ -45,7 +44,6 @@ test("one Apply converts type and duration together, without replacing the trans
   await duration.fill("24");
   await apply.click();
   const faded = {
-    durationFrames: 144,
     tracks: [
       {
         id: "main",
@@ -154,7 +152,6 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
   await expect(dissolve).toHaveCount(0);
   const removed = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",

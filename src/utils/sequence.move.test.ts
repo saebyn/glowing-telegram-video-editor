@@ -13,7 +13,6 @@ const clips: readonly VideoClip[] = [
   },
 ];
 const original: Sequence = {
-  durationFrames: 100,
   tracks: [
     {
       id: "main",
@@ -36,7 +35,6 @@ const original: Sequence = {
 it("moves beyond the old endpoint and grows to the exclusive end of the effective source range", () => {
   const result = evaluatePlacementMove(original, clips, frameRate, "placement", "main", 107);
   expect(result.kind === "move" && result.sequence).toStrictEqual({
-    durationFrames: 132,
     tracks: [
       {
         id: "main",
@@ -64,7 +62,6 @@ it("can move up to, but not across or beyond, the start of an unresolved placeme
     sourceFrameRate: { numerator: 0, denominator: 1 },
   };
   const sequence: Sequence = {
-    durationFrames: 160,
     tracks: [
       {
         ...original.tracks[0],
@@ -83,7 +80,6 @@ it("can move up to, but not across or beyond, the start of an unresolved placeme
   expect(moveTo(65)).toMatchObject({
     kind: "move",
     sequence: {
-      durationFrames: 160,
       tracks: [
         {
           placements: [
@@ -117,7 +113,6 @@ it("can move up to, but not across or beyond, the start of an unresolved placeme
 
 it("vacates the entire moving selection before applying a shared frame and track shift", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       { id: "cutaways", label: "Cutaways", placements: [] },
       original.tracks[0],
@@ -134,7 +129,6 @@ it("vacates the entire moving selection before applying a shared frame and track
     "second",
   ]);
   expect(result.kind === "move" && result.sequence).toStrictEqual({
-    durationFrames: 110,
     tracks: [
       {
         id: "cutaways",
@@ -163,7 +157,6 @@ it("vacates the entire moving selection before applying a shared frame and track
 
 it("blocks moving a selection left if a member other than the grabbed placement crosses frame zero", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       original.tracks[0],
       {
@@ -184,7 +177,6 @@ it("blocks moving a selection left if a member other than the grabbed placement 
 
 it("blocks a group move if a member would land below the bottom track", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       original.tracks[0],
       {
@@ -205,7 +197,6 @@ it("blocks a group move if a member would land below the bottom track", () => {
 
 it("rejects a collision even if the move would extend the sequence by one frame", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       original.tracks[0],
       {
@@ -219,13 +210,11 @@ it("rejects a collision even if the move would extend the sequence by one frame"
   expect(evaluatePlacementMove(sequence, clips, frameRate, "placement", "other", 76)).toMatchObject(
     { kind: "blocked", reason: "overlap" },
   );
-  expect(sequence.durationFrames).toBe(100);
 });
 
 it("blocks a move that overlaps the last frame of a longer stationary placement", () => {
   const longerClip = { ...clips[0], id: "longer-clip", sourceOutFrame: 160 };
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       original.tracks[0],
       {
@@ -241,9 +230,8 @@ it("blocks a move that overlaps the last frame of a longer stationary placement"
   ).toMatchObject({ kind: "blocked", reason: "overlap", trackId: "other" });
 });
 
-it("accepts an exact edge touch without shortening the sequence", () => {
+it("accepts an exact edge touch", () => {
   const sequence: Sequence = {
-    durationFrames: 100,
     tracks: [
       {
         ...original.tracks[0],
@@ -256,7 +244,6 @@ it("accepts an exact edge touch without shortening the sequence", () => {
   };
   const result = evaluatePlacementMove(sequence, clips, frameRate, "placement", "main", 20);
   expect(result.kind === "move" && result.sequence).toMatchObject({
-    durationFrames: 100,
     tracks: [
       { placements: [{ id: "stationary", sequenceStartFrame: 0 }, { sequenceStartFrame: 20 }] },
     ],

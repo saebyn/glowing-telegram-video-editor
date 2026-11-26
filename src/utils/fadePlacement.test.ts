@@ -20,7 +20,6 @@ const placement = {
   transitionIn: { id: "opening-entry", kind: "fade", durationFrames: 8 } as const,
 };
 const sequence: Sequence = {
-  durationFrames: 64,
   tracks: [{ id: "main", label: "Main", placements: [placement] }],
 };
 
@@ -36,7 +35,6 @@ test("an entry fade can span the entire effective placement", () => {
     kind: "edit",
     transition: { id: "opening-entry", kind: "fade", durationFrames: 40 },
     sequence: {
-      durationFrames: 64,
       tracks: [
         {
           id: "main",

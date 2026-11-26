@@ -1,12 +1,61 @@
 import { expect, test } from "@playwright/test";
 import {
-  blockedOutput,
   compiled,
   layeredEditStoryId,
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutStoryId,
+  straightCutArgs,
 } from "./SequenceEditor.browserHarness";
+
+test("deleting the last placements shrinks the sequence to zero and Undo and Redo restore its duration", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, straightCutArgs);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const toolbarButton = (name: string) => page.getByRole("button", { name, exact: true });
+  const remaining = {
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [{ id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 }],
+      },
+    ],
+  };
+
+  await expect(timeline).toContainText("Duration: 00:04");
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).click();
+  expect(await emissions()).toStrictEqual(noEdits);
+  await toolbarButton("Delete").click();
+  await expect(timeline).toContainText("Duration: 00:02");
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).click();
+  await toolbarButton("Delete").click();
+  await expect(timeline).toContainText("Duration: 00:00");
+  await toolbarButton("Undo").click();
+  await expect(timeline).toContainText("Duration: 00:02");
+  await toolbarButton("Redo").click();
+  await expect(timeline).toContainText("Duration: 00:00");
+
+  const empty = { tracks: [{ id: "main", label: "Main", placements: [] }] };
+  const remainingOutput = compiled({
+    version: "1.0.0",
+    inputMedia: [
+      {
+        s3Location: "s3://sequence-fixtures/harbor.mp4",
+        sections: [{ startFrame: 114, endFrame: 234 }],
+      },
+    ],
+    outputTrack: [{ mediaIndex: 0, sectionIndex: 0 }],
+  });
+  const emptyOutput = { ok: false, issues: [{ code: "empty-sequence" }] };
+  expect(await emissions()).toStrictEqual({
+    sequences: [remaining, empty, remaining, empty],
+    cutListResults: [remainingOutput, emptyOutput, remainingOutput, emptyOutput],
+  });
+});
 
 test("Delete is visible but cannot emit an edit without a placement selection", async ({
   page,
@@ -53,7 +102,6 @@ test("Delete removes one Lighthouse placement without removing its other use or 
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           { id: "cutaways", label: "Cutaways", placements: [] },
           {
@@ -138,12 +186,10 @@ test("Delete removes the selection across tracks in one edit and leaves uncovere
   await expect(deleteButton).toBeEnabled();
   await deleteButton.click();
 
-  // Alternate still covers [120, 228), leaving both leading and trailing gaps
-  // in the same 240-frame sequence.
+  // Alternate still covers [120, 228); the end follows it, leaving only a leading gap.
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           { id: "cutaways", label: "Cutaways", placements: [] },
           { id: "main", label: "Main", placements: [] },
@@ -163,11 +209,13 @@ test("Delete removes the selection across tracks in one edit and leaves uncovere
         ],
       },
     ],
-    cutListResults: [blockedOutput],
+    cutListResults: [
+      { ok: false, issues: [{ code: "sequence-gap", startFrame: 0, endFrame: 120 }] },
+    ],
   });
   await expect(lighthouses).toHaveCount(1);
   await expect(harbor).toHaveCount(0);
-  await expect(timeline).toContainText("Duration: 00:04");
+  await expect(timeline).toContainText("Duration: 00:03.8");
   await expect(deleteButton).toBeDisabled();
   await expect(target).toHaveCount(0);
   await expect(page.getByText("Select a placement to edit it.")).toBeVisible();

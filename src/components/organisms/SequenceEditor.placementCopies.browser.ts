@@ -4,6 +4,7 @@ import {
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutDepartureAt,
   roughCutStoryId,
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
@@ -23,7 +24,6 @@ test("Duplicate sends one extending edit and one compiler result; one Undo resto
   const duplicate = await emissions();
   expect(duplicate.sequences).toHaveLength(1);
   expect(duplicate.sequences[0]).toMatchObject({
-    durationFrames: 360,
     tracks: [
       {
         id: "main",
@@ -41,7 +41,6 @@ test("Duplicate sends one extending edit and one compiler result; one Undo resto
   await undo.click();
   await expect(lighthouses).toHaveCount(1);
   await expect(undo).toBeDisabled();
-  expect((await emissions()).sequences[1]).toMatchObject({ durationFrames: 240 });
   expect((await emissions()).cutListResults).toHaveLength(2);
 });
 
@@ -163,7 +162,7 @@ test("Paste recomputes the sequence frame under a stationary pointer after horiz
 }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, { "sequence.durationFrames": 600 });
+  await openWorkflow(page, roughCutStoryId, roughCutDepartureAt(540).args);
   const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbors = timeline.getByRole("button", { name: "Harbor", exact: true });

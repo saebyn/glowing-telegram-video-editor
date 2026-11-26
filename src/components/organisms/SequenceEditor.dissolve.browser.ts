@@ -18,7 +18,6 @@ const incomingDissolveArgs = {
 
 function incomingDissolveSequence(durationFrames: number): Sequence {
   return {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -146,9 +145,9 @@ test("Escape cancels a dissolve resize at the sequence boundary", async ({ page 
   // The cut is at 236 and the right side is clipped. Drag the left grip
   // four frames earlier, extending the authored 11-frame window to 19.
   await dragHandle(page, handle, -((width + 2) * 4) / 116);
-  await expect(indicator).toHaveAttribute("title", "Dissolve: sequence frames [227, 240)");
+  await expect(indicator).toHaveAttribute("title", "Dissolve: sequence frames [227, 236)");
   await page.keyboard.press("Escape");
-  await expect(indicator).toHaveAttribute("title", /^Dissolve: sequence frames \[231, 240\)/);
+  await expect(indicator).toHaveAttribute("title", /^Dissolve: sequence frames \[231, 236\)/);
   await page.mouse.up();
   await expect(page.getByLabel("Duration (sequence frames)")).toHaveValue("11");
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
@@ -307,7 +306,6 @@ test("moving two dissolves into conflict retains both authored transitions", asy
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 360,
     "sequence.tracks[0].placements[0].transitionOut.id": "outgoing-dissolve",
     "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
     "sequence.tracks[0].placements[0].transitionOut.durationFrames": 12,

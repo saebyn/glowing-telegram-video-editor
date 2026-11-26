@@ -25,7 +25,6 @@ const sources = {
 const overlay = { id: "over", clipId: "harbor", sequenceStartFrame: 0 };
 const bed = { id: "under", clipId: "harbor", sequenceStartFrame: 0 };
 const sequence: Sequence = {
-  durationFrames: 30,
   tracks: [
     { id: "top", label: "Top", locked: true, placements: [overlay] },
     { id: "middle", label: "Middle", placements: [bed] },

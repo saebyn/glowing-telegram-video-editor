@@ -6,10 +6,10 @@ import type {
   SourcesById,
   VideoClip,
 } from "@/types";
-import { getPlacementSourceRange } from "./clipPlacements";
 import { getDissolveWindow } from "./dissolveWindow";
-import { framesToSeconds, getProjectFrameCount, isValidFrameRate } from "./frames";
+import { framesToSeconds } from "./frames";
 import { getSource } from "./sourcesById";
+import { resolveSequencePlacements } from "./visibleSequence";
 
 export interface PreviewSample {
   sourceId: string;
@@ -35,31 +35,35 @@ export function createSequencePresentation(
   clips: readonly VideoClip[],
   sources: SourcesById<SequenceSource>,
   frameRate: FrameRate,
-): (frame: number, kinds?: ReadonlyMap<string, MediaKind>, audible?: boolean) => PreviewFrame {
-  const byId = new Map(clips.map((clip) => [clip.id, clip]));
+) {
+  const { geometry } = resolveSequencePlacements(sequence, clips, sources, frameRate, true);
+  if (!geometry)
+    return { durationFrames: null, at: (): PreviewFrame => ({ picture: [], sound: [] }) };
+  const { durationFrames } = geometry;
   const frameSeconds = framesToSeconds(1, frameRate);
-  const placements = sequence.tracks.flatMap(({ placements }, track) =>
-    placements.flatMap((placement) => {
-      const clip = byId.get(placement.clipId);
-      if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return [];
-      const range = getPlacementSourceRange(clip, placement);
-      return {
-        sourceId: clip.sourceId,
-        track,
-        mediaKind: getSource(sources, clip.sourceId)?.mediaKind,
-        transitionIn: placement.transitionIn,
-        transitionOut: placement.transitionOut,
-        start: placement.sequenceStartFrame,
-        end: placement.sequenceStartFrame + getProjectFrameCount(range, frameRate),
-        sourceIn: framesToSeconds(range.sourceInFrame, range.sourceFrameRate),
-        sourceOut: framesToSeconds(range.sourceOutFrame, range.sourceFrameRate),
-        recordedEnd:
-          clip.sourceDurationFrames === undefined
-            ? Infinity
-            : framesToSeconds(clip.sourceDurationFrames, range.sourceFrameRate),
-      };
+  const byPlacement = new Map(
+    geometry.placements.map((placement) => {
+      const { sourceId, sourceFrameRate, sourceInFrame, sourceOutFrame, sourceDurationFrames } =
+        placement;
+      return [
+        placement,
+        {
+          sourceId,
+          track: placement.trackIndex,
+          mediaKind: getSource(sources, sourceId)?.mediaKind,
+          start: placement.sequenceStartFrame,
+          end: placement.sequenceEndFrame,
+          sourceIn: framesToSeconds(sourceInFrame, sourceFrameRate),
+          sourceOut: framesToSeconds(sourceOutFrame, sourceFrameRate),
+          recordedEnd:
+            sourceDurationFrames === undefined
+              ? Infinity
+              : framesToSeconds(sourceDurationFrames, sourceFrameRate),
+        },
+      ];
     }),
   );
+  const placements = [...byPlacement.values()];
   type Placement = (typeof placements)[number];
   const offset = (placement: Placement) =>
     placement.sourceIn - framesToSeconds(placement.start, frameRate);
@@ -89,43 +93,40 @@ export function createSequencePresentation(
       ? { ...owner, end: edge.end, sourceOut: edge.sourceOut }
       : { ...owner, start: edge.start, sourceIn: edge.sourceIn };
   }
-  const transitions = placements.flatMap((owner) =>
-    [owner.transitionIn, owner.transitionOut].flatMap((transition, edge) => {
-      if (!transition || transition.durationFrames <= 0) return [];
-      const leading = edge === 0;
-      const cut = leading ? owner.start : owner.end;
-      const duration = transition.durationFrames;
-      const { startFrame, endFrame, phaseOffsetFrames } =
-        transition.kind === "dissolve"
-          ? getDissolveWindow(cut, duration, sequence.durationFrames)
-          : {
-              startFrame: leading ? cut : cut - duration,
-              endFrame: leading ? cut + duration : cut,
-              phaseOffsetFrames: 0,
-            };
-      return {
-        owner,
-        fadeTrim:
-          transition.kind === "fade" ? getFadeTrim(owner, leading, startFrame, endFrame) : owner,
-        leading,
-        cut,
-        duration,
-        startFrame,
-        endFrame,
-        phaseOffsetFrames,
-        kind: transition.kind,
-      };
-    }),
-  );
+  const transitions = geometry.transitions.map((transition) => {
+    const owner = byPlacement.get(transition.placement)!;
+    const leading = transition.edge === "leading";
+    const cut = leading ? owner.start : owner.end;
+    const duration = transition.durationFrames;
+    const { startFrame, endFrame, phaseOffsetFrames } =
+      transition.kind === "dissolve"
+        ? getDissolveWindow(cut, duration, durationFrames)
+        : {
+            startFrame: leading ? cut : cut - duration,
+            endFrame: leading ? cut + duration : cut,
+            phaseOffsetFrames: 0,
+          };
+    return {
+      owner,
+      fadeTrim:
+        transition.kind === "fade" ? getFadeTrim(owner, leading, startFrame, endFrame) : owner,
+      leading,
+      cut,
+      duration,
+      startFrame,
+      endFrame,
+      phaseOffsetFrames,
+      kind: transition.kind,
+    };
+  });
   const boundaries = [...new Set(placements.flatMap(({ start, end }) => [start, end]))].sort(
     (a, b) => a - b,
   );
-  return (frame, kinds, audible = true) => {
+  function at(frame: number, kinds?: ReadonlyMap<string, MediaKind>, audible = true): PreviewFrame {
     const probes = new Set<string>();
     function winner(frame: number, channel: "picture" | "sound") {
       return placements.find(({ start, end, mediaKind, sourceId }) => {
-        if (frame < 0 || frame >= sequence.durationFrames || start > frame || frame >= end)
-          return false;
+        if (frame < 0 || frame >= durationFrames || start > frame || frame >= end) return false;
         const kind = mediaKind ?? kinds?.get(sourceId);
         if (!kind) probes.add(sourceId);
         return kind !== (channel === "picture" ? "audio-only" : "video-only");
@@ -230,14 +231,14 @@ export function createSequencePresentation(
           channel,
           owner,
           Math.max(0, startFrame, fadeTrim.start),
-          Math.min(endFrame, fadeTrim.end, sequence.durationFrames),
+          Math.min(endFrame, fadeTrim.end, durationFrames),
           owner.track,
         ) ||
           !continuous(
             channel,
             leading ? outgoing : incoming,
             leading ? fadeTrim.end : Math.max(0, startFrame),
-            leading ? Math.min(endFrame, sequence.durationFrames) : fadeTrim.start,
+            leading ? Math.min(endFrame, durationFrames) : fadeTrim.start,
             owner.track,
           ));
       if (
@@ -267,5 +268,6 @@ export function createSequencePresentation(
       ...(problem ? { problem } : {}),
       ...(probes.size ? { probes: [...probes] } : {}),
     };
-  };
+  }
+  return { durationFrames, at };
 }

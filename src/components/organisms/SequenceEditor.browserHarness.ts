@@ -31,13 +31,23 @@ export async function openWorkflow(page: Page, story: Workflow, sequenceArgs: Se
 // Use the rough-cut story's public args to create adjacent 120-frame placements
 // for regressions that need a straight cut rather than the default gap.
 export const straightCutArgs: SequenceArgs = {
-  "sequence.durationFrames": 240,
   "sequence.tracks[0].placements[1].id": "lighthouse-next",
   "sequence.tracks[0].placements[1].clipId": "lighthouse",
   "sequence.tracks[0].placements[1].sequenceStartFrame": 120,
   "sequence.tracks[0].placements[1].sourceInOffsetFrames": undefined,
   "sequence.tracks[0].placements[1].sourceOutOffsetFrames": undefined,
 };
+
+// A real 60-frame placement anchors scenarios that need space after the action under test.
+export function roughCutDepartureAt(sequenceStartFrame: number) {
+  const placement = { id: "departure-tail", clipId: "departure", sequenceStartFrame };
+  const args: SequenceArgs = {
+    "sequence.tracks[0].placements[2].id": placement.id,
+    "sequence.tracks[0].placements[2].clipId": placement.clipId,
+    "sequence.tracks[0].placements[2].sequenceStartFrame": placement.sequenceStartFrame,
+  };
+  return { placement, args };
+}
 
 type Emissions = { sequences: Sequence[]; cutListResults: CutListResult[] };
 type RecordingWindow = Window & { sequenceEditorEmissions?: Emissions };

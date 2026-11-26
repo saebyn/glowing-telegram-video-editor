@@ -46,7 +46,6 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
   await expect.poll(emissions).toEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "main",
@@ -154,7 +153,6 @@ test("a replacement Timeline previews and resizes either transition kind by ID",
   await expect.poll(emissions).toEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "main",
@@ -268,7 +266,6 @@ test("a retained placement move preserves a host-added track and compiles the pr
   expect(await emissions()).toEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "main",
@@ -332,7 +329,6 @@ test("a retained placement trim uses the current pool clip and preserves the oth
   expect(await emissions()).toEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "main",

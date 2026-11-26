@@ -26,7 +26,7 @@ import type {
   VideoClip,
 } from "@/types";
 import { getPlacementSourceRange, transitionFields } from "@/utils/clipPlacements";
-import compileCutList from "@/utils/compileCutList";
+import compileCutList, { analyzeSequence } from "@/utils/compileCutList";
 import { getFadeSourceExtension } from "@/utils/fadePlacement";
 import { getProjectFrameCount, isValidFrameRate, secondsToFrame } from "@/utils/frames";
 import {
@@ -54,7 +54,6 @@ import {
   toggleSequenceTrackLock,
 } from "@/utils/sequenceTracks";
 import { getSequenceDissolves } from "@/utils/sequenceTransitions";
-import { shortenSequence } from "@/utils/shortenSequence";
 import { getSequenceInputIssues, sequenceInputIssueKey } from "@/utils/sequenceInputIssues";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {
@@ -114,12 +113,14 @@ export function useSequenceEditor({
   onSequenceInputError,
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
-  const cutListIssues = useMemo(
-    () => compileCutList(sequence, clips, sources, frameRate).issues,
+  const analysis = useMemo(
+    () => analyzeSequence(sequence, clips, sources, frameRate),
     [sequence, clips, sources, frameRate],
   );
+  const cutListIssues = analysis.result.issues;
+  const durationFrames = analysis.durationFrames ?? 0;
   const inputIssues = useMemo(() => getSequenceInputIssues(cutListIssues), [cutListIssues]);
-  const hasValidInput = inputIssues.length === 0;
+  const hasValidInput = analysis.durationFrames !== null;
   const onSequenceChange = hasValidInput ? proposeSequence : undefined;
   const canEditLatest = useRef(false);
   useLayoutEffect(() => {
@@ -128,11 +129,11 @@ export function useSequenceEditor({
       canEditLatest.current = false;
     };
   }, [onSequenceChange]);
-  const transport = useSequenceTransport(sequence.durationFrames, frameRate, hasValidInput);
+  const transport = useSequenceTransport(durationFrames, frameRate, hasValidInput);
   const snapshot: SequenceTransportSnapshot = {
     playheadFrame: transport.playheadFrame,
     frameRate,
-    durationFrames: sequence.durationFrames,
+    durationFrames,
     playback: transport.isReversing ? "reverse" : transport.isPlaying ? "forward" : "paused",
   };
   const previewProps: SequencePreviewProps = {
@@ -239,7 +240,7 @@ export function useSequenceEditor({
           selectedTransition.edge,
           transitionClip,
           frameRate,
-          sequence.durationFrames,
+          durationFrames,
         )
       : null;
   const inspectedClip = clips.find(({ id }) => id === inspectedPlacement?.clipId);
@@ -515,7 +516,7 @@ export function useSequenceEditor({
     frameRate,
     playheadFrame: transport.playheadFrame,
     onSeek: transport.seek,
-    durationFrames: sequence.durationFrames,
+    durationFrames,
     tracks: sequence.tracks,
     sources,
     clips,
@@ -715,14 +716,6 @@ export function useSequenceEditor({
     if (next) commitEdit(next, () => selectPlacement(placement.id, false));
   }
 
-  function shorten(endFrame: number) {
-    if (!canEditLatest.current) return false;
-    const next = shortenSequence(sequence, clips, frameRate, endFrame);
-    if (!next) return false;
-    commitEdit(next);
-    return true;
-  }
-
   function renameTrack(trackId: string, label: string) {
     if (!canEditLatest.current) return;
     const track = sequence.tracks.find(({ id }) => id === trackId);
@@ -761,9 +754,6 @@ export function useSequenceEditor({
     undo: onSequenceChange ? undo : undefined,
     redo: onSequenceChange ? redo : undefined,
     deleteSelection: onSequenceChange && selectedIds.length > 0 ? deleteSelection : undefined,
-    shorten: onSequenceChange
-      ? { durationFrames: sequence.durationFrames, onShorten: shorten }
-      : undefined,
     addTrack: onSequenceChange
       ? () => commitEdit(addSequenceTrack(sequence, crypto.randomUUID()))
       : undefined,

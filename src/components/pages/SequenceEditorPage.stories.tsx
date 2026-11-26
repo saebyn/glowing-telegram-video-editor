@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useArgs, useMemo, useState } from "storybook/preview-api";
+import { useArgs, useState } from "storybook/preview-api";
 import { fn } from "storybook/test";
 import SequencePreview, { type SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { ProjectProvider } from "@/context/ProjectContext";
@@ -103,7 +103,7 @@ export const AssembleARoughCut: Story = {
     docs: {
       description: {
         story:
-          "Hover Harbor and Departure in the Clip Pool to see stills from different ranges of the same source. The last Harbor placement reaches into Departure’s range and shows its still in the timeline. Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge or drop another clip to the right to extend the sequence. Use Add transition on an empty edge in Placement Properties. Click an authored indicator to inspect it, or the strip below it to select its placement. Inspect a narrow or obscured transition from its owning edge. In Transition Properties, Apply the type and duration together or use Remove transition to clear the edge. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state." +
+          "Hover Harbor and Departure in the Clip Pool to see stills from different ranges of the same source. The last Harbor placement reaches into Departure’s range and shows its still in the timeline. Drag the blue playhead grip in the ruler to scrub. Zoom in and drag past the right edge to stop at the last visible sequence frame. The transport shows non-drop-frame timecode above the sequence frame. Forward and Rewind jump about one second, and Stop resets to zero. Press Space on the focused Play or Play reverse button to play or pause. Drag Lighthouse from the Clip Pool into the gap to preview where it fits, then drop it. Drag the last Harbor’s trailing edge to grow or shrink the sequence, or drop another clip to the right to extend it. Use Add transition on an empty edge in Placement Properties. Click an authored indicator to inspect it, or the strip below it to select its placement. Inspect a narrow or obscured transition from its owning edge. In Transition Properties, Apply the type and duration together or use Remove transition to clear the edge. With focus in the editor, press Left or Right Arrow to step the playhead one sequence frame. To assemble from scratch, turn on Start without tracks in Controls. Click Add track, then Undo to return to the empty state." +
           "\n\nSelect the last Harbor and press Ctrl/⌘+D to extend the edit with a duplicate, then Undo. Press Ctrl/⌘+C, point just inside the gap, and press Ctrl/⌘+V. If the copy would overlap, move to the exact start of the gap and click to place, or press Escape to cancel.",
       },
     },
@@ -126,7 +126,7 @@ export const AssembleARoughCut: Story = {
     },
     titles: { harbor: "Harbor", lighthouse: "Lighthouse", departure: "Departure" },
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
-    sequence: { durationFrames: 360, tracks: [mainTrack] },
+    sequence: { tracks: [mainTrack] },
     onSequenceChange: fn(),
     onCutListResult: fn(),
   },
@@ -139,13 +139,12 @@ export const RearrangeALayeredEdit: Story = {
     docs: {
       description: {
         story:
-          "Turn on Split mode and hover over Lighthouse on Cutaways. The blade shows the exact sequence frame that a click will cut. Click Undo, then lock Cutaways and hover again to compare. Escape exits Split mode. Select Harbor on Main and Shift-click Lighthouse on Alternate. Use Inspect placement to switch whose ranges and trim controls the Inspector shows without clearing the selection. Press ] to move the selection one sequence frame later and extend the sequence. Press [ to move it back without shortening the sequence. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Drag the grip on Main to the top to give Harbor priority over Lighthouse without moving any placements within their tracks. Escape cancels a drag. Try Undo and Redo after an accepted edit, Rename track to change a display name, or Delete to remove the selection without closing the gaps.",
+          "Turn on Split mode and hover over Lighthouse on Cutaways. The blade shows the exact sequence frame that a click will cut. Click Undo, then lock Cutaways and hover again to compare. Escape exits Split mode. Select Harbor on Main and Shift-click Lighthouse on Alternate. Use Inspect placement to switch whose ranges and trim controls the Inspector shows without clearing the selection. Press ] to move the selection one sequence frame later and extend the sequence. Press [ to move it back and restore the original end. Drag the selected Lighthouse up to Main and slightly to the right: the Lighthouse on Cutaways blocks Harbor’s proposed destination. Try again farther to the right so Harbor clears the blocker and extends the sequence. Drag the grip on Main to the top to give Harbor priority over Lighthouse without moving any placements within their tracks. Escape cancels a drag. Try Undo and Redo after an accepted edit, Rename track to change a display name, or Delete to remove the selection without closing leading or internal gaps.",
       },
     },
   },
   args: {
     sequence: {
-      durationFrames: 240,
       tracks: [
         {
           id: "cutaways",
@@ -196,6 +195,8 @@ function TransportOnlyPreview({ media: _media, ...transport }: SequencePreviewPr
   return <SequencePreview {...transport} />;
 }
 
+const emptySequence: Sequence = { tracks: [] };
+
 function renderEditingHost({
   acceptEdits = true,
   readOnly = false,
@@ -207,8 +208,6 @@ function renderEditingHost({
 }: EditingHostArgs) {
   const [, updateArgs] = useArgs<EditingHostArgs>();
   const [proposal, setProposal] = useState<Sequence | undefined>(undefined);
-  const durationFrames = args.sequence.durationFrames;
-  const empty = useMemo(() => ({ durationFrames, tracks: [] }), [durationFrames]);
 
   function accept(next: Sequence) {
     updateArgs({ sequence: next, startWithoutTracks: false });
@@ -235,7 +234,7 @@ function renderEditingHost({
       <SequenceEditorPage
         {...args}
         slots={{ ...args.slots, preview: omitPreview ? null : TransportOnlyPreview }}
-        sequence={startWithoutTracks ? empty : args.sequence}
+        sequence={startWithoutTracks ? emptySequence : args.sequence}
         onSequenceChange={
           readOnly
             ? undefined

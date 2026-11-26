@@ -65,7 +65,6 @@ const muxSource: SequenceSource = {
 const muxTitles = { opening: "Opening", middle: "Middle", closing: "Closing" };
 const muxMedia: SequencePreviewMedia = {
   sequence: {
-    durationFrames: 720,
     tracks: [
       {
         id: "main",
@@ -121,7 +120,6 @@ const muxMedia: SequencePreviewMedia = {
 
 const toneMedia: SequencePreviewMedia = {
   sequence: {
-    durationFrames: 180,
     tracks: [
       {
         id: "main",

@@ -17,7 +17,6 @@ function consecutiveRenditions(count: number): SequencePreviewMedia {
       sourceOutFrame: 10,
     })),
     sequence: {
-      durationFrames: count * 10,
       tracks: [
         {
           id: "picture",
@@ -146,7 +145,6 @@ test("a late media-kind probe cannot open a fallback rendition after Preview clo
   const probe = Promise.withResolvers<void>();
   const media: SequencePreviewMedia = {
     sequence: {
-      durationFrames: 10,
       tracks: [
         {
           id: "voice",
@@ -244,7 +242,6 @@ function staggeredDissolves(reuseSources: boolean): SequencePreviewMedia {
       clip("p3", "later", 0, 10),
     ],
     sequence: {
-      durationFrames: 30,
       tracks: [
         {
           id: "picture",

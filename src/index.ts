@@ -79,10 +79,6 @@ export {
   type RenameSequenceTrackProps,
 } from "./components/molecules/RenameSequenceTrack";
 export {
-  default as ShortenSequenceForm,
-  type ShortenSequenceFormProps,
-} from "./components/molecules/ShortenSequenceForm";
-export {
   AddSequenceTrack,
   RemoveSequenceTrack,
   ToggleSequenceTrackLock,

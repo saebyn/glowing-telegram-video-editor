@@ -10,8 +10,6 @@ function explainIssue(
   switch (issue.code) {
     case "empty-sequence":
       return { message: "The sequence has no output to compile." };
-    case "invalid-sequence-duration":
-      return { message: `Invalid sequence duration: ${issue.durationFrames} sequence frames.` };
     case "invalid-project-frame-rate":
       return { message: "The project frame rate must be a positive ratio of whole numbers." };
     case "missing-clip":
@@ -35,7 +33,7 @@ function explainIssue(
         message: `Placement ${issue.placementId} has an invalid source range: ${issue.sourceInFrame} inclusive – ${issue.sourceOutFrame} exclusive.`,
       };
     case "placement-outside-sequence":
-      return { message: `Placement ${issue.placementId} extends outside the sequence.` };
+      return { message: `Placement ${issue.placementId} has an invalid sequence position or end.` };
     case "track-overlap":
       return {
         message: `Placements ${issue.previousPlacementId} and ${issue.placementId} overlap on the same track.`,

@@ -14,7 +14,6 @@ import {
 async function openFadedMove(page: Page) {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
-    "sequence.durationFrames": 372,
     "sequence.tracks[0].placements[1].id": "lighthouse-close",
     "sequence.tracks[0].placements[1].clipId": "lighthouse",
     "sequence.tracks[0].placements[1].sourceInOffsetFrames": -6,
@@ -25,11 +24,10 @@ async function openFadedMove(page: Page) {
   return emissions;
 }
 
-test("moving a placement preserves duration, trims and its fade, leaving an uncovered tail", async ({
+test("moving the last placement earlier shrinks the sequence but keeps its source trim and fade", async ({
   page,
 }) => {
   const expectedSequence: Sequence = {
-    durationFrames: 372,
     tracks: [
       {
         id: "main",
@@ -92,26 +90,41 @@ test("moving a placement preserves duration, trims and its fade, leaving an unco
   expect(await emissions()).toStrictEqual(noEdits);
   await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
 
-  // The placement now starts immediately after Harbor, leaving the last 120 frames uncovered.
+  // The placement now starts immediately after Harbor; no uncovered tail remains.
   await dragTo(startX - pixelsFor120Frames);
   await expect.poll(emissions).toStrictEqual({
     sequences: [expectedSequence],
     cutListResults: [
-      { ok: false, issues: [{ code: "sequence-gap", startFrame: 252, endFrame: 372 }] },
+      compiled({
+        version: "1.0.0",
+        inputMedia: [
+          {
+            s3Location: "s3://sequence-fixtures/harbor.mp4",
+            sections: [{ startFrame: 114, endFrame: 234 }],
+          },
+          {
+            s3Location: "s3://sequence-fixtures/lighthouse.mp4",
+            sections: [{ startFrame: 495, endFrame: 627 }],
+          },
+        ],
+        outputTrack: [
+          { mediaIndex: 0, sectionIndex: 0 },
+          { mediaIndex: 1, sectionIndex: 0, transitionIn: { type: "fade", duration: 30 } },
+        ],
+      }),
     ],
   });
-  await expect(timeline).toContainText("Duration: 00:06.2");
+  await expect(timeline).toContainText("Duration: 00:04.2");
   await expect(timeline.getByText("Fade in", { exact: true })).toBeVisible();
   await expect
     .poll(async () => (await lighthouse.boundingBox())?.x)
-    .toBeCloseTo(first.x + pixelsFor120Frames, 0);
+    .toBeCloseTo(first.x + ((last.x - first.x) * 372) / (2 * 252), 0);
 });
 
 test("moving a placement to an upper track covers the lower track at the matching source frames", async ({
   page,
 }) => {
   const expectedSequence: Sequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "cutaways",
@@ -303,7 +316,6 @@ test("a placement can preview beyond the endpoint at the same scale and extend o
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 495,
         tracks: [
           {
             id: "main",
@@ -380,7 +392,6 @@ test("grabbing the far end of a placement can still move its start past the sequ
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 481,
         tracks: [
           {
             id: "cutaways",

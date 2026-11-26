@@ -4,6 +4,7 @@ import {
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutDepartureAt,
   roughCutStoryId,
 } from "./SequenceEditor.browserHarness";
 
@@ -27,7 +28,7 @@ test("a loaded edit lists its gaps and can seek to the first without proposing a
 }) => {
   const emissions = await recordEditorEmissions(page);
   const inputErrors = await recordInputErrors(page);
-  await openWorkflow(page, roughCutStoryId, { "sequence.durationFrames": 420 });
+  await openWorkflow(page, roughCutStoryId, roughCutDepartureAt(420).args);
   const gaps = page.getByRole("region", { name: "CutList issues" });
   await expect(gaps).toContainText("Gaps are valid in a sequence");
   await expect(gaps).toContainText("120 inclusive – 240 exclusive");
@@ -85,7 +86,7 @@ test("a source rate mismatch is identified separately and opens the hidden Inspe
   const query = new URLSearchParams({
     id: layeredEditStoryId,
     viewMode: "story",
-    args: "clips[0].sourceFrameRate.numerator:30;sequence.durationFrames:480;readOnly:true",
+    args: "clips[0].sourceFrameRate.numerator:30;readOnly:true",
   });
   await page.goto(`/iframe.html?${query}`);
   const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
@@ -261,13 +262,14 @@ test("a host-built layout stops playback and rejects retained actions until inpu
   );
   await page.getByRole("button", { name: "Retain slot actions" }).click({ timeout: 20_000 });
   const replace = page.getByRole("button", { name: "Replace host inputs" });
-  const preview = page.getByText(/of 240 ·/);
+  const preview = page.getByText(/Sequence frame \d+ of \d+ ·/);
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(preview).toContainText("forward");
   await replace.click();
   const invalidRate = page.getByText("The project frame rate must be a positive ratio");
   await expect(invalidRate).toBeVisible();
   await expect(preview).toContainText("paused");
+  await expect(preview).toContainText("of 0 ·");
   const frame = await page.getByLabel("Preview sequence frame").innerText();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.getByRole("button", { name: "Invoke retained edit and transport" }).click();

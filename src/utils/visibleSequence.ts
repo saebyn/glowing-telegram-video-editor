@@ -18,6 +18,9 @@ export type ResolvedPlacement = {
   sequenceStartFrame: number;
   sequenceEndFrame: number;
   sourceInFrame: number;
+  sourceOutFrame: number;
+  sourceFrameRate: FrameRate;
+  sourceDurationFrames?: number;
   knownSourceEnd: number;
   sourceId: string;
   s3Location: string;
@@ -42,27 +45,23 @@ function isValidStart(frame: number) {
 }
 
 /**
- * Flatten ordered tracks into spans of the uppermost placement.
- * Layout-only resolution allows missing media and mixed frame rates for authoring checks.
- * A source filter restricts the layout without skipping authored placement validation.
+ * Resolve all authored placement geometry, or none of it if any placement is invalid.
+ * Missing render media and mixed frame rates only prevent compilation, not editing.
  */
-export function resolveVisibleSequence(
+export function resolveSequencePlacements(
   sequence: Sequence,
   clips: readonly VideoClip[],
   sources: SourcesById<CutListSource>,
   frameRate: FrameRate,
   layoutOnly = false,
-  includeSource?: (sourceId: string) => boolean,
 ) {
-  const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
+  const resolvedPlacements: ResolvedPlacement[] = [];
   const transitions: ResolvedTransition[] = [];
   const issues: CutListIssue[] = [];
-  const { durationFrames } = sequence;
-  const validDuration = Number.isSafeInteger(durationFrames) && durationFrames >= 0;
   const validProjectRate = isValidFrameRate(frameRate);
-  if (!validDuration) issues.push({ code: "invalid-sequence-duration", durationFrames });
   if (!validProjectRate) issues.push({ code: "invalid-project-frame-rate", frameRate });
-  let canResolveLayout = validDuration && validProjectRate;
+  let canResolveLayout = validProjectRate;
+  let durationFrames = 0;
 
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
@@ -138,12 +137,11 @@ export function resolveVisibleSequence(
         frameRate,
       );
       const sequenceEndFrame = sequenceStartFrame + frameCount;
-      const safeEnd = Number.isSafeInteger(sequenceEndFrame);
-      if (!safeEnd || (validDuration && sequenceEndFrame > durationFrames)) {
+      if (!Number.isSafeInteger(sequenceEndFrame)) {
         issues.push({ code: "placement-outside-sequence", placementId });
         canResolveLayout = false;
+        continue;
       }
-      if (!safeEnd) continue;
       if (previousPlacementId !== undefined && sequenceStartFrame < trackEndFrame) {
         issues.push({ code: "track-overlap", trackId: track.id, placementId, previousPlacementId });
         canResolveLayout = false;
@@ -152,13 +150,15 @@ export function resolveVisibleSequence(
         trackEndFrame = sequenceEndFrame;
         previousPlacementId = placementId;
       }
-      if (includeSource && !includeSource(clip.sourceId)) continue;
-
+      durationFrames = Math.max(durationFrames, sequenceEndFrame);
       const resolved = {
         trackIndex,
         sequenceStartFrame,
         sequenceEndFrame,
         sourceInFrame,
+        sourceOutFrame,
+        sourceFrameRate,
+        sourceDurationFrames: clip.sourceDurationFrames,
         knownSourceEnd: clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame),
         sourceId: clip.sourceId,
         s3Location: source?.s3Location ?? clip.sourceId,
@@ -173,13 +173,46 @@ export function resolveVisibleSequence(
         });
       }
 
-      boundaries.push(
-        { frame: sequenceStartFrame, trackIndex, placement: resolved },
-        { frame: sequenceEndFrame, trackIndex },
-      );
+      resolvedPlacements.push(resolved);
     }
   }
-  if (!canResolveLayout) return { issues, layout: null };
+  return {
+    issues,
+    geometry: canResolveLayout
+      ? { durationFrames, placements: resolvedPlacements, transitions }
+      : null,
+  };
+}
+
+/**
+ * Flatten ordered tracks into spans of the uppermost placement.
+ * A source filter restricts the spans without skipping authored placement validation.
+ */
+export function resolveVisibleSequence(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: SourcesById<CutListSource>,
+  frameRate: FrameRate,
+  layoutOnly = false,
+  includeSource?: (sourceId: string) => boolean,
+) {
+  const { issues, geometry } = resolveSequencePlacements(
+    sequence,
+    clips,
+    sources,
+    frameRate,
+    layoutOnly,
+  );
+  if (!geometry) return { issues, layout: null };
+  const { durationFrames, placements, transitions } = geometry;
+  const boundaries = placements.flatMap((placement) => {
+    const { trackIndex, sequenceStartFrame, sequenceEndFrame, sourceId } = placement;
+    if (includeSource && !includeSource(sourceId)) return [];
+    return [
+      { frame: sequenceStartFrame, trackIndex, placement },
+      { frame: sequenceEndFrame, trackIndex, placement: undefined },
+    ];
+  });
 
   // Stable sorting preserves end-before-start order for adjacent placements on a track.
   boundaries.sort((a, b) => a.frame - b.frame);
@@ -200,8 +233,18 @@ export function resolveVisibleSequence(
     visible = nextVisible;
     cutStartFrame = frame;
   }
-  if (cutStartFrame < sequence.durationFrames) {
-    gaps.push({ startFrame: cutStartFrame, endFrame: sequence.durationFrames });
+  if (cutStartFrame < durationFrames) {
+    gaps.push({ startFrame: cutStartFrame, endFrame: durationFrames });
   }
-  return { issues, layout: { spans, transitions, gaps } };
+  return {
+    issues,
+    layout: {
+      durationFrames,
+      spans,
+      gaps,
+      transitions: includeSource
+        ? transitions.filter(({ placement }) => includeSource(placement.sourceId))
+        : transitions,
+    },
+  };
 }

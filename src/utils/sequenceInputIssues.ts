@@ -3,7 +3,6 @@ import type { CutListIssue, SequenceInputIssue } from "@/types";
 export function getSequenceInputIssues(issues: readonly CutListIssue[]): SequenceInputIssue[] {
   return issues.filter((issue): issue is SequenceInputIssue => {
     switch (issue.code) {
-      case "invalid-sequence-duration":
       case "invalid-project-frame-rate":
       case "missing-clip":
       case "invalid-source-frame-rate":

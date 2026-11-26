@@ -63,7 +63,16 @@ test("a trailing trim changes thumbnail eligibility only for the trimmed placeme
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
-  const { timeline, harbors } = await openThumbnails(page, [119, 237]);
+  const { timeline, harbors } = await openThumbnails(
+    page,
+    [119, 237],
+    [
+      // Leave room after the closing Harbor to exercise its trim away from the scroll edge.
+      "sequence.tracks[0].placements[2].id:departure-tail",
+      "sequence.tracks[0].placements[2].clipId:departure",
+      "sequence.tracks[0].placements[2].sequenceStartFrame:420",
+    ],
+  );
   const opening = harbors.first();
   const closing = harbors.last();
   await expectThumbnails(opening, ["harbor-frame-119"]);
@@ -154,8 +163,6 @@ async function expectNextHoverFrame(page: Page, clip: Locator, previous: string,
 
 async function openThumbnails(page: Page, frames: number[], extraArgs: string[] = []) {
   const args = [
-    // Leave room after the closing Harbor to exercise its trim away from the scroll edge.
-    "sequence.durationFrames:480",
     ...frames.flatMap((frame, index) => [
       `sources.harbor-recording.frameThumbnails[${index}].sourceFrame:${frame}`,
       `sources.harbor-recording.frameThumbnails[${index}].url:harbor-frame-${frame}`,

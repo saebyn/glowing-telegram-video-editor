@@ -13,7 +13,6 @@ const meta = {
 export default meta;
 
 const initial: Sequence = {
-  durationFrames: 180,
   tracks: [
     {
       id: "harbor",

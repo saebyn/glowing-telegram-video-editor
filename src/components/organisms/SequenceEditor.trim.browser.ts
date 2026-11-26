@@ -8,13 +8,13 @@ import {
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutDepartureAt,
   roughCutStoryId,
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
 
 async function openSameClipOnTwoTracks(page: Page) {
   await openWorkflow(page, layeredEditStoryId, {
-    "sequence.durationFrames": 360,
     "sequence.tracks[0].placements[0].id": "harbor-cutaway",
     "sequence.tracks[0].placements[0].clipId": "harbor",
     "sequence.tracks[0].placements[0].sequenceStartFrame": 120,
@@ -30,7 +30,6 @@ test("trimming one use of a clip leaves the other use aligned to sequence time",
   page,
 }) => {
   const expectedSequence: Sequence = {
-    durationFrames: 360,
     tracks: [
       {
         id: "cutaways",
@@ -133,7 +132,6 @@ test("extending a trailing trim past the endpoint commits the grown sequence and
 });
 
 const extendedSequence: Sequence = {
-  durationFrames: 386,
   tracks: [
     {
       id: "cutaways",
@@ -196,7 +194,6 @@ test("a trailing trim cannot overlap the next placement but can leave a gap", as
   await outFrame.fill("230");
   await submit.click();
   const trimmed: Sequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -257,7 +254,6 @@ test("dragging a leading trim previews the new edge and commits one gap-producin
 
   await page.mouse.up();
   const trimmed: Sequence = {
-    durationFrames: 240,
     tracks: [
       {
         id: "main",
@@ -331,9 +327,10 @@ test("dragging the trailing edge of a one-frame placement previews and commits a
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const emissions = await recordEditorEmissions(page);
+  const departure = roughCutDepartureAt(700);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 760,
+    ...departure.args,
     "sequence.tracks[0].placements[1].sequenceStartFrame": 380,
     "sequence.tracks[0].placements[1].sourceOutOffsetFrames": -119,
   });
@@ -361,7 +358,6 @@ test("dragging the trailing edge of a one-frame placement previews and commits a
   expect(await emissions()).toStrictEqual({
     sequences: [
       {
-        durationFrames: 760,
         tracks: [
           {
             id: "main",
@@ -374,6 +370,7 @@ test("dragging the trailing edge of a one-frame placement previews and commits a
                 sequenceStartFrame: 380,
                 sourceOutOffsetFrames: -107,
               },
+              departure.placement,
             ],
           },
         ],

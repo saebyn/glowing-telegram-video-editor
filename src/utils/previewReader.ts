@@ -28,7 +28,12 @@ export function createPreviewReader(
   frameRate: FrameRate,
   openRendition = createPreviewRendition,
 ) {
-  const at = createSequencePresentation(media.sequence, media.clips, media.sources, frameRate);
+  const { at, durationFrames } = createSequencePresentation(
+    media.sequence,
+    media.clips,
+    media.sources,
+    frameRate,
+  );
   const frameSeconds = framesToSeconds(1, frameRate);
   const frameCacheSize = Math.ceil(secondsToFrame(0.25, frameRate)) + 8;
   const kinds = new Map<string, MediaKind>();
@@ -88,8 +93,9 @@ export function createPreviewReader(
     activeFrames++;
     let batch: Promise<unknown>[] = [];
     try {
-      audible &&= frame < media.sequence.durationFrames;
-      const position = Math.min(frame, media.sequence.durationFrames - 1);
+      if (!durationFrames) return { picture: [], sound: [] };
+      audible &&= frame < durationFrames;
+      const position = Math.min(frame, durationFrames - 1);
       let presentation = at(position, kinds, audible);
       while (presentation.probes) {
         batch = presentation.probes.map(async (sourceId) => {
@@ -154,6 +160,7 @@ export function createPreviewReader(
     return pending;
   }
   return {
+    durationFrames,
     prepare,
     dispose() {
       disposed = true;

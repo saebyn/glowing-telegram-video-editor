@@ -25,7 +25,6 @@ function source(
 
 test("resuming a covered mixed-rate placement samples its trimmed source range by elapsed time", () => {
   const sequence: Sequence = {
-    durationFrames: 12,
     tracks: [
       {
         id: "top",
@@ -40,7 +39,7 @@ test("resuming a covered mixed-rate placement samples its trimmed source range b
     ],
   };
   const sources: SourcesById<SequenceSource> = { a: source("a"), b: source("b") };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 11, 31, 20), clip("b", 0, 2)],
     sources,
@@ -52,7 +51,6 @@ test("resuming a covered mixed-rate placement samples its trimmed source range b
 
 test("the top sound and top picture can come from different tracks", () => {
   const sequence: Sequence = {
-    durationFrames: 10,
     tracks: [
       {
         id: "voice",
@@ -68,7 +66,7 @@ test("the top sound and top picture can come from different tracks", () => {
     ],
   };
   const sources = { v: source("v", "audio-only"), p: source("p", "video-only"), b: source("b") };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("v", 10, 20), clip("p", 20, 30), clip("b", 0, 10)],
     sources,
@@ -82,7 +80,6 @@ test("the top sound and top picture can come from different tracks", () => {
 
 test("a reveal uses the contribution that starts at the cut, not the underlying track", () => {
   const sequence: Sequence = {
-    durationFrames: 20,
     tracks: [
       {
         id: "top",
@@ -104,7 +101,7 @@ test("a reveal uses the contribution that starts at the cut, not the underlying 
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 0, 20), clip("b", 20, 30), clip("c", 10, 20)],
     { a: source("a"), b: source("b"), c: source("c") },
@@ -124,7 +121,6 @@ test("a reveal uses the contribution that starts at the cut, not the underlying 
 
 test("a dissolve clipped by sequence start retains its authored blend phase", () => {
   const sequence: Sequence = {
-    durationFrames: 10,
     tracks: [
       {
         id: "picture",
@@ -140,7 +136,7 @@ test("a dissolve clipped by sequence start retains its authored blend phase", ()
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 10, 20)],
     { a: source("a") },
@@ -154,7 +150,6 @@ test("a dissolve clipped by sequence start retains its authored blend phase", ()
 
 test("a higher video-only cover masks a dissolve without retiming picture or sound", () => {
   const sequence: Sequence = {
-    durationFrames: 20,
     tracks: [
       {
         id: "cover",
@@ -176,7 +171,7 @@ test("a higher video-only cover masks a dissolve without retiming picture or sou
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 0, 10), clip("b", 20, 30), clip("c", 30, 31)],
     { a: source("a"), b: source("b"), c: source("c", "video-only") },
@@ -197,7 +192,6 @@ test("a higher video-only cover masks a dissolve without retiming picture or sou
 
 test("an intervening visible cut makes the dissolve undefined, but not the following edit", () => {
   const sequence: Sequence = {
-    durationFrames: 22,
     tracks: [
       {
         id: "edit",
@@ -215,7 +209,7 @@ test("an intervening visible cut makes the dissolve undefined, but not the follo
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 0, 4), clip("b", 10, 14), clip("c", 20, 34)],
     { a: source("a"), b: source("b"), c: source("c") },
@@ -228,20 +222,23 @@ test("an intervening visible cut makes the dissolve undefined, but not the follo
 test("a rounded mixed-rate tail holds the last in-range picture and supplies only recorded sound", () => {
   const rate = { numerator: 5, denominator: 1 };
   const sequence: Sequence = {
-    durationFrames: 2,
     tracks: [
       { id: "main", label: "Main", placements: [{ id: "a", clipId: "a", sequenceStartFrame: 0 }] },
     ],
   };
   // Two source frames at 6 fps end at 1/3 s, before the second sequence frame ends at 0.4 s.
-  const at = createSequencePresentation(sequence, [clip("a", 0, 2, 6)], { a: source("a") }, rate);
+  const { at } = createSequencePresentation(
+    sequence,
+    [clip("a", 0, 2, 6)],
+    { a: source("a") },
+    rate,
+  );
   expect(at(1).picture).toEqual([{ sourceId: "a", time: 0.2, weight: 1 }]);
   expect(at(1).sound[0].length).toBeCloseTo(0.1333333);
 });
 
 test("entry and reveal fades on the same visible cut cannot both define it", () => {
   const sequence: Sequence = {
-    durationFrames: 20,
     tracks: [
       {
         id: "main",
@@ -263,7 +260,7 @@ test("entry and reveal fades on the same visible cut cannot both define it", () 
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 10, 20), clip("b", 30, 40)],
     { a: source("a"), b: source("b") },
@@ -275,7 +272,6 @@ test("entry and reveal fades on the same visible cut cannot both define it", () 
 
 test("a fade longer than its trimmed placement uses recorded material after the out point", () => {
   const sequence: Sequence = {
-    durationFrames: 12,
     tracks: [
       {
         id: "main",
@@ -291,7 +287,7 @@ test("a fade longer than its trimmed placement uses recorded material after the 
       },
     ],
   };
-  const at = createSequencePresentation(
+  const { at } = createSequencePresentation(
     sequence,
     [clip("a", 10, 14)],
     { a: source("a") },
@@ -302,7 +298,7 @@ test("a fade longer than its trimmed placement uses recorded material after the 
 });
 
 function expectEightFrameFade(
-  at: ReturnType<typeof createSequencePresentation>,
+  at: ReturnType<typeof createSequencePresentation>["at"],
   frames: readonly (readonly [sequenceFrame: number, outgoingTime: number, incomingTime: number])[],
   extensionSourceId: "a" | "b",
 ) {
@@ -350,7 +346,6 @@ function splitFade(edge: "entry" | "reveal") {
   const entry = edge === "entry";
   const fade = { id: edge, kind: "fade", durationFrames: 8 } as const;
   const sequence: Sequence = {
-    durationFrames: 20,
     tracks: [
       {
         id: "main",
@@ -385,7 +380,12 @@ function splitFade(edge: "entry" | "reveal") {
 }
 
 test("an entry fade preserves picture and sound through a source-continuous split", () => {
-  const at = createSequencePresentation(splitFade("entry"), fadeClips, fadeSources, projectRate);
+  const { at } = createSequencePresentation(
+    splitFade("entry"),
+    fadeClips,
+    fadeSources,
+    projectRate,
+  );
 
   // Sequence [10, 18) blends source a [30, 38) into source b [50, 58) at 10 fps.
   expectEightFrameFade(
@@ -405,7 +405,12 @@ test("an entry fade preserves picture and sound through a source-continuous spli
 });
 
 test("a reveal fade preserves picture and sound through a source-continuous split", () => {
-  const at = createSequencePresentation(splitFade("reveal"), fadeClips, fadeSources, projectRate);
+  const { at } = createSequencePresentation(
+    splitFade("reveal"),
+    fadeClips,
+    fadeSources,
+    projectRate,
+  );
 
   // Sequence [2, 10) blends source a [22, 30) into source b [42, 50) at 10 fps.
   expectEightFrameFade(
@@ -441,7 +446,7 @@ test("an entry fade is undefined across a visible cut that jumps within the same
       },
     ],
   };
-  const at = createSequencePresentation(sequence, fadeClips, fadeSources, projectRate);
+  const { at } = createSequencePresentation(sequence, fadeClips, fadeSources, projectRate);
 
   for (const frame of [10, 11, 12, 13, 14, 15, 16, 17]) {
     expect(at(frame).problem, `sequence frame ${frame}`).toBe("undefined-transition");

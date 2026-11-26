@@ -18,7 +18,6 @@ const clips: readonly VideoClip[] = [
   },
 ];
 const layered: Sequence = {
-  durationFrames: 65,
   tracks: [
     {
       id: "top",
@@ -47,7 +46,6 @@ it("duplicates after the last selected exclusive end on the original tracks", ()
 
   // The bottom placement starts earliest at 20; the trimmed top placement ends last at 65.
   expect(result).toMatchObject({
-    durationFrames: 110,
     tracks: [
       { id: "top", placements: [{ sequenceStartFrame: 30 }, { sequenceStartFrame: 75 }] },
       { id: "middle", placements: [] },
@@ -88,7 +86,6 @@ it("rejects a paste that needs an unresolved placement's end but allows edge con
 
 it("rejects an entire duplicate when a new placement would hit an unselected placement", () => {
   const sequence: Sequence = {
-    durationFrames: 95,
     tracks: [
       layered.tracks[0],
       layered.tracks[1],
@@ -157,7 +154,6 @@ it("pastes the earliest frame and topmost track at independently positioned anch
   });
 
   expect(result).toMatchObject({
-    durationFrames: 65,
     tracks: [
       { id: "top", placements: [{ id: "later", sequenceStartFrame: 30 }] },
       { id: "middle", placements: [{ sequenceStartFrame: 23 }] },
@@ -178,7 +174,6 @@ it("preserves the copied effective source range after the reusable clip is retri
 
   // The copied range was [95, 130), not the range implied by the old offsets on the new clip.
   expect(result).toMatchObject({
-    durationFrames: 100,
     tracks: [
       { id: "top" },
       {
@@ -235,7 +230,6 @@ it("rejects a snapshot whose effective out point is no longer in the source", ()
 
 it("previews a selection starting below the top track at frame zero, and reports missing tracks", () => {
   const sequence: Sequence = {
-    durationFrames: 65,
     tracks: [{ id: "zero", label: "Zero", placements: [] }, ...layered.tracks],
   };
   const copied = copyPlacements(sequence, clips, frameRate, ["later", "earliest"]);

@@ -373,7 +373,6 @@ test("Inspector trims and fades apply only to the inspected placement in the sel
   await expect(transition).toBeVisible();
 
   const trimmed = {
-    durationFrames: 250,
     tracks: [
       {
         id: "main",

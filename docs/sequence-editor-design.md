@@ -162,10 +162,9 @@ rows are not editor state or compiler input.
   placement's effective source range converted to project frames. With no
   placements the duration is zero. A placement edit can grow or shrink the
   sequence; leading and internal gaps are still possible. There is no stored
-  `Sequence.durationFrames`, shortening action, toolbar endpoint control,
-  or end marker. Remove the old field and form without a compatibility
-  layer. Keep the derived duration available to timeline, preview, and
-  transport. See [ADR 0001](adr/0001-derive-sequence-duration-from-placements.md).
+  duration, shortening action, toolbar endpoint control, or end marker.
+  The timeline, preview, and transport use the same derived duration.
+  See [ADR 0001](adr/0001-derive-sequence-duration-from-placements.md).
 - **Track overlap:** Placements can overlap across tracks, not within a
   track. Resolve picture and sound separately: the uppermost active
   placement that supplies each contribution wins. Audio-only over
@@ -539,9 +538,10 @@ verify section order, source-frame ranges, and transition fields and durations.
 Downstream renderer behavior and rendered-media verification are outside this
 project's scope.
 
-The compiler requires matching source and project rates; it does not round
-mixed-rate cuts. Intersecting entry and reveal regions within a placement,
-uncovered leading or internal gaps, and empty sequences produce no `CutList`.
+The compiler ends output at the latest exclusive placement end. It requires
+matching source and project rates; it does not round mixed-rate cuts.
+Intersecting entry and reveal regions within a placement, uncovered leading or
+internal gaps, and empty sequences produce no `CutList`.
 The transition model's black fallback is a desired output behavior, not a
 capability of the current compiler. If the format cannot represent an
 active dissolve, keep the authored edit, report export as unavailable,

@@ -40,6 +40,7 @@ export default function SequencePreview({
   useLayoutEffect(() => {
     if (!sequence || !clips || !sources) return;
     const instance = createPreviewReader({ sequence, clips, sources }, frameRate);
+    const endFrame = instance.durationFrames ?? 0;
     reader.current = instance;
     const lookahead = Math.max(1, secondsToFrame(0.5, frameRate));
     const lookaheadStep = Math.max(1, secondsToFrame(0.125, frameRate));
@@ -54,15 +55,14 @@ export default function SequencePreview({
           // intervening frame even when its decoded samples are already warm.
           for (let n = 1; n <= nearbyCount; n++) {
             const next = frame + direction * n;
-            if (next < 0 || next > sequence.durationFrames) break;
+            if (next < 0 || next > endFrame) break;
             instance.prepare(next, audible);
           }
           if (audible) {
             // Warm upcoming decode windows and cuts before the clock reaches
             // them. A speculative read cannot hold or stop current playback.
             const ahead = frame - (frame % lookaheadStep) + lookahead;
-            if (ahead > frame + nearbyCount && ahead < sequence.durationFrames)
-              instance.prepare(ahead, true);
+            if (ahead > frame + nearbyCount && ahead < endFrame) instance.prepare(ahead, true);
           }
         }
         if (

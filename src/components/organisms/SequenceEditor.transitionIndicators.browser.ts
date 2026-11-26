@@ -3,6 +3,7 @@ import {
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutDepartureAt,
   roughCutStoryId,
   straightCutArgs,
 } from "./SequenceEditor.browserHarness";
@@ -99,7 +100,6 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 300,
     "sequence.tracks[0].placements[0].transitionOut.id": "harbor-dissolve",
     "sequence.tracks[0].placements[0].transitionOut.kind": "dissolve",
     "sequence.tracks[0].placements[0].transitionOut.durationFrames": 20,
@@ -160,10 +160,12 @@ test("a dissolve and a fade made to overlap by a move share the lane and the sel
   ).toBeVisible();
 
   const f = await box(fade);
+  const movedFrameWidth = ((await box(lighthouse)).width + 2) / 120;
+  const movedDissolve = await box(dissolve);
   expect(f.y).toBeCloseTo(d.y, 0);
   expect(f.height).toBeCloseTo(d.height, 0);
-  expect(f.width).toBeCloseTo(30 * frameWidth, 0);
-  expect(f.x).toBeLessThan(d.x + d.width);
+  expect(f.width).toBeCloseTo(30 * movedFrameWidth, 0);
+  expect(f.x).toBeLessThan(movedDissolve.x + movedDissolve.width);
   const moved = await emissions();
 
   async function clickOverlap() {
@@ -198,7 +200,7 @@ test("a narrow placement still exposes its one-frame fade through Placement Prop
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    "sequence.durationFrames": 3600,
+    ...roughCutDepartureAt(3540).args,
     "sequence.tracks[0].placements[1].sourceOutOffsetFrames": -115,
     "sequence.tracks[0].placements[1].transitionIn.id": "lighthouse-entry",
     "sequence.tracks[0].placements[1].transitionIn.kind": "fade",

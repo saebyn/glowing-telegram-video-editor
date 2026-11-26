@@ -1,9 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openWorkflow, roughCutStoryId } from "./SequenceEditor.browserHarness";
+import {
+  openWorkflow,
+  roughCutDepartureAt,
+  roughCutStoryId,
+} from "./SequenceEditor.browserHarness";
 
 type RecordingWindow = Window & { playheadEdits?: string[] };
 
-async function openSequence(page: Page, durationFrames?: number) {
+async function openSequence(page: Page, departureStart?: number) {
   await page.addInitScript(() => {
     const emissions: string[] = [];
     (window as RecordingWindow).playheadEdits = emissions;
@@ -14,7 +18,7 @@ async function openSequence(page: Page, durationFrames?: number) {
   await openWorkflow(
     page,
     roughCutStoryId,
-    durationFrames === undefined ? {} : { "sequence.durationFrames": durationFrames },
+    departureStart === undefined ? {} : roughCutDepartureAt(departureStart).args,
   );
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
@@ -69,7 +73,7 @@ test("transport shows timecode and frame count when stepping, jumping, and stopp
 test("the sequence playhead readout shows hours and minutes on a long sequence", async ({
   page,
 }) => {
-  const { timeline, edits } = await openSequence(page, 223_384);
+  const { timeline, edits } = await openSequence(page, 223_324);
   const transport = page.getByRole("group", { name: "Sequence transport" });
   await timeline.getByRole("slider", { name: "Sequence playhead", exact: true }).press("End");
   await expect(transport.getByText("01:02:03:04 223384 fr", { exact: true })).toBeVisible();
@@ -214,7 +218,7 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
   await timeline.getByRole("button", { name: "Harbor", exact: true }).last().click();
   await page.getByLabel("Source out (exclusive frame)").fill("186");
   await page.getByRole("button", { name: "Trim placement", exact: true }).click();
-  // Trimming 60 frames from the last placement leaves [300, 360) uncovered.
+  // Trimming 54 frames from the last placement moves the end to frame 306.
   const trimEdits = ["sequence-editor:sequence-change", "sequence-editor:cut-list-result"];
   await expect.poll(edits).toEqual(trimEdits);
 
@@ -229,15 +233,15 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
   const box = await ruler.boundingBox();
   if (!box) throw new Error("Expected a visible sequence ruler");
   await ruler.click({ position: { x: box.width * 0.75, y: box.height / 2 } });
-  await expect(frameReadout).toHaveText("Sequence frame 270");
+  await expect(frameReadout).toHaveText("Sequence frame 230");
   await forward.click();
   await page.clock.runFor(2_000);
-  await expect(frameReadout).toHaveText("Sequence frame 360");
+  await expect(frameReadout).toHaveText("Sequence frame 306");
   await expect(forward).toBeVisible();
 
   await reverse.click({ timeout: 5_000 });
   await page.clock.runFor(800);
-  await readPlaybackFrame(frameReadout, 312, 313);
+  await readPlaybackFrame(frameReadout, 258, 259);
   await page.clock.runFor(6_000);
   await expect(frameReadout).toHaveText("Sequence frame 0");
   await expect(forward).toBeVisible();
@@ -265,7 +269,6 @@ test("a shorter host sequence clamps the paused frame permanently, even after gr
   const original = await sequenceControl.inputValue();
   await sequenceControl.fill(
     JSON.stringify({
-      durationFrames: 180,
       tracks: [
         {
           id: "main",
@@ -276,10 +279,10 @@ test("a shorter host sequence clamps the paused frame permanently, even after gr
     }),
   );
   await sequenceControl.blur();
-  await expect(frameReadout).toHaveText("Sequence frame 180");
+  await expect(frameReadout).toHaveText("Sequence frame 120");
 
   await sequenceControl.fill(original);
   await sequenceControl.blur();
   await expect(timeline).toContainText("Duration: 00:06");
-  await expect(frameReadout).toHaveText("Sequence frame 180", { timeout: 2_000 });
+  await expect(frameReadout).toHaveText("Sequence frame 120", { timeout: 2_000 });
 });

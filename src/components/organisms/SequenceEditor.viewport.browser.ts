@@ -4,6 +4,7 @@ import {
   noEdits,
   openWorkflow,
   recordEditorEmissions,
+  roughCutDepartureAt,
   roughCutStoryId,
 } from "./SequenceEditor.browserHarness";
 
@@ -18,7 +19,7 @@ async function openViewport(page: Page) {
   await page.setViewportSize({ width: 1_280, height: 1_100 });
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
-    "sequence.durationFrames": 480,
+    ...roughCutDepartureAt(420).args,
     "sequence.tracks[0].placements[1].id": "lighthouse-close",
     "sequence.tracks[0].placements[1].clipId": "lighthouse",
     "sequence.tracks[0].placements[1].sequenceStartFrame": 210,
@@ -158,7 +159,6 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 480,
         tracks: [
           {
             id: "main",
@@ -166,6 +166,7 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
             placements: [
               { id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 },
               { id: "lighthouse-close", clipId: "lighthouse", sequenceStartFrame: 230 },
+              roughCutDepartureAt(420).placement,
             ],
           },
         ],

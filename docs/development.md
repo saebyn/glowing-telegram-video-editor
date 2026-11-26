@@ -50,9 +50,11 @@ Open **Pages / SequenceEditorPreview** in Storybook. **Local Dissolve** uses a
 local MPEG-TS fixture with alternating tones and incremental brightness. Play
 through the dissolve, seek and single-step around frame 15, then play in
 reverse. Reverse should be silent; seeking and stepping to the same frame
-should show the same picture. The uncovered tail should be black and silent,
-including at the sequence endpoint. Try accepting a split or placement move
-while Preview is active. Check in both light and dark mode.
+should show the same picture. At the exclusive sequence end, Preview should
+hold the last picture without sound. To check an internal gap, move the second
+placement later and seek into the gap away from the dissolve; it should show
+black and play no sound. Try accepting a split or placement move while Preview
+is active. Check in both light and dark mode.
 
 With the browser's network throttling enabled, play while Preview is loading.
 Verify the playhead holds, then resumes. Repeat, but pause, seek, hide Preview,

@@ -51,7 +51,7 @@ const [cutaways, main, alternate] = [
   },
 ] satisfies Sequence["tracks"];
 
-const original: Sequence = { durationFrames: 240, tracks: [cutaways, main, alternate] };
+const original: Sequence = { tracks: [cutaways, main, alternate] };
 const cutawaysFirst: CutList = {
   version: "1.0.0",
   inputMedia: [

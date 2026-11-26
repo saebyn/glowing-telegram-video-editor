@@ -162,7 +162,6 @@ export function pastePlacements(...args: Parameters<typeof evaluatePaste>): Sequ
   const { proposals, reason } = evaluatePaste(...args);
   if (reason) return null;
   const arrivals = new Map<string, ClipPlacement[]>();
-  let durationFrames = sequence.durationFrames;
   for (const { placement, preview } of proposals) {
     const trackArrivals = arrivals.get(preview.trackId) ?? [];
     trackArrivals.push({
@@ -176,11 +175,9 @@ export function pastePlacements(...args: Parameters<typeof evaluatePaste>): Sequ
       }),
     });
     arrivals.set(preview.trackId, trackArrivals);
-    durationFrames = Math.max(durationFrames, preview.sequenceStartFrame + preview.duration);
   }
   return {
     ...sequence,
-    durationFrames,
     tracks: sequence.tracks.map((track) =>
       arrivals.has(track.id)
         ? { ...track, placements: [...track.placements, ...arrivals.get(track.id)!] }

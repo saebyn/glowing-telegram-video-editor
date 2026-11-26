@@ -141,7 +141,6 @@ test("an edge-touching group previews at the old scale and commits one extending
   page,
 }) => {
   const expectedSequence: Sequence = {
-    durationFrames: 300,
     tracks: [
       {
         id: "cutaways",
@@ -330,7 +329,6 @@ test("dragging an unselected placement leaves the existing selection in place", 
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           {
             id: "cutaways",

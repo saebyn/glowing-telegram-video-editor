@@ -32,7 +32,6 @@ const sources = {
 };
 const titles = { clip: "Example clip" };
 const original: Sequence = {
-  durationFrames: 120,
   tracks: [{ id: "main", label: "Main", placements: [] }],
 };
 

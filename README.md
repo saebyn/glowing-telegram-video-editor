@@ -109,6 +109,10 @@ A compilation failure does not reject the edit. Loading a sequence does not emit
 compilation result. To keep Undo history, feed the same sequence object
 received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
 different sequence object is an independent host replacement and clears history.
+`Sequence` stores tracks and placements, not a duration. The latest exclusive
+placement end across all tracks determines the duration, or zero when there are
+no placements. The editing session supplies that frame count to the Timeline,
+Preview, and transport slots. Transitions do not extend it.
 The default editor explains why output is unavailable and lets you jump to the
 first reported gap or inspect a placement with a source issue, without editing
 the sequence.
@@ -183,13 +187,12 @@ a duration change. See **Resize a transition** in the Storybook composition exam
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
 Dragging a selected placement moves the selection together, or none of it if any
-destination is blocked. A valid move can grow the sequence but never shortens it.
-Use **Delete** to remove the selected placements in one edit. It leaves gaps in place
-without shortening the sequence or removing tracks or reusable clips from the pool.
+destination is blocked. A valid move can grow or shrink the sequence.
+Use **Delete** to remove the selected placements in one edit. It does not close
+leading or internal gaps, remove tracks, or remove reusable clips from the pool.
 Use **Split** to divide all placements that strictly span the playhead when
 their source and project rates match. Use **Split mode** to cut only the placement
 under the pointer without seeking or changing the selection. Escape exits the mode.
-Use **Sequence endpoint** to remove uncovered time at the end without cutting any placement.
 **Undo** and **Redo** navigate accepted edits.
 **Rename track** edits a track’s display name without changing its placements or order.
 **Add track** creates an empty top track. Remove is offered only for an empty track
@@ -208,7 +211,7 @@ either placement edge to trim it in place, or enter a precise trailing trim in t
 Inspector’s **Source out** field. Trim handles remain available after
 adding fades: fades stay attached to their edges at the same duration, even if the
 trim makes them overlap or leaves a placement shorter than its fade. A valid trailing
-trim can grow the sequence but never shortens it. In Placement Properties, use
+trim can grow or shrink the sequence. In Placement Properties, use
 **Add transition** on an empty edge to add an entry or reveal fade of half a
 second (rounded to sequence frames and capped at the placement's duration).
 Use **Inspect transition** on an occupied edge or click its timeline indicator

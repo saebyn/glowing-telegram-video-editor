@@ -57,7 +57,8 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   await page.goto("/iframe.html?id=testing-sequence-pool-handoff--replacement-pool&viewMode=story");
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await expect(timeline).toBeVisible({ timeout: 20_000 });
-  const { xAt, y } = await trackGeometry(timeline, "Main", 120);
+  // The empty timeline displays one frame across its width; the right half rounds to frame 1.
+  const { xAt, y } = await trackGeometry(timeline, "Main", 1);
   const source = page.getByRole("button", { name: "Drag Example clip" });
   const card = await source.boundingBox();
   if (!card) throw new Error("Expected a draggable replacement pool clip");
@@ -67,12 +68,10 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   async function previewDrop() {
     await page.mouse.move(card!.x + card!.width / 2, card!.y + card!.height / 2);
     await page.mouse.down();
-    await page.mouse.move(xAt(60) - 2, y, { steps: 12 });
-    await page.mouse.move(xAt(60), y);
+    await page.mouse.move(xAt(0.75) - 2, y, { steps: 12 });
+    await page.mouse.move(xAt(0.75), y);
     await expect(preview).toBeVisible();
-    await expect(timeline.getByRole("status")).toHaveText(
-      "Example clip → Main · Sequence frame 60",
-    );
+    await expect(timeline.getByRole("status")).toHaveText("Example clip → Main · Sequence frame 1");
     expect(await emissions()).toEqual(noEdits);
   }
 
@@ -91,12 +90,11 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   await expect.poll(emissions).toEqual({
     sequences: [
       {
-        durationFrames: 180,
         tracks: [
           {
             id: "main",
             label: "Main",
-            placements: [{ id: expect.any(String), clipId: "clip", sequenceStartFrame: 60 }],
+            placements: [{ id: expect.any(String), clipId: "clip", sequenceStartFrame: 1 }],
           },
         ],
       },
@@ -108,7 +106,6 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   const undone = await emissions();
   expect(undone.sequences).toHaveLength(2);
   expect(undone.sequences[1]).toEqual({
-    durationFrames: 120,
     tracks: [{ id: "main", label: "Main", placements: [] }],
   });
   expect(undone.cutListResults).toEqual([blockedOutput, blockedOutput]);
@@ -161,7 +158,6 @@ test("a pool drop on Cutaways extends the sequence and emits one exact CutList",
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 345,
         tracks: [
           {
             id: "cutaways",
@@ -293,7 +289,6 @@ test("holding a pool clip at the right edge reaches past the endpoint without ch
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 390,
         tracks: [
           {
             id: "cutaways",
@@ -366,7 +361,6 @@ test("hovering a pool clip over a bounded gap previews the exact fitted placemen
   await expect.poll(emissions).toStrictEqual({
     sequences: [
       {
-        durationFrames: 360,
         tracks: [
           {
             id: "main",

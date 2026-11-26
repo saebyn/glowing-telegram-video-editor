@@ -34,7 +34,6 @@ test("Redo restores both placements and the duration of an accepted group move",
     sourceOutOffsetFrames: -6,
   };
   const original: Sequence = {
-    durationFrames: 240,
     tracks: [
       { id: "cutaways", label: "Cutaways", placements: [lighthouseOpen] },
       { id: "main", label: "Main", placements: [harborBed] },
@@ -42,7 +41,6 @@ test("Redo restores both placements and the duration of an accepted group move",
     ],
   };
   const moved: Sequence = {
-    durationFrames: 300,
     tracks: [
       {
         id: "cutaways",
@@ -133,9 +131,8 @@ test("Redo restores both placements and the duration of an accepted group move",
   await expect(undo).toBeEnabled();
 });
 
-function trimmedRoughCut(durationFrames: number, sourceOutOffsetFrames: number): Sequence {
+function trimmedRoughCut(sourceOutOffsetFrames: number): Sequence {
   return {
-    durationFrames,
     tracks: [
       {
         id: "main",
@@ -176,9 +173,9 @@ test("Redo reapplies successive undone edits one at a time, oldest first", async
   await undo.click();
   await expect(sourceOut).toHaveValue("240");
 
-  const original = trimmedRoughCut(360, 6);
-  const firstTrim = trimmedRoughCut(390, 36);
-  const secondTrim = trimmedRoughCut(420, 66);
+  const original = trimmedRoughCut(6);
+  const firstTrim = trimmedRoughCut(36);
+  const secondTrim = trimmedRoughCut(66);
   // Seeking and selecting another placement are session actions, not new history.
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
   const rail = await ruler.boundingBox();
@@ -284,7 +281,6 @@ test("an independent sequence replacement clears the redo path without emitting 
   const sequenceControl = page.getByRole("textbox", { name: "Edit sequence as JSON" });
   await sequenceControl.fill(
     JSON.stringify({
-      durationFrames: 180,
       tracks: [
         {
           id: "main",
@@ -296,7 +292,7 @@ test("an independent sequence replacement clears the redo path without emitting 
   );
   await sequenceControl.blur();
   await expect(timeline.getByText("Replacement", { exact: true })).toBeVisible();
-  await expect(timeline).toContainText("Duration: 00:03");
+  await expect(timeline).toContainText("Duration: 00:02");
   await expect(redo).toBeDisabled();
   await expect(undo).toBeDisabled();
   await page.getByRole("tab", { name: /^Actions\b/ }).click();

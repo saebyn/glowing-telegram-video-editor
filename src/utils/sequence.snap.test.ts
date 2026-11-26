@@ -13,7 +13,6 @@ const clips: readonly VideoClip[] = [
   },
 ];
 const single: Sequence = {
-  durationFrames: 150,
   tracks: [
     {
       id: "main",

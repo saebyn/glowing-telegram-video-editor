@@ -17,11 +17,31 @@ export default function compileCutList(
   sources: SourcesById<CutListSource>,
   frameRate: FrameRate,
 ): CutListResult {
-  const { issues, layout } = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  return analyzeSequence(sequence, clips, sources, frameRate).result;
+}
+
+/** Resolve the session duration and current export result from the same layout. */
+export function analyzeSequence(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: SourcesById<CutListSource>,
+  frameRate: FrameRate,
+) {
+  const resolved = resolveVisibleSequence(sequence, clips, sources, frameRate);
+  return {
+    durationFrames: resolved.layout?.durationFrames ?? null,
+    result: compileResolvedSequence(resolved),
+  };
+}
+
+function compileResolvedSequence({
+  issues,
+  layout,
+}: ReturnType<typeof resolveVisibleSequence>): CutListResult {
   if (layout) {
     for (const gap of layout.gaps) issues.push({ code: "sequence-gap", ...gap });
     issues.push(
-      ...applyCutListTransitions(layout.spans, layout.transitions, sequence.durationFrames),
+      ...applyCutListTransitions(layout.spans, layout.transitions, layout.durationFrames),
     );
   }
   const [issue, ...otherIssues] = issues;

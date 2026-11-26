@@ -11,7 +11,7 @@ const a = { id: "a", clipId: "a", sequenceStartFrame: 0 };
 const b = { id: "b", clipId: "b", sequenceStartFrame: 24 };
 
 function sequence(a: ClipPlacement, b: ClipPlacement): Sequence {
-  return { durationFrames: 48, tracks: [{ id: "picture", label: "Picture", placements: [a, b] }] };
+  return { tracks: [{ id: "picture", label: "Picture", placements: [a, b] }] };
 }
 
 test("resize by ID changes only the duration of the existing transition", () => {
@@ -315,7 +315,6 @@ test("different cuts may touch but cannot compete over a visible frame", () => {
 
 test("a partially covered fade does not compete with a dissolve only in its covered frames", () => {
   const before: Sequence = {
-    durationFrames: 44,
     tracks: [
       {
         id: "upper",

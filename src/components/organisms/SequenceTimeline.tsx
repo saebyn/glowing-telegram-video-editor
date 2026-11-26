@@ -43,7 +43,7 @@ import {
   snapFrame,
 } from "@/utils/frames";
 import { getSource } from "@/utils/sourcesById";
-import { resolveVisibleSequence } from "@/utils/visibleSequence";
+import { resolveSequencePlacements } from "@/utils/visibleSequence";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -212,12 +212,10 @@ type TrimDraft = {
 };
 
 export default function SequenceTimeline(props: SequenceTimelineProps) {
-  const { tracks, durationFrames, clips, sources, frameRate } = props;
+  const { tracks, clips, sources, frameRate } = props;
   const valid = useMemo(
-    () =>
-      resolveVisibleSequence({ tracks, durationFrames }, clips, sources, frameRate, true).layout !==
-      null,
-    [tracks, durationFrames, clips, sources, frameRate],
+    () => resolveSequencePlacements({ tracks }, clips, sources, frameRate, true).geometry !== null,
+    [tracks, clips, sources, frameRate],
   );
   if (!valid) {
     return (

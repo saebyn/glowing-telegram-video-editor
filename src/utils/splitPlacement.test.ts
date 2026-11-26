@@ -19,7 +19,6 @@ const opening = {
   sourceOutOffsetFrames: 3,
 };
 const sequence: Sequence = {
-  durationFrames: 90,
   tracks: [{ id: "main", label: "Main", placements: [opening] }],
 };
 
@@ -35,7 +34,6 @@ test("splitting a trimmed placement preserves its source alignment on both sides
 
   // Sequence [20, 68) plays source [95, 143); sequence frame 32 is source frame 107.
   expect(split).toStrictEqual({
-    durationFrames: 90,
     tracks: [
       {
         id: "main",
@@ -72,7 +70,6 @@ test("splitting a trimmed placement preserves its source alignment on both sides
 
 test("a selection that only meets the playhead at its edges produces no edit", () => {
   const touching: Sequence = {
-    durationFrames: 80,
     tracks: [
       {
         id: "main",
@@ -175,7 +172,6 @@ test("only selected placements spanning the playhead at the project rate split i
   const touchingTrack = { id: "touching-track", label: "Touching", placements: [touching] };
   const offRateTrack = { id: "off-rate-track", label: "Off rate", placements: [offRate] };
   const layered: Sequence = {
-    durationFrames: 120,
     tracks: [
       { id: "main", label: "Main", placements: [opening, later] },
       { id: "overlay", label: "Overlay", placements: [paired] },
@@ -200,7 +196,6 @@ test("only selected placements spanning the playhead at the project rate split i
 
   // The overlay starts at sequence 6 and source 100, so its right half starts at source 126.
   expect(split).toStrictEqual({
-    durationFrames: 120,
     tracks: [
       {
         id: "main",

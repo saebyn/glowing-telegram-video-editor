@@ -51,7 +51,7 @@ test("play waits for media at the current frame and resumes after it arrives", a
     const preview = page.getByRole("region", { name: "Preview", exact: true });
     await expect(preview).toContainText("Loading preview");
     await page.clock.runFor(500);
-    await expect(preview).toContainText("Playing forward · Sequence frame 0 of 35");
+    await expect(preview).toContainText("Playing forward · Sequence frame 0 of 28");
     release();
     await expect(preview.getByText("Loading preview…")).not.toBeVisible();
     await page.clock.runFor(500);
@@ -68,10 +68,10 @@ test("forward playback stops when the rendition is missing declared sound", asyn
   await page.getByRole("button", { name: "Play", exact: true }).click();
   const preview = page.getByRole("region", { name: "Preview", exact: true });
   await expect(preview).toContainText("No media · The rendition is missing the expected sound.");
-  await expect(preview).toContainText("Paused · Sequence frame 0 of 35");
+  await expect(preview).toContainText("Paused · Sequence frame 0 of 28");
 });
 
-test("seeking into a gap supersedes buffered playback, including the final frame", async ({
+test("seeking into an internal gap supersedes buffered playback, and the end holds the last picture", async ({
   page,
 }) => {
   let release!: () => void;
@@ -83,16 +83,27 @@ test("seeking into a gap supersedes buffered playback, including the final frame
     await route.continue();
   });
   try {
-    await page.goto(story);
+    await page.goto(`${story}&args=gapBeforeSecond:true`);
     const preview = page.getByRole("region", { name: "Preview", exact: true });
     await page.getByRole("button", { name: "Play", exact: true }).click();
     await expect(preview).toContainText("Loading preview");
-    await page.getByRole("slider", { name: "Sequence playhead" }).press("End");
-    await expect(preview).toContainText("Paused · Sequence frame 35 of 35");
+    const ruler = page.locator(".timeline-editor-time-area-interact");
+    const { width, height } = (await ruler.boundingBox())!;
+    await ruler.click({ position: { x: (width * 17) / 35, y: height / 2 } });
+    await expect(preview).toContainText("Paused · Sequence frame 17 of 35");
     release();
     await expect(preview.getByText("Loading preview…")).not.toBeVisible();
-    await expect.poll(() => marker(preview.getByRole("img", { name: "Sequence picture" }))).toBe(0);
+    const picture = preview.getByRole("img", { name: "Sequence picture" });
+    await expect.poll(() => marker(picture)).toBe(0);
+    await expect(preview).toContainText("Paused · Sequence frame 17 of 35");
+    const grip = page.getByRole("slider", { name: "Sequence playhead" });
+    await grip.press("End");
     await expect(preview).toContainText("Paused · Sequence frame 35 of 35");
+    await expect.poll(() => marker(picture)).toBeGreaterThan(0);
+    const held = await marker(picture);
+    await grip.press("ArrowLeft");
+    await expect(preview).toContainText("Paused · Sequence frame 34 of 35");
+    await expect.poll(() => marker(picture)).toBe(held);
   } finally {
     release();
   }
@@ -135,7 +146,7 @@ test("replacing a buffered rendition uses the latest URL without losing play int
     await page.goto(story.replace("--local-dissolve", "--missing-expected-sound"));
     const preview = page.getByRole("region", { name: "Preview", exact: true });
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await expect(preview).toContainText("Playing forward · Sequence frame 0 of 35");
+    await expect(preview).toContainText("Playing forward · Sequence frame 0 of 28");
     await page.getByRole("button", { name: "Use audio-video rendition" }).click();
     await expect(preview.getByText(/Playing forward · Sequence frame [1-9]/)).toBeVisible();
     release();
@@ -149,21 +160,22 @@ test("a visible cut interrupts a dissolve, but the user can seek past it", async
   await page.goto(story.replace("--local-dissolve", "--undefined-dissolve"));
   const preview = page.getByRole("region", { name: "Preview", exact: true });
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await expect(preview).toContainText("Paused · Sequence frame 12 of 35");
+  await expect(preview).toContainText("Paused · Sequence frame 12 of 28");
   await expect(preview).toContainText("Undefined transition");
   const ruler = page.getByRole("slider", { name: "Sequence playhead" });
   await ruler.press("End");
-  await expect(preview).toContainText("Paused · Sequence frame 35 of 35");
+  await expect(preview).toContainText("Paused · Sequence frame 28 of 28");
   await expect(preview).not.toContainText("Undefined transition");
 });
 
 test("the standalone HLS story uses the media supplied through Storybook args", async ({
   page,
 }) => {
+  await page.route("https://test-streams.mux.dev/**", (route) => route.abort());
   await page.goto(
-    "/iframe.html?id=molecules-sequencepreview--public-hls-smoke&viewMode=story&args=media.sequence.durationFrames:0",
+    "/iframe.html?id=molecules-sequencepreview--public-hls-smoke&viewMode=story&args=media.sequence.tracks[0].placements[2].sourceOutOffsetFrames:-60",
   );
-  await expect(page.getByText("Paused · Sequence frame 0 of 0", { exact: true })).toBeVisible();
+  await expect(page.getByText("Paused · Sequence frame 0 of 660", { exact: true })).toBeVisible();
 });
 
 test("the public HLS story shows and scrubs a three-placement edit with transitions", async ({
@@ -203,7 +215,7 @@ test("the Preview plays the smaller variant of a multivariant rendition", async 
     .poll(() => marker(preview.getByRole("img", { name: "Sequence picture" })))
     .toBeCloseTo(17, -1);
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await expect(preview).toContainText("Paused · Sequence frame 35 of 35");
+  await expect(preview).toContainText("Paused · Sequence frame 28 of 28");
 });
 
 test("forward playback requests the incoming rendition before reaching the dissolve", async ({
@@ -230,7 +242,7 @@ test("forward playback requests the incoming rendition before reaching the disso
     );
     if (frame >= 8) break;
   }
-  await expect(preview.getByText(/Playing forward · Sequence frame [89] of 35/)).toBeVisible();
+  await expect(preview.getByText(/Playing forward · Sequence frame [89] of 28/)).toBeVisible();
   await expect.poll(() => requested).toBe(true);
 });
 

@@ -59,7 +59,6 @@ const sources = {
 };
 const titles = { harbor: "Harbor", bridge: "Bridge" };
 const original: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "main",
@@ -438,7 +437,6 @@ export const ReplaceInvalidInputs: StoryObj = {
 };
 
 const transitionsExample: Sequence = {
-  durationFrames: 240,
   tracks: [
     {
       id: "main",

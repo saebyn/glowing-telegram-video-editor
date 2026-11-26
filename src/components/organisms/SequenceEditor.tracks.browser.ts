@@ -11,7 +11,6 @@ import {
 } from "./SequenceEditor.browserHarness";
 
 const emptyTrackArgs = {
-  "sequence.durationFrames": 120,
   startWithoutTracks: "true",
 };
 
@@ -30,7 +29,6 @@ test("a host-supplied zero-track sequence can start with one Add track click", a
   expect(await emissions()).toStrictEqual({
     sequences: [
       {
-        durationFrames: 120,
         tracks: [{ id: expect.stringMatching(/\S/), label: "Track 1", placements: [] }],
       },
     ],
@@ -44,7 +42,6 @@ test("a read-only zero-track sequence displays the empty state without offering 
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...emptyTrackArgs,
-    "sequence.durationFrames": 0,
     readOnly: "true",
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
@@ -58,7 +55,6 @@ test("add inserts above a selected placement's track and only the empty track ca
   page,
 }) => {
   const original = {
-    durationFrames: 240,
     tracks: [
       {
         id: "cutaways",
@@ -134,7 +130,6 @@ test("add inserts above a selected placement's track and only the empty track ca
   expect(await emissions()).toStrictEqual({
     sequences: [
       {
-        durationFrames: 240,
         tracks: [
           { id: expect.stringMatching(/\S/), label: "Track 1", placements: [] },
           ...original.tracks,
@@ -163,10 +158,9 @@ test("Undo, not Remove track, restores the host's zero-track sequence", async ({
   expect(await emissions()).toStrictEqual({
     sequences: [
       {
-        durationFrames: 120,
         tracks: [{ id: expect.stringMatching(/\S/), label: "Track 1", placements: [] }],
       },
-      { durationFrames: 120, tracks: [] },
+      { tracks: [] },
     ],
     cutListResults: [blockedOutput, blockedOutput],
   });
