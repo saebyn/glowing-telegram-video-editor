@@ -64,6 +64,29 @@ current and intended flows between the host, editor session, compiler, and Previ
 | [92 — Keep obsolete Preview reads from blocking the current seek](issues/92-prioritize-the-current-preview-seek.md) | Ready | P2 |
 | [94 — Keep decodable audio before an HLS failure](issues/94-keep-decodable-audio-before-hls-failure.md) | Ready | P2 |
 
+## Needs triage
+
+Further branch-review findings, including the Preview addendum:
+
+| Ticket | Priority |
+| --- | --- |
+| [95 — Revalidate retained Remove and Lock actions](issues/95-revalidate-retained-track-actions.md) | P2 |
+| [96 — Reject duplicate clip placement IDs before editing](issues/96-reject-duplicate-placement-ids.md) | P2 |
+| [97 — Skip media-kind probes for covered fades](issues/97-skip-probes-for-covered-fades.md) | P2 |
+| [98 — Diagnose visible cuts inside fade extensions](issues/98-diagnose-cuts-in-fade-extensions.md) | P2 |
+| [99 — Resolve dissolve picture and sound independently of the owning edge](issues/99-resolve-dissolve-contributions-independent-of-owner.md) | P2 |
+| [100 — Align ruler hit-testing after a fractional pan](issues/100-align-ruler-hit-testing-after-fractional-pan.md) | P2 |
+| [101 — Keep the playhead focused after a keyboard seek](issues/101-keep-playhead-focused-after-keyboard-seek.md) | P2 |
+| [102 — Confirm an armed Paste with a touch tap](issues/102-confirm-paste-with-touch.md) | P2 |
+| [103 — Make the packaged compiler types usable with NodeNext](issues/103-ship-nodenext-compatible-compiler-types.md) | P2 |
+| [104 — Run the standalone Playwright suite in CI](issues/104-run-playwright-suite-in-ci.md) | P3 |
+| [105 — Recover decodable picture after an earlier HLS segment failure](issues/105-recover-picture-after-an-earlier-hls-failure.md) | P2 |
+| [106 — Prioritize a seek that needs a media-kind probe](issues/106-prioritize-seeks-that-need-a-media-kind-probe.md) | P2 |
+| [107 — Preserve Preview when its registration callback changes](issues/107-preserve-preview-on-registration-callback-changes.md) | P2 |
+| [108 — Resume Preview sound after audio context suspension](issues/108-resume-preview-sound-after-suspension.md) | P2 |
+| [109 — Validate Preview audio coverage on clean EOF](issues/109-validate-audio-coverage-on-clean-eof.md) | P3 |
+| [110 — Cancel queued forward audio when reverse starts](issues/110-cancel-forward-audio-when-reverse-starts.md) | P3 |
+
 ## Needs more information
 
 | Ticket | Decision still needed | Fit to revisit |
