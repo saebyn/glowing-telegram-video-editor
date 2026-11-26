@@ -18,7 +18,7 @@ or build a different page using the same editing hook and UI components.
 
 ```text
 SequenceEditorPage                     default layout; calls useSequenceEditor
-├─ toolbar slot → SequenceToolbar      transport, edit actions, and pane toggles
+├─ toolbar slot → SequenceToolbar      transport, edit actions, timeline navigation, and pane toggles
 ├─ SequenceWorkspace                   responsive layout and accessible splitters
 │  ├─ clipPool slot → SequenceClipPool  adapts ProjectClipPool
 │  ├─ preview slot → SequencePreview
@@ -46,11 +46,11 @@ placement paste drop mode. A host-built page can do the same in its own layout.
 
 | Slot | Props from the editing session |
 | --- | --- |
-| Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, shortening the sequence, and adding or renaming tracks. The default page supplies pane toggles separately. |
+| Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, and adding or renaming tracks. Optional timeline navigation actions are available when the Timeline supports them. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
 | Preview | Transport snapshot and latest sequence, clip, and source inputs. The default `SequencePreview` registers readiness while mounted; the session still owns the clock and play intent. |
 | Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, duration bounds by kind, and actions to apply type and duration together or remove the transition). The Inspector owns labels, drafts, and form rendering. |
-| Timeline | Ordered tracks and placements, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. For either transition kind, `previewTransitionResize` and `resizeTransition` take `{ transitionId, durationFrames }`; release revalidates the duration against the current transition and cannot create, remove, or change its kind. |
+| Timeline | Ordered tracks and placements, derived sequence duration, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. The Timeline can register viewport navigation actions with the session. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. For either transition kind, `previewTransitionResize` and `resizeTransition` take `{ transitionId, durationFrames }`; release revalidates the duration against the current transition and cannot create, remove, or change its kind. |
 
 Export the library-owned UI components and their props from the package root,
 including `SequenceWorkspace`, pane toggles, and individual controls. Exports
@@ -91,6 +91,36 @@ and trim controls at explicit positions rather than deriving positions from
 clip order. The widget displays the edit and reports interaction input; its
 rows are not editor state or compiler input.
 
+### Sequence timeline navigation
+
+- **Pan directly.** Drag empty track space horizontally to pan once the
+  pointer moves past a drag threshold. A click still clears the placement
+  selection in normal mode; ruler clicks still seek, and placement drags and
+  grips keep their editing behavior. Horizontal trackpad scrolling and
+  Shift+wheel pan without grabbing anything. In Split or Paste drop mode,
+  panning doesn't split or place anything; a click retains its mode-specific
+  behavior. An armed paste preview follows the position under the pointer as
+  the viewport pans.
+- **Pan without sequence bounds.** The viewport can move left of frame zero
+  or beyond the latest placement at any zoom, even in an empty sequence.
+  Use a bounded widget window that can move along the time axis; shifting
+  that window must not change what frame a pointer, placement, or playhead
+  refers to. Frame zero never moves. An edit that would place material
+  before zero is blocked, and a ruler seek there lands at zero. Edits to
+  the right can extend the sequence; seeking there lands at the current end.
+- **Toolbar navigation.** **Pan left** and **Pan right** move the viewport
+  by half its visible time span at the current zoom. **Fit to view** brings
+  frame zero to the left and shows the whole sequence. For an empty sequence
+  it returns to zero at a usable default scale. Use icon buttons with
+  accessible names and tooltips. Host-built layouts can use the same actions
+  through the toolbar and timeline slots; omit actions an absent, hidden, or
+  replacement Timeline doesn't provide. The separate pan slider is removed.
+- **Keep navigation separate from authoring.** Panning and fitting leave
+  the selection and playhead alone, emit no edit callbacks, and don't join
+  Undo history. An ordinary placement edit doesn't change viewport position
+  or scale just because sequence duration changed. Edge auto-pan can still
+  reveal a proposed placement or trailing trim without changing scale.
+
 ## Model and ownership
 
 - **Source and clip:** A source identifies the media. A clip is a reusable
@@ -127,14 +157,15 @@ rows are not editor state or compiler input.
   by the current locks. If Undo restores a removed locked track, it comes
   back locked. Another track can still cover a locked placement; toggling
   a lock does not change the `CutList` result.
-- **Sequence duration:** The sequence has its own duration at the project
-  frame rate. A valid move (single or group), trailing placement trim, or
-  drop from the clip pool onto a track extends the duration just enough to
-  fit the resulting placements. The placement change and any duration
-  increase commit as one edit. Moving or trimming a placement earlier can
-  leave a trailing gap; these edits never shorten the sequence. Duration
-  growth does not bypass same-track collision checks or source bounds for
-  trims.
+- **Sequence duration:** Frame zero is fixed. Duration is the latest exclusive
+  placement end across all tracks, including locked tracks, using each
+  placement's effective source range converted to project frames. With no
+  placements the duration is zero. A placement edit can grow or shrink the
+  sequence; leading and internal gaps are still possible. There is no stored
+  `Sequence.durationFrames`, shortening action, toolbar endpoint control,
+  or end marker. Remove the old field and form without a compatibility
+  layer. Keep the derived duration available to timeline, preview, and
+  transport. See [ADR 0001](adr/0001-derive-sequence-duration-from-placements.md).
 - **Track overlap:** Placements can overlap across tracks, not within a
   track. Resolve picture and sound separately: the uppermost active
   placement that supplies each contribution wins. Audio-only over
@@ -224,8 +255,9 @@ rows are not editor state or compiler input.
   the [glossary](../GLOSSARY.md) for terminology.
 - **Host vs. session:** The host supplies the editable sequence and media
   metadata, and decides what to persist. The library manages transient UI
-  state such as the playhead, selection, zoom, and drag drafts. Monitoring is
-  also session-only, unlike authored output audio adjustments.
+  state such as the playhead, selection, zoom, viewport position, and drag
+  drafts. Monitoring is also session-only, unlike authored output audio
+  adjustments.
 
 ```text
 Host sequence + media → useSequenceEditor → slot props
@@ -244,6 +276,17 @@ carry issues; no issues implies success. An edit still reaches the host when
 compilation fails. Selection, playhead changes, drag previews, and
 blocked, cancelled, or unchanged drops emit neither callback. Loading or
 replacing the sequence through props does not emit `onCutListResult`.
+
+The page and editing hook expose a separate typed `onSequenceInputError`
+callback for invalid host inputs, including a missing referenced clip, invalid
+placement start or effective source range, an unusable frame rate, an unsafe
+end frame, or same-track overlap. Notify on initial invalid input or when its
+diagnostics change, not on each render. Show the diagnostic and block editing
+and playback while invalid, without throwing, inferring a partial duration,
+discarding placements, or emitting a sequence change. Valid inputs restore
+the session without a recovery callback. A valid mixed-rate edit, a sequence
+gap, or missing render media may make export unavailable without invalidating
+the input. `onCutListResult` retains its edit-proposal-only contract.
 
 Toolbar controls, drag gestures, and shortcuts call the same editor action
 for the same operation. Supply derived state such as edit availability and
@@ -269,8 +312,9 @@ of normal editor integration. The editor handles compilation for its edits.
   move the selection, or drag an unselected placement to move only that
   placement. Marquee selection is a follow-up.
 - Delete removes the selected placements together in one edit. It does not
-  close gaps, shorten the sequence, remove tracks, or remove reusable clips
-  from the clip pool. Delete is unavailable without a placement selection.
+  close leading or internal gaps, remove tracks, or remove reusable clips
+  from the clip pool. If the latest placement end changes, duration follows
+  the remaining placements. Delete is unavailable without a placement selection.
 - With focus in an editable editor and outside text fields, use Ctrl/⌘+C to
   copy placement selection, Ctrl/⌘+D to duplicate it, or Ctrl/⌘+V to paste the
   copy. Copy snapshots relative sequence positions and track spacing, effective
@@ -288,9 +332,10 @@ of normal editor integration. The editor handles compilation for its edits.
   Timeline renders it and reports the clicked target for revalidation.
 - Duplicate and Paste reuse clips and assign new placement and transition IDs.
   Same-track overlap and missing or locked destination tracks block the whole
-  edit. Touching edges are allowed. Any needed duration growth joins the group
-  insertion as one host-accepted Undo step. Copy, preview, and cancel emit
-  nothing; an accepted edit need not produce a successful `CutList`.
+  edit. Touching edges are allowed. The group insertion is one host-accepted
+  Undo step; duration is derived from the resulting placements. Copy, preview,
+  and cancel emit nothing; an accepted edit need not produce a successful
+  `CutList`.
 - Placement Properties shows the source and sequence ranges and applicable trim
   controls for one selected placement. For multiple selected placements,
   it shows the count and tracks and lets the editor choose which placement to
@@ -338,9 +383,9 @@ Use one move evaluator for both the drag preview and the edit on release,
 rather than applying a series of single-placement moves. Show each proposed
 placement on its destination track at its exact position, with a sequence
 position readout for the grabbed placement. If blocked, show why the whole
-drop is invalid. Keep the scale steady during the drag and make space to the
-right to preview a move past the current endpoint without changing authored
-duration before a valid drop.
+drop is invalid. Keep the scale steady during the drag and allow panning
+past the current end to preview the move. Draft positions do not affect
+sequence duration.
 
 Hovering a clip from the pool over an existing track previews the fitted
 placement using the same rules as release. In a bounded gap the placement
@@ -354,8 +399,9 @@ destination track ID, and sequence frame.
 
 For example, if a group move would extend a 160-frame sequence to 190 frames
 but would also cause a same-track collision, neither the placements nor the
-duration change. Once the collision clears, a valid drop commits the placements
-and any duration increase together. Undo restores both in one action.
+duration change. Once the collision clears, an accepted drop makes the
+sequence 190 frames. Undo restores the placements and therefore the original
+duration in one action.
 
 Destinations are always on whole sequence frames. The **Snap** toolbar
 toggle starts off and belongs to the editor session. When enabled for a
@@ -378,6 +424,14 @@ The editing session owns the playback clock and the playhead in sequence
 frames. When the Preview slot is hidden or omitted, transport does not wait
 for media. Split at playhead acts on all eligible placements at the
 playhead, regardless of selection.
+
+If a duration change puts the playhead beyond the sequence end, leave it
+parked at that frame and stop playback if it was running. Undo and Redo do
+not reposition it. For Play or a relative playhead step, first use the
+nearest in-range position; for an explicit seek, clamp the requested
+position to `[0, duration]`. With a playhead parked at 110 and an end at 100,
+one step back lands on 99, reverse starts from 100, and Play forward lands
+at 100 and stays stopped. Pause does not seek.
 
 Split mode is separate: clicking a placement splits only that placement
 at the pointer's sequence frame, without requiring selection. It does
@@ -430,7 +484,9 @@ contributions, not the downstream render's pixels or audio samples.
   and resolve again at the current playhead without resetting transport.
   Reverse playback is picture-only; seeking, stepping, and pausing at
   the same frame show the same picture. At the exclusive sequence end,
-  hold the last authored frame without sound, even if it is black.
+  hold the last authored frame without sound, even if it is black. A
+  playhead parked beyond the end shows black and stops any queued sound;
+  it doesn't sample the last frame.
 - **Gaps and failures.** Uncovered time contributes black and silence
   except where an authored transition contributes. A missing expected
   rendition or terminal media failure shows the No media placeholder.
@@ -485,7 +541,7 @@ project's scope.
 
 The compiler requires matching source and project rates; it does not round
 mixed-rate cuts. Intersecting entry and reveal regions within a placement,
-uncovered gaps, and empty sequences produce no `CutList`.
+uncovered leading or internal gaps, and empty sequences produce no `CutList`.
 The transition model's black fallback is a desired output behavior, not a
 capability of the current compiler. If the format cannot represent an
 active dissolve, keep the authored edit, report export as unavailable,
@@ -521,16 +577,18 @@ including playhead controls.
 
 | Setup | What to explore |
 | --- | --- |
-| **Assemble a rough cut** | Fill an existing gap on a single track, extend the sequence with a drop from the clip pool or a trailing trim, and adjust trims and entry/reveal transitions from both the timeline and the Inspector. |
-| **Rearrange a layered edit** | Use several tracks with room to move and a placement that can block a drop. Select placements across tracks, preserve their spacing, see an invalid drop, then move the group past the sequence endpoint. |
+| **Assemble a rough cut** | Fill a gap on a single track, extend the sequence with a clip-pool drop or trailing trim, then shorten the last placement without leaving a trailing gap. Adjust trims and entry/reveal transitions from both the timeline and the Inspector. |
+| **Rearrange a layered edit** | Select placements across tracks, preserve their spacing, see an invalid drop, then move the group past the current sequence end. Pan before zero and beyond the edit, and return with Fit to view. |
 
 The stories act as the host: they feed accepted sequences back to the editor
 and expose the callbacks in Storybook’s Actions panel. Check that a proposed
 move previews the final destination without emitting edits, a blocked drop
 changes nothing, and a valid extending drop emits one sequence change and one
-`CutList` result. Keep focused compiler tests for source ranges, ordered
-sections, track priority and source alignment, and fade type and duration
-without creating a separate story for each case.
+`CutList` result. Verify that panning doesn't seek, that a placement cannot be
+moved before zero, and that a shortening edit parks an over-end playhead
+until the next playhead action. Keep focused compiler tests for source
+ranges, ordered sections, track priority and source alignment, and fade
+type and duration without creating a separate story for each case.
 
 Keep a composition example that wraps a default slot component and
 replaces the Timeline on `SequenceEditorPage`, and one that calls

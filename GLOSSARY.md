@@ -43,8 +43,11 @@ _Avoid_: “Timeline” for the edit itself.
 **Sequence preview**:
 A presentation of a sequence’s authored picture and sound that follows the sequence playhead. It is distinct from the rendered output.
 
+**Sequence start**:
+The fixed boundary at sequence frame zero, before which no placement can start.
+
 **Sequence duration**:
-The full length of the edit in sequence frames, including any uncovered frames. It can extend beyond the last placement.
+The length of the edit from sequence frame zero to the latest exclusive end of any clip placement, including any uncovered frames. A sequence with no placements has zero duration.
 _Avoid_: “Timeline duration” for the length of the edit.
 
 **Sequence gap**:
@@ -86,6 +89,9 @@ A view of the positions and ranges within one source for review and clip selecti
 **Sequence timeline**:
 A view of a sequence’s tracks showing each clip placement’s position and duration in sequence time.
 
+**Sequence timeline viewport**:
+The portion of the sequence timeline currently in view. It can show space before sequence frame zero or beyond the sequence end without changing the edit.
+
 **Transition**:
 An authored change from one presentation of picture or sound to another over a span of sequence frames, anchored to one edge of a clip placement. A hard cut is not an authored transition.
 
@@ -122,7 +128,7 @@ Zero-based position in the sequence, measured at the **project frame rate**.
 _Avoid_: “Timeline frame”; a timeline can show either a source or a sequence.
 
 **Playhead**:
-The current position in a source or sequence. Qualify it as a **source playhead** or **sequence playhead** when both are in use.
+The current position used to review a source or sequence. A sequence playhead may be parked beyond the current sequence end after an edit. Qualify it as a **source playhead** or **sequence playhead** when both are in use.
 
 **Split mode**:
 A sequence timeline mode that splits only the clicked placement at the sequence frame under the pointer.

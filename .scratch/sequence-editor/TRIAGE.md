@@ -33,6 +33,18 @@ correctness fixes and are not release blockers.
 12. [67 — Reduce main-thread work during warm Preview playback](issues/67-profile-warm-preview-playback.md) (P3, investigation):
     profile ready-frame work separately from decode stalls before optimizing.
 
+### Timeline navigation and derived duration
+
+Follow the ticket dependencies within this batch. The
+[sequence editor design](../../docs/sequence-editor-design.md) is the behavior
+contract; the original PRD's stored duration rule is historical.
+
+1. [78 — Report invalid sequence inputs to the host](issues/78-report-invalid-sequence-inputs.md)
+2. [79 — Derive sequence duration from placements](issues/79-derive-sequence-duration-from-placements.md)
+3. [80 — Keep the playhead parked when the sequence shrinks](issues/80-park-the-playhead-past-the-sequence-end.md)
+4. [81 — Pan the sequence timeline directly in both directions](issues/81-pan-the-sequence-timeline-directly.md)
+5. [82 — Add toolbar controls for timeline navigation](issues/82-add-timeline-navigation-buttons.md)
+
 ## Needs more information
 
 | Ticket | Decision still needed | Fit to revisit |

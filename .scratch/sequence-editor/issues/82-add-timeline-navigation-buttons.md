@@ -1,0 +1,25 @@
+# 82 — Add toolbar controls for timeline navigation
+
+Status: ready-for-agent
+Depends on: [81 — Pan the sequence timeline directly](81-pan-the-sequence-timeline-directly.md)
+Related: [45 — Prove both editor composition paths](45-prove-both-sequence-editor-composition-paths.md)
+
+## Acceptance criteria
+
+- Add keyboard-operable icon buttons named **Pan left**, **Pan right**, and
+  **Fit to view**, with tooltips and accessible names. Replace the old Fit
+  sequence control; leave the rest of the toolbar layout alone.
+- Each pan button moves the viewport by half its visible time span at the
+  current zoom. Neither direction stops at a sequence boundary. Fit to view
+  brings frame zero to the left and shows the whole current edit, including after
+  panning far away. On an empty sequence it returns to zero at a usable scale.
+  These actions never move the playhead, change selection, or emit an edit.
+- Make the optional navigation actions available through the existing toolbar
+  and timeline slots to both the default page and host-built layouts. Omit
+  actions the current Timeline doesn't provide. A hidden or unmounted Timeline
+  must not leave buttons that act on stale viewport state.
+- Verify half-view steps at more than one zoom, Fit to view after panning and
+  with a zero-duration edit, and keyboard operation. Update the composition
+  examples to exercise supported and omitted navigation actions.
+
+See [Sequence timeline navigation](../../../docs/sequence-editor-design.md#sequence-timeline-navigation).
