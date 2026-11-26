@@ -208,7 +208,20 @@ function resolveDissolve(
   };
 }
 
-function sourceExtension(side: ResolvedPlacement, start: number, end: number) {
+function sourceExtension(
+  side: ResolvedPlacement,
+  start: number,
+  end: number,
+  projectRate: FrameRate,
+) {
+  // This range uses whole native frame boundaries. Do not assume one source
+  // frame per sequence frame when the rates differ.
+  const sourceRate = side.sourceFrameRate;
+  if (
+    BigInt(sourceRate.numerator) * BigInt(projectRate.denominator) !==
+    BigInt(projectRate.numerator) * BigInt(sourceRate.denominator)
+  )
+    return null;
   const startFrame = Math.max(0, sourceAt(side, start));
   const endFrame = Math.min(side.knownSourceEnd, sourceAt(side, end));
   return startFrame < endFrame ? { startFrame, endFrame } : null;
@@ -217,6 +230,7 @@ function sourceExtension(side: ResolvedPlacement, start: number, end: number) {
 function dissolvePresentation(
   { outgoing, incoming, ...details }: ReturnType<typeof resolveDissolve>,
   sources: SourcesById<SequenceSource>,
+  projectRate: FrameRate,
 ) {
   function missingContribution(side: ResolvedPlacement | undefined) {
     const mediaKind = side && getSource(sources, side.sourceId)?.mediaKind;
@@ -229,10 +243,15 @@ function dissolvePresentation(
   return {
     ...details,
     outgoingExtension: outgoing
-      ? sourceExtension(outgoing, Math.max(cut, outgoing.sequenceEndFrame), endFrame)
+      ? sourceExtension(outgoing, Math.max(cut, outgoing.sequenceEndFrame), endFrame, projectRate)
       : null,
     incomingExtension: incoming
-      ? sourceExtension(incoming, startFrame, Math.min(cut, incoming.sequenceStartFrame))
+      ? sourceExtension(
+          incoming,
+          startFrame,
+          Math.min(cut, incoming.sequenceStartFrame),
+          projectRate,
+        )
       : null,
     missingOutgoing: !outgoing,
     missingIncoming: !incoming,
@@ -257,8 +276,8 @@ export function getSequenceDissolves(
     )
   )
     return details;
-  const { layout, issues } = resolveVisibleSequence(sequence, clips, sources, frameRate);
-  if (layout && !issues.length) {
+  const { layout } = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
+  if (layout) {
     for (const transition of layout.transitions) {
       if (transition.kind === "dissolve") {
         details.set(
@@ -266,6 +285,7 @@ export function getSequenceDissolves(
           dissolvePresentation(
             resolveDissolve(layout.spans, layout.transitions, transition, layout.durationFrames),
             sources,
+            frameRate,
           ),
         );
       }
