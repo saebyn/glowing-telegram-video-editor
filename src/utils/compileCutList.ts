@@ -50,7 +50,9 @@ function compileResolvedSequence({
 
   const inputMedia: CutList["inputMedia"] = [];
   const output = layout.spans.map(({ start, end, placement, transitionIn, transitionOut }) => {
-    const { s3Location, sourceInFrame, sequenceStartFrame } = placement;
+    const { sourceInFrame, sequenceStartFrame } = placement;
+    // Resolution reports any missing render reference before we construct the output.
+    const s3Location = placement.s3Location!;
     let mediaIndex = inputMedia.findIndex((media) => media.s3Location === s3Location);
     if (mediaIndex === -1) {
       mediaIndex = inputMedia.length;

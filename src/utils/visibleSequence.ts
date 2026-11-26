@@ -23,7 +23,7 @@ export type ResolvedPlacement = {
   sourceDurationFrames?: number;
   knownSourceEnd: number;
   sourceId: string;
-  s3Location: string;
+  s3Location: string | undefined;
   sourceMappingKnown: boolean;
 };
 
@@ -101,8 +101,9 @@ export function resolveSequencePlacements(
         canResolveLayout = false;
         continue;
       }
-      const source = getSource(sources, clip.sourceId);
-      if (!source && !layoutOnly)
+      const s3Location = getSource(sources, clip.sourceId)?.s3Location;
+      const hasRenderReference = typeof s3Location === "string";
+      if (!hasRenderReference && !layoutOnly)
         issues.push({ code: "missing-source", placementId, sourceId: clip.sourceId });
       const range = getPlacementSourceRange(clip, placement);
       const { sourceInFrame, sourceOutFrame, sourceFrameRate } = range;
@@ -151,8 +152,8 @@ export function resolveSequencePlacements(
         sourceDurationFrames: clip.sourceDurationFrames,
         knownSourceEnd: clip.sourceDurationFrames ?? Math.max(clip.sourceOutFrame, sourceOutFrame),
         sourceId: clip.sourceId,
-        s3Location: source?.s3Location ?? clip.sourceId,
-        sourceMappingKnown: source !== undefined && matchingRates,
+        s3Location: hasRenderReference ? s3Location : undefined,
+        sourceMappingKnown: hasRenderReference && matchingRates,
       };
       for (const [edge, transition] of validTransitions) {
         if (!transition) continue;

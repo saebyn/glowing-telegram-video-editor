@@ -165,6 +165,55 @@ it("reports a missing source when metadata is inherited instead of owned by the 
   });
 });
 
+const opaqueReferenceRate = { numerator: 30, denominator: 1 };
+const opaqueReferenceClip = {
+  id: "harbor",
+  sourceId: "recording",
+  sourceFrameRate: opaqueReferenceRate,
+  sourceInFrame: 20,
+  sourceOutFrame: 30,
+};
+const opaqueReferenceSequence: Sequence = {
+  tracks: [
+    {
+      id: "main",
+      label: "Main",
+      placements: [{ id: "opening", clipId: "harbor", sequenceStartFrame: 0 }],
+    },
+  ],
+};
+
+it("reports a missing render source reference even when a Preview HLS URL is supplied", () => {
+  // Model runtime host data that skipped the required TypeScript field.
+  const source = { previewHlsUrl: "/preview/harbor/index.m3u8" } as unknown as CutListSource;
+  expect(
+    compileCutList(
+      opaqueReferenceSequence,
+      [opaqueReferenceClip],
+      { recording: source },
+      opaqueReferenceRate,
+    ),
+  ).toStrictEqual({
+    ok: false,
+    issues: [{ code: "missing-source", placementId: "opening", sourceId: "recording" }],
+  });
+});
+
+it.each(["", "  ", "archive/recording:42"])("preserves the opaque render reference %j", (value) => {
+  expect(
+    compileCutList(
+      opaqueReferenceSequence,
+      [opaqueReferenceClip],
+      { recording: { s3Location: value } },
+      opaqueReferenceRate,
+    ),
+  ).toMatchObject({
+    ok: true,
+    issues: [],
+    cutList: { inputMedia: [{ s3Location: value, sections: [{ startFrame: 20, endFrame: 30 }] }] },
+  });
+});
+
 it("compiles both placement fades without changing the output shape or loading presentation data", () => {
   const frameRate = { numerator: 30, denominator: 1 };
   const clips: readonly VideoClip[] = [
