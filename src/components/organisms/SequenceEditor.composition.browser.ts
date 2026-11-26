@@ -29,6 +29,9 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
   const timeline = page.getByRole("region", { name: "Frame-based timeline" });
   await expect(timeline).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("region", { name: "Wrapped Inspector" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^(Pan left|Pan right|Fit to view)$/ }),
+  ).toHaveCount(0);
   await timeline.getByLabel("Seek by sequence frame").fill("60");
   await expect(page.getByLabel("Timeline sequence frame")).toHaveText("60");
   await expect(page.getByLabel("Preview sequence frame")).toHaveText("60");
@@ -99,6 +102,30 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
     "closing",
   ]);
   expect(undone.cutListResults[1]).toEqual(blockedOutput);
+});
+
+test("a host-built toolbar exposes only actions from the mounted Timeline", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+  const host = page.getByRole("region", { name: "Host-built sequence editor" });
+  const panLeft = host.getByRole("button", { name: "Pan left", exact: true });
+  const panRight = host.getByRole("button", { name: "Pan right", exact: true });
+  const fit = host.getByRole("button", { name: "Fit to view", exact: true });
+  const replace = host.getByRole("button", { name: "Use a fit-only timeline" });
+  await expect(panLeft).toBeVisible({ timeout: 20_000 });
+  await expect(panRight).toBeVisible();
+  await expect(fit).toBeVisible();
+  await replace.click();
+  await expect(panLeft).toHaveCount(0);
+  await expect(panRight).toHaveCount(0);
+  await fit.press("Enter");
+  await expect(host.getByLabel("Fit requests")).toHaveText("1");
+  await host.getByRole("button", { name: "Hide timeline", exact: true }).click();
+  await expect(fit).toHaveCount(0);
+  await host.getByRole("button", { name: "Show timeline", exact: true }).click();
+  await expect(fit).toBeVisible();
+  await expect(panLeft).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
 });
 
 test("the host-built editor emits nothing for blocked or cancelled Timeline moves", async ({

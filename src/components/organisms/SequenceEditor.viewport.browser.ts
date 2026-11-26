@@ -34,7 +34,7 @@ async function openViewport(page: Page) {
     playhead: timeline.getByRole("slider", { name: "Sequence playhead" }),
     frameReadout: page.getByLabel("Sequence playhead position"),
     lighthouse: timeline.getByRole("button", { name: "Lighthouse", exact: true }),
-    fit: timeline.getByRole("button", { name: "Fit sequence", exact: true }),
+    fit: page.getByRole("button", { name: "Fit to view", exact: true }),
     zoomIn: timeline.getByRole("button", { name: "Zoom in", exact: true }),
     zoomOut: timeline.getByRole("button", { name: "Zoom out", exact: true }),
   };
@@ -75,6 +75,40 @@ test("zooming in from Fit widens placements without moving a visible playhead or
   await expect(frameReadout).toHaveText("Sequence frame 192");
   await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
   await expect(timeline).toContainText("Duration: 00:08");
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("keyboard toolbar navigation pans half a view at both zooms and fits from far away", async ({
+  page,
+}) => {
+  const { emissions, ruler, frameReadout, lighthouse, zoomIn } = await openViewport(page);
+  const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
+  const panLeft = editor.getByRole("button", { name: "Pan left", exact: true });
+  const panRight = editor.getByRole("button", { name: "Pan right", exact: true });
+  const fit = editor.getByRole("button", { name: "Fit to view", exact: true });
+  const rail = await visibleBox(ruler);
+  await lighthouse.click();
+  await expect(panLeft).toHaveAttribute("title", "Pan left");
+  await expect(panRight).toHaveAttribute("title", "Pan right");
+  await expect(fit).toHaveAttribute("title", "Fit to view");
+  const fitted = await visibleBox(lighthouse);
+  const leftEdge = () => lighthouse.evaluate((el) => el.getBoundingClientRect().x);
+  await panLeft.press("Enter");
+  await expect.poll(leftEdge).toBeCloseTo(fitted.x + rail.width / 2, 0);
+  await panRight.press("Space");
+  await expect.poll(leftEdge).toBeCloseTo(fitted.x, 0);
+
+  await zoomIn.click();
+  const zoomed = await visibleBox(lighthouse);
+  expect(zoomed.width).toBeGreaterThan(fitted.width);
+  await panRight.press("Enter");
+  await expect.poll(leftEdge).toBeCloseTo(zoomed.x - rail.width / 2, 0);
+  for (let step = 0; step < 8; step++) await panRight.press("Enter");
+  await expect(lighthouse).not.toBeInViewport();
+  await fit.press("Space");
+  await expect.poll(leftEdge).toBeCloseTo(fitted.x, 0);
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+  await expect(frameReadout).toHaveText("Sequence frame 0");
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
@@ -174,13 +208,16 @@ test("Shift+wheel crosses both ends of a zero-duration timeline with no tracks",
     );
   await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
   await page.keyboard.down("Shift");
-  await page.mouse.wheel(0, -rail.width * 600);
+  await page.mouse.wheel(0, -rail.width * 3);
   await expect.poll(labelsInView).toContain("−00:10");
-  await page.mouse.wheel(0, rail.width * 1200);
-  await expect.poll(labelsInView).toContain("00:10.017");
+  await page.mouse.wheel(0, rail.width * 6);
+  await expect.poll(labelsInView).toContain("00:13");
   await page.keyboard.up("Shift");
   await page.mouse.click(rail.x + rail.width / 2, rail.y + rail.height * 0.75);
   await expect(readout).toHaveText("Sequence frame 0");
+  await page.getByRole("button", { name: "Fit to view", exact: true }).press("Enter");
+  await expect.poll(labelsInView).toContain("00:01");
+  await expect.poll(labelsInView).not.toContain("00:13");
   await expect(timeline).toContainText("Duration: 00:00");
   await expect(timeline.getByText("Add your first track to begin")).toBeVisible();
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();

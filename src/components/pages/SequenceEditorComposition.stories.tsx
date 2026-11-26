@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import {
   ProjectProvider,
@@ -315,7 +315,8 @@ function PageSlotExample() {
   return (
     <>
       <p className="p-3">
-        Seek to frame 60. Preview and place Bridge, then accept the proposal to enable Undo.
+        Seek to frame 60. Preview and place Bridge, then accept the proposal to enable Undo. This
+        replacement Timeline does not register viewport navigation.
       </p>
       <button
         className="mx-3 rounded border px-3 py-1"
@@ -330,8 +331,23 @@ function PageSlotExample() {
   );
 }
 
+function FitOnlyTimeline({ registerNavigation }: SequenceTimelineProps) {
+  const [fitRequests, setFitRequests] = useState(0);
+  useLayoutEffect(
+    () => registerNavigation?.({ fitToView: () => setFitRequests((requests) => requests + 1) }),
+    [registerNavigation],
+  );
+  return (
+    <p>
+      Fit requests: <output aria-label="Fit requests">{fitRequests}</output>
+    </p>
+  );
+}
+
 function HookExample() {
   const { options } = useControlledStory();
+  const [showTimeline, setShowTimeline] = useState(true);
+  const [fitOnly, setFitOnly] = useState(false);
   const {
     toolbarProps,
     timelineProps,
@@ -351,10 +367,22 @@ function HookExample() {
       onKeyDown={handleEditorKeyDown}
     >
       <SequenceToolbar {...toolbarProps} />
+      <p>Try the default navigation buttons, then switch to a Timeline that only supports Fit.</p>
+      <button type="button" onClick={() => setFitOnly((current) => !current)}>
+        {fitOnly ? "Use the default timeline" : "Use a fit-only timeline"}
+      </button>
+      <button type="button" onClick={() => setShowTimeline((current) => !current)}>
+        {showTimeline ? "Hide timeline" : "Show timeline"}
+      </button>
       {notices.map((notice) => (
         <output key={notice}>{notice}</output>
       ))}
-      <SequenceTimeline {...timelineProps} />
+      {showTimeline &&
+        (fitOnly ? (
+          <FitOnlyTimeline {...timelineProps} />
+        ) : (
+          <SequenceTimeline {...timelineProps} />
+        ))}
       <SequenceWorkspace
         inspector={<SequenceInspector {...inspectorProps} />}
         preview={<SequencePreview {...previewProps} />}

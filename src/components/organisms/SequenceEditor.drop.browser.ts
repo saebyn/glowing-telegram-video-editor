@@ -57,8 +57,8 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   await page.goto("/iframe.html?id=testing-sequence-pool-handoff--replacement-pool&viewMode=story");
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   await expect(timeline).toBeVisible({ timeout: 20_000 });
-  // The empty timeline displays one frame across its width; the right half rounds to frame 1.
-  const { xAt, y } = await trackGeometry(timeline, "Main", 1);
+  // At 60 fps the empty timeline shows four seconds, so three quarters is frame 180.
+  const { xAt, y } = await trackGeometry(timeline, "Main", 240);
   const source = page.getByRole("button", { name: "Drag Example clip" });
   const card = await source.boundingBox();
   if (!card) throw new Error("Expected a draggable replacement pool clip");
@@ -68,10 +68,12 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   async function previewDrop() {
     await page.mouse.move(card!.x + card!.width / 2, card!.y + card!.height / 2);
     await page.mouse.down();
-    await page.mouse.move(xAt(0.75) - 2, y, { steps: 12 });
-    await page.mouse.move(xAt(0.75), y);
+    await page.mouse.move(xAt(180) - 2, y, { steps: 12 });
+    await page.mouse.move(xAt(180), y);
     await expect(preview).toBeVisible();
-    await expect(timeline.getByRole("status")).toHaveText("Example clip → Main · Sequence frame 1");
+    await expect(timeline.getByRole("status")).toHaveText(
+      "Example clip → Main · Sequence frame 180",
+    );
     expect(await emissions()).toEqual(noEdits);
   }
 
@@ -94,7 +96,7 @@ test("a replacement pool can preview and release a native drag without a JSON pa
           {
             id: "main",
             label: "Main",
-            placements: [{ id: expect.any(String), clipId: "clip", sequenceStartFrame: 1 }],
+            placements: [{ id: expect.any(String), clipId: "clip", sequenceStartFrame: 180 }],
           },
         ],
       },

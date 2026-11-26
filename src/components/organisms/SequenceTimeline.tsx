@@ -28,6 +28,7 @@ import type {
   PlacementPasteTarget,
   PlacementTransition,
   SequenceTrack,
+  SequenceTimelineNavigation,
   SequenceSource,
   SourcesById,
   TransitionResizeIntent,
@@ -154,6 +155,8 @@ export type TimelinePlacementActivation = {
 type Extension = Readonly<{ startFrame: number; endFrame: number }>;
 
 export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
+  /** Register supported viewport actions while the Timeline is mounted. */
+  registerNavigation?: (actions: SequenceTimelineNavigation) => () => void;
   durationFrames: number;
   tracks: readonly SequenceTrack[];
   sources: SourcesById<SequenceSource>;
@@ -243,6 +246,7 @@ export default function SequenceTimeline(props: SequenceTimelineProps) {
 }
 
 function SequenceTimelineWidget({
+  registerNavigation,
   frameRate,
   playheadFrame,
   onSeek,
@@ -308,7 +312,8 @@ function SequenceTimelineWidget({
   const isTrailingTrim = trimDraft?.edge === "trailing";
   const editing = isDragging || isPoolDragging || trimDraft !== null;
   const [width, setWidth] = useState(0);
-  const [fitFrames, setFitFrames] = useState(() => Math.max(1, durationFrames));
+  const fitSpan = durationFrames || Math.max(1, secondsToFrame(4, frameRate));
+  const [fitFrames, setFitFrames] = useState(() => fitSpan);
   const [zoom, setZoom] = useState(0);
   const { scaleWidth, pixelsPerFrame, framesPerTick } = getSequenceTimelineViewport(
     width,
@@ -323,8 +328,6 @@ function SequenceTimelineWidget({
   const visibleScrollLeft = visibleLeftFrame * pixelsPerFrame;
   const playheadX = playheadFrame * pixelsPerFrame - visibleScrollLeft;
   const playheadVisible = playheadX >= 0 && playheadX <= width;
-  const fitDisabled =
-    visibleLeftFrame === 0 && zoom === 0 && fitFrames === Math.max(1, durationFrames);
   const reportPasteTarget = placementPaste?.onTargetChange;
   const pasteDrop = placementPaste?.drop;
   const pastePress = useRef<PointerPosition | null>(null);
@@ -363,26 +366,34 @@ function SequenceTimelineWidget({
     );
   }
 
-  function changeZoom(nextZoom: number, fit = false) {
-    if (fit) {
-      const nextDuration = Math.max(1, durationFrames);
-      setFitFrames(nextDuration);
-      showFrom(0, getSequenceTimelineViewport(width, nextDuration, 0).framesPerTick);
-    } else {
-      const next = getSequenceTimelineViewport(width, fitFrames, nextZoom);
-      showFrom(
-        getZoomLeftFrame(
-          width,
-          leftFrame.current,
-          playheadFrame,
-          pixelsPerFrame,
-          next.pixelsPerFrame,
-        ),
-        next.framesPerTick,
-      );
-    }
+  function changeZoom(nextZoom: number) {
+    const next = getSequenceTimelineViewport(width, fitFrames, nextZoom);
+    showFrom(
+      getZoomLeftFrame(
+        width,
+        leftFrame.current,
+        playheadFrame,
+        pixelsPerFrame,
+        next.pixelsPerFrame,
+      ),
+      next.framesPerTick,
+    );
     setZoom(nextZoom);
   }
+
+  useLayoutEffect(() => {
+    if (!registerNavigation || !width) return;
+    const halfView = width / (2 * pixelsPerFrame);
+    return registerNavigation({
+      panLeft: () => showFrom(leftFrame.current - halfView, framesPerTick),
+      panRight: () => showFrom(leftFrame.current + halfView, framesPerTick),
+      fitToView: () => {
+        setFitFrames(fitSpan);
+        setZoom(0);
+        showFrom(0, getSequenceTimelineViewport(width, fitSpan, 0).framesPerTick);
+      },
+    });
+  }, [registerNavigation, width, pixelsPerFrame, framesPerTick, fitSpan, showFrom]);
 
   useLayoutEffect(() => {
     if (!width) return;
@@ -929,14 +940,13 @@ function SequenceTimelineWidget({
           {[
             { label: "Zoom in", next: zoom + 1, disabled: zoom >= maxZoom },
             { label: "Zoom out", next: zoom - 1, disabled: zoom === 0 },
-            { label: "Fit sequence", next: 0, disabled: fitDisabled, fit: true },
-          ].map(({ label, next, disabled, fit }) => (
+          ].map(({ label, next, disabled }) => (
             <button
               key={label}
               type="button"
               className="rounded border px-2 py-0.5 text-sm disabled:opacity-50"
               disabled={disabled || editing}
-              onClick={() => changeZoom(next, fit)}
+              onClick={() => changeZoom(next)}
             >
               {label}
             </button>

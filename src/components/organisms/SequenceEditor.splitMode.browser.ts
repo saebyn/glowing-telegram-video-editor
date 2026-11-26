@@ -148,7 +148,7 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
     .toBeCloseTo(first.x + 85, 0);
   expect(await emissions()).toEqual(noEdits);
   await expect(playhead).toHaveText("Sequence frame 0");
-  await timeline.getByRole("button", { name: "Fit sequence" }).click();
+  await page.getByRole("button", { name: "Fit to view" }).click();
   await timeline.getByRole("button", { name: "Zoom in" }).click();
   await page.mouse.move(ruler.x + ruler.width / 2, y);
   await page.mouse.wheel(ruler.width, 0);

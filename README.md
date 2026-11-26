@@ -183,6 +183,10 @@ both take `{ transitionId, durationFrames }` for an existing Fade or Dissolve.
 Preview returns `"valid"`, `"blocked"`, or `"conflict"` without emitting an
 edit. `resizeTransition` checks the current transition again before proposing
 a duration change. See **Resize a transition** in the Storybook composition examples.
+The default Timeline registers its viewport actions with the session. A replacement
+can call `timelineProps.registerNavigation?.({ panLeft, panRight, fitToView })`
+when mounted and return its cleanup function from the effect. Register only supported
+actions; `toolbarProps.navigation` exposes just those actions to the Toolbar.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
@@ -253,8 +257,10 @@ the pool, Preview, Inspector, or timeline. These changes are session-only.
 
 Click the ruler or drag the playhead to seek. Forward, reverse, and pause work even while
 the media preview is disconnected. Transport and selection do not emit edits.
-The timeline’s **Zoom in**, **Zoom out**, **Fit sequence**, and **Pan timeline** controls
-change the view without changing the edit or seeking.
+Drag empty track space, scroll horizontally, or use Shift+wheel to pan before or
+beyond the edit. The toolbar’s **Pan left** and **Pan right** move by half the
+visible span. **Fit to view** brings the whole edit into view from frame zero.
+Panning, fitting, and the timeline’s zoom controls do not seek or change the edit.
 With focus in the editor (outside text and number fields), Left and Right Arrow step the
 playhead one sequence frame. The `[` and `]` keys nudge selected placements earlier or later.
 

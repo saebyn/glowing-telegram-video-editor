@@ -198,6 +198,13 @@ export interface Sequence {
   tracks: readonly SequenceTrack[];
 }
 
+/** Viewport navigation supported by the currently mounted sequence timeline. */
+export interface SequenceTimelineNavigation {
+  panLeft?: () => void;
+  panRight?: () => void;
+  fitToView?: () => void;
+}
+
 export type PlacementPasteTarget = { trackId: string; sequenceFrame: number };
 
 export type PlacementPastePreview = {

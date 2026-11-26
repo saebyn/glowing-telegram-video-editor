@@ -18,6 +18,7 @@ import type {
   Sequence,
   SequenceInputIssue,
   SequenceSource,
+  SequenceTimelineNavigation,
   SequenceTransportSnapshot,
   SourcesById,
   TransitionDraft,
@@ -121,6 +122,23 @@ export function useSequenceEditor({
   const durationFrames = analysis.durationFrames ?? 0;
   const inputIssues = useMemo(() => getSequenceInputIssues(cutListIssues), [cutListIssues]);
   const hasValidInput = analysis.durationFrames !== null;
+  const [navigation, setNavigation] = useState<SequenceTimelineNavigation>();
+  const registerNavigation = useCallback((actions: SequenceTimelineNavigation) => {
+    let mounted = true;
+    const guarded: SequenceTimelineNavigation = {};
+    for (const action of ["panLeft", "panRight", "fitToView"] as const) {
+      const invoke = actions[action];
+      if (invoke)
+        guarded[action] = () => {
+          if (mounted) invoke();
+        };
+    }
+    setNavigation(guarded);
+    return () => {
+      mounted = false;
+      setNavigation((current) => (current === guarded ? undefined : current));
+    };
+  }, []);
   const onSequenceChange = hasValidInput ? proposeSequence : undefined;
   const canEditLatest = useRef(false);
   useLayoutEffect(() => {
@@ -513,6 +531,7 @@ export function useSequenceEditor({
   });
 
   const timelineProps: SequenceTimelineProps = {
+    registerNavigation: hasValidInput ? registerNavigation : undefined,
     frameRate,
     playheadFrame: transport.playheadFrame,
     onSeek: transport.seek,
@@ -730,6 +749,7 @@ export function useSequenceEditor({
   }
 
   const toolbarProps: SequenceToolbarProps = {
+    navigation: hasValidInput ? navigation : undefined,
     transport: {
       ...snapshot,
       seek: transport.seek,

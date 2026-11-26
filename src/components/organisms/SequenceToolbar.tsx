@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { SequenceTimelineNavigation } from "@/types";
 import { SequenceEditButton } from "@/components/atoms/SequenceEditButton";
 import { AddSequenceTrack } from "@/components/atoms/SequenceTrackActions";
 import RenameSequenceTrack, {
@@ -21,6 +22,7 @@ export interface SequenceToolbarProps {
   deleteSelection?: () => void;
   addTrack?: () => void;
   renameTrack?: RenameSequenceTrackProps;
+  navigation?: SequenceTimelineNavigation;
   /** Layout action controls supplied by the default page or a host layout. */
   paneToggles?: ReactNode;
 }
@@ -37,6 +39,7 @@ export default function SequenceToolbar({
   deleteSelection,
   addTrack,
   renameTrack,
+  navigation,
   paneToggles,
 }: SequenceToolbarProps) {
   return (
@@ -69,7 +72,60 @@ export default function SequenceToolbar({
       <SequenceEditButton onClick={deleteSelection}>Delete</SequenceEditButton>
       {addTrack && <AddSequenceTrack onAddTrack={addTrack} />}
       {renameTrack && <RenameSequenceTrack {...renameTrack} />}
+      {navigation && (
+        <>
+          <NavigationButton
+            label="Pan left"
+            action={navigation.panLeft}
+            path="M14 5l-7 7 7 7M7 12h13"
+          />
+          <NavigationButton
+            label="Pan right"
+            action={navigation.panRight}
+            path="M10 5l7 7-7 7M17 12H4"
+          />
+          <NavigationButton
+            label="Fit to view"
+            action={navigation.fitToView}
+            path="M4 8V4h4m8 0h4v4m0 8v4h-4m-8 0H4v-4M7 12h10"
+          />
+        </>
+      )}
       {paneToggles}
     </header>
+  );
+}
+
+function NavigationButton({
+  label,
+  action,
+  path,
+}: {
+  label: string;
+  action: (() => void) | undefined;
+  path: string;
+}) {
+  if (!action) return null;
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={action}
+      className="rounded border p-2"
+    >
+      <svg
+        aria-hidden="true"
+        className="size-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d={path} />
+      </svg>
+    </button>
   );
 }

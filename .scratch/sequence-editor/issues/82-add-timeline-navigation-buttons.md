@@ -1,6 +1,7 @@
 # 82 — Add toolbar controls for timeline navigation
 
 Status: ready-for-agent
+Resolution: add accessible toolbar navigation from the mounted Timeline and remove the old Fit sequence control.
 Depends on: [81 — Pan the sequence timeline directly](81-pan-the-sequence-timeline-directly.md)
 Related: [45 — Prove both editor composition paths](45-prove-both-sequence-editor-composition-paths.md)
 
@@ -23,3 +24,19 @@ Related: [45 — Prove both editor composition paths](45-prove-both-sequence-edi
   examples to exercise supported and omitted navigation actions.
 
 See [Sequence timeline navigation](../../../docs/sequence-editor-design.md#sequence-timeline-navigation).
+
+## Comments
+
+- Red → green: the keyboard test initially found no Pan left control. It now
+  checks half-view steps at two zoom levels, preserves selection and playhead,
+  and fits after panning far away. The zero-duration test returns to frame zero
+  at a four-second default scale. Both composition examples show supported and
+  omitted actions; hiding the Timeline removes them.
+- 257 Vitest tests and all 213 Playwright tests passed. The full run caught
+  a replacement-pool drop test that still assumed a one-frame empty view;
+  it now verifies the exact drop frame at the four-second scale. Typecheck,
+  build, formatting, packed CSS, and `git diff --check` passed. Lint reported
+  only the existing captions warning.
+- Three isolated mutations were caught: panning by a whole view, fitting
+  without resetting the origin, and retaining the toolbar controls after
+  unmount.
