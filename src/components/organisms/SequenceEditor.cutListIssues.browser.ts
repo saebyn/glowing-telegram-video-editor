@@ -7,10 +7,26 @@ import {
   roughCutStoryId,
 } from "./SequenceEditor.browserHarness";
 
+async function recordInputErrors(page: Page) {
+  await page.addInitScript(() => {
+    const errors: unknown[] = [];
+    Object.assign(window, { sequenceEditorInputErrors: errors });
+    window.addEventListener("sequence-editor:input-error", (event) => {
+      errors.push((event as CustomEvent).detail);
+    });
+  });
+  return () =>
+    page.evaluate(
+      () =>
+        (window as Window & { sequenceEditorInputErrors?: unknown[] }).sequenceEditorInputErrors,
+    );
+}
+
 test("a loaded edit lists its gaps and can seek to the first without proposing an edit", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
+  const inputErrors = await recordInputErrors(page);
   await openWorkflow(page, roughCutStoryId, { "sequence.durationFrames": 420 });
   const gaps = page.getByRole("region", { name: "CutList issues" });
   await expect(gaps).toContainText("Gaps are valid in a sequence");
@@ -21,6 +37,7 @@ test("a loaded edit lists its gaps and can seek to the first without proposing a
   await expect(page.getByLabel("Sequence playhead position")).toHaveText("Sequence frame 120");
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
   expect(await emissions()).toEqual(noEdits);
+  expect(await inputErrors()).toEqual([]);
 });
 
 test("a missing source can point to its placement even on a locked track", async ({ page }) => {
@@ -48,12 +65,16 @@ test("an unresolved clip is explained without inferring a gap or offering inspec
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
+  const inputErrors = await recordInputErrors(page);
   await openWorkflow(page, roughCutStoryId, {
     "sequence.tracks[0].placements[0].clipId": "unmapped",
   });
   const issues = page.getByRole("region", { name: "CutList issues" });
   await expect(issues).toContainText("Missing clip metadata for unmapped");
   await expect(issues.getByRole("button")).toHaveCount(0);
+  await expect
+    .poll(inputErrors)
+    .toEqual([[{ code: "missing-clip", placementId: "harbor-open", clipId: "unmapped" }]]);
   expect(await emissions()).toEqual(noEdits);
 });
 
@@ -117,7 +138,11 @@ async function recordManagedStoryEmissions(page: Page) {
   // The workflow emits callbacks inside the preview iframe, not the Controls window.
   await page.addInitScript(() => {
     if (window === window.parent) return;
-    for (const type of ["sequence-editor:sequence-change", "sequence-editor:cut-list-result"]) {
+    for (const type of [
+      "sequence-editor:sequence-change",
+      "sequence-editor:cut-list-result",
+      "sequence-editor:input-error",
+    ]) {
       window.addEventListener(type, (event) => {
         window.parent.dispatchEvent(
           new CustomEvent(type, { detail: (event as CustomEvent).detail }),
@@ -158,7 +183,7 @@ for (const readOnly of [false, true]) {
       timeout: 20_000,
     });
     await expect(harbor).toHaveCount(0);
-    await expect(timeline.getByRole("button", { name: "Lighthouse", exact: true })).toHaveCount(2);
+    await expect(timeline).toContainText("Timeline unavailable");
 
     await replaceHarborRate(page, 60);
     await expect(harbor).toBeVisible();
@@ -167,10 +192,11 @@ for (const readOnly of [false, true]) {
     expect(await emissions()).toEqual(noEdits);
   });
 
-  test(`a fractional source rate leaves other placements usable in the ${readOnly ? "read-only" : "editable"} editor`, async ({
+  test(`a fractional source rate blocks the ${readOnly ? "read-only" : "editable"} session until recovery`, async ({
     page,
   }) => {
     const emissions = await recordManagedStoryEmissions(page);
+    const inputErrors = await recordInputErrors(page);
     await page.goto(`/?path=/story/${layeredEditStoryId}${readOnly ? "&args=readOnly:true" : ""}`);
     const story = page.frameLocator("#storybook-preview-iframe");
     const issues = story.getByRole("region", { name: "CutList issues" });
@@ -193,85 +219,79 @@ for (const readOnly of [false, true]) {
     await expect(harborRange).toHaveCount(0);
     await expect(sourceOut).toHaveCount(0);
     expect(await emissions()).toEqual(noEdits);
+    const fractional = {
+      code: "invalid-source-frame-rate",
+      placementId: "harbor-bed",
+      sourceFrameRate: { numerator: 29.97, denominator: 1 },
+    };
+    await expect.poll(inputErrors).toEqual([[fractional]]);
 
-    await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
-    await expect(
-      inspector.getByText("Sequence start/end (sequence frames): 0 inclusive – 60 exclusive"),
-    ).toBeVisible();
+    await expect(timeline).toContainText("Timeline unavailable");
+    await expect(sourceOut).toHaveCount(0);
+    await expect(story.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
+    await story.getByRole("region", { name: "Sequence editor", exact: true }).press("Control+d");
+    expect(await emissions()).toEqual(noEdits);
+    expect(await inputErrors()).toEqual([[fractional]]);
+
+    await replaceHarborRate(page, 60);
+    await expect(harbor).toBeVisible();
+    await expect(issues).toHaveCount(0);
+    expect(await emissions()).toEqual(noEdits);
     if (!readOnly) {
+      await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
       await sourceOut.fill("571");
       await inspector.getByRole("button", { name: "Trim placement", exact: true }).click();
       await expect(
         inspector.getByText("Sequence start/end (sequence frames): 0 inclusive – 70 exclusive"),
       ).toBeVisible();
+      const result = await emissions();
+      expect(result.sequences).toHaveLength(1);
+      expect(result.cutListResults).toEqual([expect.objectContaining({ ok: true })]);
     }
-    const beforeCorrection = await emissions();
-    if (readOnly) {
-      expect(beforeCorrection).toEqual(noEdits);
-    } else {
-      expect(beforeCorrection).toEqual({
-        sequences: [
-          {
-            durationFrames: 240,
-            tracks: [
-              {
-                id: "cutaways",
-                label: "Cutaways",
-                placements: [
-                  {
-                    id: "lighthouse-open",
-                    clipId: "lighthouse",
-                    sequenceStartFrame: 0,
-                    sourceOutOffsetFrames: -50,
-                  },
-                ],
-              },
-              {
-                id: "main",
-                label: "Main",
-                placements: [
-                  {
-                    id: "harbor-bed",
-                    clipId: "harbor",
-                    sequenceStartFrame: 0,
-                    sourceOutOffsetFrames: 120,
-                  },
-                ],
-              },
-              {
-                id: "alternate",
-                label: "Alternate",
-                placements: [
-                  {
-                    id: "lighthouse-alternate",
-                    clipId: "lighthouse",
-                    sequenceStartFrame: 120,
-                    sourceInOffsetFrames: 6,
-                    sourceOutOffsetFrames: -6,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        cutListResults: [
-          {
-            ok: false,
-            issues: [
-              {
-                code: "invalid-source-frame-rate",
-                placementId: "harbor-bed",
-                sourceFrameRate: { numerator: 29.97, denominator: 1 },
-              },
-            ],
-          },
-        ],
-      });
-    }
-
-    await replaceHarborRate(page, 60);
-    await expect(harbor).toBeVisible();
-    await expect(issues).toHaveCount(0);
-    expect(await emissions()).toEqual(beforeCorrection);
   });
 }
+
+test("a host-built layout stops playback and rejects retained actions until inputs recover", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  const inputErrors = await recordInputErrors(page);
+  await page.goto(
+    "/iframe.html?id=examples-sequence-editor-composition--replace-invalid-inputs&viewMode=story",
+  );
+  await page.getByRole("button", { name: "Retain slot actions" }).click({ timeout: 20_000 });
+  const replace = page.getByRole("button", { name: "Replace host inputs" });
+  const preview = page.getByText(/of 240 ·/);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(preview).toContainText("forward");
+  await replace.click();
+  const invalidRate = page.getByText("The project frame rate must be a positive ratio");
+  await expect(invalidRate).toBeVisible();
+  await expect(preview).toContainText("paused");
+  const frame = await page.getByLabel("Preview sequence frame").innerText();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.getByRole("button", { name: "Invoke retained edit and transport" }).click();
+  await expect(preview).toContainText("paused");
+  await expect(page.getByLabel("Preview sequence frame")).toHaveText(frame);
+  expect(await emissions()).toEqual(noEdits);
+
+  const fractional = {
+    code: "invalid-project-frame-rate",
+    frameRate: { numerator: 29.97, denominator: 1 },
+  };
+  const zero = { ...fractional, frameRate: { numerator: 0, denominator: 1 } };
+  await expect.poll(inputErrors).toEqual([[fractional]]);
+  await replace.click(); // Equivalent diagnostic with new inputs and reversed rate key order.
+  await expect(page.getByText("Host input replacement 2")).toBeVisible();
+  expect(await inputErrors()).toEqual([[fractional]]);
+  await replace.click();
+  await expect.poll(inputErrors).toEqual([[fractional], [zero]]);
+  await replace.click();
+  await expect(invalidRate).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(preview).toContainText("forward");
+  await replace.click();
+  await expect.poll(inputErrors).toEqual([[fractional], [zero], [fractional]]);
+  await expect(preview).toContainText("paused");
+});

@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useRef, useState } from "react";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import {
+  ProjectProvider,
   SequenceClipPool,
   SequenceEditorPage,
   SequenceInspector,
@@ -16,8 +17,10 @@ import {
   type SequenceInspectorProps,
   type SequencePreviewProps,
   type SequenceTimelineProps,
+  type SequenceToolbarProps,
   type VideoClip,
 } from "@/index";
+import SequenceCutListIssues from "@/components/organisms/SequenceCutListIssues";
 
 const meta = {
   title: "Examples/Sequence editor composition",
@@ -370,6 +373,68 @@ export const ReplacePageSlots: StoryObj = {
 export const AssembleWithTheHook: StoryObj = {
   name: "Assemble with the hook",
   render: () => <HookExample />,
+};
+
+function InputReplacementExample() {
+  const [replacement, setReplacement] = useState(0);
+  const rates = [
+    sampleFrameRate,
+    { numerator: 29.97, denominator: 1 },
+    { denominator: 1, numerator: 29.97 },
+    { numerator: 0, denominator: 1 },
+    sampleFrameRate,
+    { numerator: 29.97, denominator: 1 },
+  ];
+  return (
+    <ProjectProvider frameRate={rates[replacement]}>
+      <button type="button" onClick={() => setReplacement((n) => (n + 1) % rates.length)}>
+        Replace host inputs
+      </button>
+      <p>Host input replacement {replacement}</p>
+      <InputReplacementEditor />
+    </ProjectProvider>
+  );
+}
+
+function InputReplacementEditor() {
+  const { options } = useControlledStory();
+  const { toolbarProps, timelineProps, previewProps, cutListIssues } = useSequenceEditor({
+    ...options,
+    onSequenceInputError(issues) {
+      window.dispatchEvent(new CustomEvent("sequence-editor:input-error", { detail: issues }));
+    },
+  });
+  const retained = useRef<SequenceToolbarProps>(undefined);
+  return (
+    <>
+      <button type="button" onClick={() => (retained.current = toolbarProps)}>
+        Retain slot actions
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          retained.current?.addTrack?.();
+          retained.current?.transport.seek(12);
+          retained.current?.transport.playForward();
+        }}
+      >
+        Invoke retained edit and transport
+      </button>
+      <SequenceToolbar {...toolbarProps} />
+      <PreviewSnapshot {...previewProps} />
+      <SequenceCutListIssues
+        issues={cutListIssues}
+        frameRate={timelineProps.frameRate}
+        onSeek={timelineProps.onSeek}
+      />
+      <SequenceTimeline {...timelineProps} />
+    </>
+  );
+}
+
+export const ReplaceInvalidInputs: StoryObj = {
+  name: "Replace invalid inputs",
+  render: () => <InputReplacementExample />,
 };
 
 const transitionsExample: Sequence = {

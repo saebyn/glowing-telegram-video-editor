@@ -25,8 +25,18 @@ export default function SequenceClipPool({
   ...presentation
 }: SequenceClipPoolProps) {
   const usableClips = useMemo(
-    () => clips.filter(({ sourceFrameRate }) => isValidFrameRate(sourceFrameRate)),
-    [clips],
+    () =>
+      isValidFrameRate(frameRate)
+        ? clips.filter(
+            ({ sourceFrameRate, sourceInFrame, sourceOutFrame }) =>
+              isValidFrameRate(sourceFrameRate) &&
+              Number.isSafeInteger(sourceInFrame) &&
+              sourceInFrame >= 0 &&
+              Number.isSafeInteger(sourceOutFrame) &&
+              sourceOutFrame > sourceInFrame,
+          )
+        : [],
+    [clips, frameRate],
   );
   const keyframes = useMemo(() => {
     return Object.fromEntries(

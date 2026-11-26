@@ -113,6 +113,13 @@ The default editor explains why output is unavailable and lets you jump to the
 first reported gap or inspect a placement with a source issue, without editing
 the sequence.
 
+Use the optional `onSequenceInputError(issues)` callback on `SequenceEditorPage`
+or `useSequenceEditor` to receive a nonempty list of `SequenceInputIssue`
+diagnostics. It runs on invalid load or when those diagnostics change. Invalid
+inputs block editing and playback until corrected; recovery emits no callback.
+Valid gaps, mixed frame rates, and unavailable render media can prevent `CutList`
+export without blocking the editor.
+
 Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
 with `SourcesById<CutListSource>` (values contain only `s3Location`). Full editor
 source records work too; preview metadata does not affect the `CutList`. A

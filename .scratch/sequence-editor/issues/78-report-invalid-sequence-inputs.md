@@ -1,6 +1,7 @@
 # 78 — Report invalid sequence inputs to the host
 
 Status: ready-for-agent
+Resolution: report typed input diagnostics once per distinct invalid state and suspend editing and playback until the host corrects its inputs.
 Depends on: None
 Related: [70 — Diagnose invalid source frame rates](70-handle-invalid-source-frame-rates.md)
 
@@ -31,3 +32,18 @@ get an error rather than the editor making decisions from a partial layout.
   to remain editable. Keep focused tests for validation and export-only cases.
 
 See the [model and ownership design](../../../docs/sequence-editor-design.md#model-and-ownership).
+
+## Comments
+
+- Red → green: reproduced the missing host notification, unaffected placement
+  edits during invalid input, duplicate notifications for equivalent rate
+  objects, and a false overlap around an invalid start. The default page and a
+  host-built layout cover invalid load, live replacement, retained slot actions,
+  playback stopping, and recovery. The #70 regression now verifies an edit
+  after correction, not during invalid input.
+- 263 Vitest tests and 203 Playwright tests passed. Typecheck, build, formatting,
+  and `git diff --check` passed; lint reported only the existing `VideoPlayer`
+  captions warning.
+- Five isolated mutations were caught: treating missing render media as an input
+  error, restoring raw start-frame sorting, dropping notification deduplication,
+  allowing retained edit proposals, and allowing retained transport actions.

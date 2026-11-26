@@ -9,7 +9,7 @@ test("the default media Preview can mount with an invalid source frame rate", as
     "Placement first has an invalid source frame rate.",
     { timeout: 15_000 },
   );
-  await expect(editor.getByRole("img", { name: "Sequence picture" })).toBeVisible();
+  await expect(editor.getByRole("img", { name: "Sequence picture" })).toHaveCount(0);
 });
 
 async function marker(picture: Locator) {

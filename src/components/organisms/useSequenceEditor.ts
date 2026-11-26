@@ -1,4 +1,12 @@
-import { type KeyboardEvent, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { useProjectFrameRate } from "@/context/ProjectContext";
 import type {
@@ -8,6 +16,7 @@ import type {
   PlacementEdge,
   PlacementPasteTarget,
   Sequence,
+  SequenceInputIssue,
   SequenceSource,
   SequenceTransportSnapshot,
   SourcesById,
@@ -46,6 +55,7 @@ import {
 } from "@/utils/sequenceTracks";
 import { getSequenceDissolves } from "@/utils/sequenceTransitions";
 import { shortenSequence } from "@/utils/shortenSequence";
+import { getSequenceInputIssues, sequenceInputIssueKey } from "@/utils/sequenceInputIssues";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "@/utils/splitPlacement";
 import {
   applyLeadingTrim,
@@ -77,6 +87,8 @@ export interface UseSequenceEditorOptions {
   onSequenceChange?: (sequence: Sequence) => void;
   /** Compilation result for the same proposed sequence sent to onSequenceChange. */
   onCutListResult?: (result: CutListResult) => void;
+  /** Report initial or changed invalid host inputs, independently of edit proposals. */
+  onSequenceInputError?: (issues: readonly [SequenceInputIssue, ...SequenceInputIssue[]]) => void;
 }
 
 const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = {
@@ -97,11 +109,26 @@ export function useSequenceEditor({
   sources,
   thumbnails = emptyThumbnails,
   titles = emptyThumbnails,
-  onSequenceChange,
+  onSequenceChange: proposeSequence,
   onCutListResult,
+  onSequenceInputError,
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
-  const transport = useSequenceTransport(sequence.durationFrames, frameRate);
+  const cutListIssues = useMemo(
+    () => compileCutList(sequence, clips, sources, frameRate).issues,
+    [sequence, clips, sources, frameRate],
+  );
+  const inputIssues = useMemo(() => getSequenceInputIssues(cutListIssues), [cutListIssues]);
+  const hasValidInput = inputIssues.length === 0;
+  const onSequenceChange = hasValidInput ? proposeSequence : undefined;
+  const canEditLatest = useRef(false);
+  useLayoutEffect(() => {
+    canEditLatest.current = !!onSequenceChange;
+    return () => {
+      canEditLatest.current = false;
+    };
+  }, [onSequenceChange]);
+  const transport = useSequenceTransport(sequence.durationFrames, frameRate, hasValidInput);
   const snapshot: SequenceTransportSnapshot = {
     playheadFrame: transport.playheadFrame,
     frameRate,
@@ -110,8 +137,8 @@ export function useSequenceEditor({
   };
   const previewProps: SequencePreviewProps = {
     ...snapshot,
-    media: { sequence, clips, sources },
-    registerPreview: transport.registerPreview,
+    media: hasValidInput ? { sequence, clips, sources } : undefined,
+    registerPreview: hasValidInput ? transport.registerPreview : undefined,
     stoppedOnSound: transport.stoppedOn === 1,
   };
   const [selection, setSelection] = useState<readonly string[]>([]);
@@ -131,23 +158,45 @@ export function useSequenceEditor({
   const [transitionConflict, setTransitionConflict] = useState(false);
   const [transitionProblem, setTransitionProblem] = useState<TransitionEditProblem>();
   const splitEnabled = !!onSequenceChange && splitMode;
-  const { commitEdit, undo, redo } = useSequenceHistory(sequence, emitEdit, () => {
-    setClipboard(null);
-    setDropTarget(undefined);
-  });
+  const { commitEdit, undo, redo } = useSequenceHistory(
+    sequence,
+    emitEdit,
+    () => {
+      setClipboard(null);
+      setDropTarget(undefined);
+    },
+    canEditLatest,
+  );
+  if (!hasValidInput) {
+    if (activeClipId !== undefined) setActiveClipId(undefined);
+    if (dropTarget !== undefined) setDropTarget(undefined);
+    if (splitMode) setSplitMode(false);
+  }
+  useLayoutEffect(() => {
+    if (!hasValidInput) pasteTarget.current = null;
+  }, [hasValidInput]);
 
   function commitPaste(target: PlacementPasteTarget | null) {
-    if (!onSequenceChange || !clipboard || !target) return false;
+    if (!canEditLatest.current || !clipboard || !target) return false;
     const next = pastePlacements(sequence, clips, frameRate, clipboard, target);
     if (!next) return false;
     setDropTarget(undefined);
     commitEdit(next);
     return true;
   }
-  const cutListIssues = useMemo(
-    () => compileCutList(sequence, clips, sources, frameRate).issues,
-    [sequence, clips, sources, frameRate],
-  );
+  const lastReportedInput = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const [first, ...rest] = inputIssues;
+    if (!first) {
+      lastReportedInput.current = undefined;
+      return;
+    }
+    if (!onSequenceInputError) return;
+    const key = sequenceInputIssueKey(inputIssues);
+    if (key === lastReportedInput.current) return;
+    lastReportedInput.current = key;
+    onSequenceInputError([first, ...rest]);
+  }, [inputIssues, onSequenceInputError]);
   const transitionNotices = useMemo(() => {
     const messages = new Set<string>();
     for (const { code } of cutListIssues) {
@@ -175,10 +224,10 @@ export function useSequenceEditor({
   if (inspectorPlacementId !== inspectedPlacement?.id) {
     setInspectorPlacementId(inspectedPlacement?.id);
   }
-  const selectedTransition = findTransition(sequence, transitionId);
+  const selectedTransition = hasValidInput ? findTransition(sequence, transitionId) : undefined;
   const sequenceDissolves = useMemo(
-    () => getSequenceDissolves(sequence, clips, sources, frameRate),
-    [sequence, clips, sources, frameRate],
+    () => (hasValidInput ? getSequenceDissolves(sequence, clips, sources, frameRate) : new Map()),
+    [sequence, clips, sources, frameRate, hasValidInput],
   );
   const dissolveDetails =
     selectedTransition && sequenceDissolves.get(selectedTransition.transition.id);
@@ -195,7 +244,7 @@ export function useSequenceEditor({
       : null;
   const inspectedClip = clips.find(({ id }) => id === inspectedPlacement?.clipId);
   const inspectedSourceRange =
-    inspectedClip && inspectedPlacement
+    hasValidInput && inspectedClip && inspectedPlacement
       ? getPlacementSourceRange(inspectedClip, inspectedPlacement)
       : null;
   const inspectedFrameCount =
@@ -232,6 +281,7 @@ export function useSequenceEditor({
   }
 
   function getCutListInspection(placementId: string) {
+    if (!hasValidInput) return;
     const track = findPlacementTrack(sequence, placementId);
     const placement = track?.placements.find(({ id }) => id === placementId);
     if (!track || !placement || !clips.some(({ id }) => id === placement.clipId)) return;
@@ -258,6 +308,7 @@ export function useSequenceEditor({
   }
 
   function splitAtPlayhead() {
+    if (!canEditLatest.current) return;
     const next = splitPlacementsAtPlayhead(...splitArgs, () => crypto.randomUUID());
     if (next) commitEdit(next);
   }
@@ -274,6 +325,7 @@ export function useSequenceEditor({
   }
 
   function deleteSelection() {
+    if (!canEditLatest.current) return;
     if (selectedTracks.some(({ track }) => track.locked)) {
       setBlockedTrackEdit(sequence);
       return;
@@ -373,6 +425,7 @@ export function useSequenceEditor({
     thumbnails,
     beginClipDrag: onSequenceChange
       ? (id) => {
+          if (!canEditLatest.current) return;
           const clip = clips.find((clip) => clip.id === id);
           setActiveClipId(clip && isValidFrameRate(clip.sourceFrameRate) ? id : undefined);
         }
@@ -383,6 +436,7 @@ export function useSequenceEditor({
   const { trimRanges, fadePlacementIds, removableTrackIds } = useMemo(() => {
     const trimRanges = new Map<string, { sourceInFrame: number; sourceOutFrame: number }>();
     const fadePlacementIds = new Set<string>();
+    if (!hasValidInput) return { trimRanges, fadePlacementIds, removableTrackIds: [] };
     for (const track of sequence.tracks) {
       for (const placement of track.placements) {
         const clip = clips.find(({ id }) => id === placement.clipId);
@@ -402,7 +456,7 @@ export function useSequenceEditor({
       .filter((track) => canRemoveSequenceTrack(sequence, track))
       .map(({ id }) => id);
     return { trimRanges, fadePlacementIds, removableTrackIds };
-  }, [sequence, clips, frameRate]);
+  }, [sequence, clips, frameRate, hasValidInput]);
 
   function activatePlacement({
     placementId,
@@ -410,14 +464,15 @@ export function useSequenceEditor({
     toggle = false,
   }: TimelinePlacementActivation) {
     if (splitEnabled) {
-      if (sequenceFrame !== undefined) splitAtPointer(placementId, sequenceFrame);
+      if (canEditLatest.current && sequenceFrame !== undefined)
+        splitAtPointer(placementId, sequenceFrame);
     } else if (findPlacementTrack(sequence, placementId)) {
       selectPlacement(placementId, toggle);
     }
   }
 
   function previewTransitionResize(intent: TransitionResizeIntent) {
-    if (!onSequenceChange || splitEnabled) return "blocked";
+    if (splitEnabled) return "blocked";
     const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
     if (result.kind === "edit") return "valid";
     return result.kind === "conflict" ? "conflict" : "blocked";
@@ -465,7 +520,7 @@ export function useSequenceEditor({
     sources,
     clips,
     titles,
-    activeClipId,
+    activeClipId: onSequenceChange ? activeClipId : undefined,
     endClipDrag,
     previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
     placeClip: onSequenceChange
@@ -478,6 +533,7 @@ export function useSequenceEditor({
       : undefined,
     reorderTrack: onSequenceChange
       ? (trackId, destinationTrackId) => {
+          if (!canEditLatest.current) return;
           const next = reorderSequenceTrack(
             sequence,
             trackId,
@@ -488,6 +544,7 @@ export function useSequenceEditor({
       : undefined,
     removeTrack: onSequenceChange
       ? (trackId) => {
+          if (!canEditLatest.current) return;
           const next = removeSequenceTrack(sequence, trackId);
           if (next) commitEdit(next);
         }
@@ -495,6 +552,7 @@ export function useSequenceEditor({
     removableTrackIds,
     toggleTrackLock: onSequenceChange
       ? (trackId) => {
+          if (!canEditLatest.current) return;
           const next = toggleSequenceTrackLock(sequence, trackId);
           if (next) commitEdit(next);
         }
@@ -529,7 +587,7 @@ export function useSequenceEditor({
         }
       : undefined,
     splitMode: splitEnabled,
-    activatePlacement,
+    activatePlacement: hasValidInput ? activatePlacement : undefined,
     clearPlacementSelection: () => {
       if (!splitEnabled) selectPlacement(null, false);
     },
@@ -567,7 +625,7 @@ export function useSequenceEditor({
 
     const field = target.closest("input, textarea, select, [contenteditable]");
     if (event.ctrlKey || event.metaKey) {
-      if (field || !onSequenceChange) return;
+      if (field || !canEditLatest.current) return;
       const shortcut = event.key.toLowerCase();
       if (shortcut === "d" && selectedIds.length) {
         event.preventDefault();
@@ -608,7 +666,11 @@ export function useSequenceEditor({
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
       transport.seek(transport.playheadFrame + (event.key === "ArrowLeft" ? -1 : 1));
-    } else if ((event.key === "[" || event.key === "]") && onSequenceChange && selectedIds.length) {
+    } else if (
+      (event.key === "[" || event.key === "]") &&
+      canEditLatest.current &&
+      selectedIds.length
+    ) {
       event.preventDefault();
       nudgeSelection(event.key === "[" ? -1 : 1);
     }
@@ -624,7 +686,7 @@ export function useSequenceEditor({
   }
 
   function trimPlacement(sourceOutFrame: number) {
-    if (!onSequenceChange || !inspectedPlacement) return;
+    if (!canEditLatest.current || !inspectedPlacement) return;
     if (inspectorTarget?.track.locked) {
       setBlockedTrackEdit(sequence);
       return;
@@ -634,7 +696,7 @@ export function useSequenceEditor({
   }
 
   function applyTransition(transition: TransitionDraft) {
-    if (!onSequenceChange || !selectedTransition) return;
+    if (!canEditLatest.current || !selectedTransition) return;
     const { placement, edge } = selectedTransition;
     const edit = proposeTransitionEdit({
       placementId: placement.id,
@@ -647,13 +709,14 @@ export function useSequenceEditor({
   }
 
   function removeTransition() {
-    if (!onSequenceChange || !selectedTransition) return;
+    if (!canEditLatest.current || !selectedTransition) return;
     const { placement, edge } = selectedTransition;
     const next = removePlacementTransition(sequence, placement.id, edge);
     if (next) commitEdit(next, () => selectPlacement(placement.id, false));
   }
 
   function shorten(endFrame: number) {
+    if (!canEditLatest.current) return false;
     const next = shortenSequence(sequence, clips, frameRate, endFrame);
     if (!next) return false;
     commitEdit(next);
@@ -661,6 +724,7 @@ export function useSequenceEditor({
   }
 
   function renameTrack(trackId: string, label: string) {
+    if (!canEditLatest.current) return;
     const track = sequence.tracks.find(({ id }) => id === trackId);
     if (!track || track.label === label) return;
     commitEdit({
@@ -676,23 +740,24 @@ export function useSequenceEditor({
       ...snapshot,
       seek: transport.seek,
       pause: transport.pause,
-      playForward: () => {
-        if (transport.playheadFrame < sequence.durationFrames) transport.play(1);
-      },
-      playReverse: () => {
-        if (transport.playheadFrame > 0) transport.play(-1);
-      },
+      playForward: transport.playForward,
+      playReverse: transport.playReverse,
     },
     splitAtPlayhead: canSplit ? splitAtPlayhead : undefined,
     splitMode,
     toggleSplitMode: onSequenceChange
       ? () => {
+          if (!canEditLatest.current) return;
           setDropTarget(undefined);
           setSplitMode((active) => !active);
         }
       : undefined,
     snapEnabled,
-    toggleSnap: onSequenceChange ? () => setSnapEnabled((active) => !active) : undefined,
+    toggleSnap: onSequenceChange
+      ? () => {
+          if (canEditLatest.current) setSnapEnabled((active) => !active);
+        }
+      : undefined,
     undo: onSequenceChange ? undo : undefined,
     redo: onSequenceChange ? redo : undefined,
     deleteSelection: onSequenceChange && selectedIds.length > 0 ? deleteSelection : undefined,
@@ -720,7 +785,7 @@ export function useSequenceEditor({
   }
 
   function addTransition(placementId: string, edge: PlacementEdge, durationFrames: number) {
-    if (!onSequenceChange) return;
+    if (!canEditLatest.current) return;
     const owner = findPlacementTrack(sequence, placementId)?.placements.find(
       ({ id }) => id === placementId,
     );
@@ -817,6 +882,8 @@ export function useSequenceEditor({
   };
 
   const notices = [...transitionNotices];
+  if (!hasValidInput)
+    notices.push("Editing and playback are unavailable until the sequence inputs are corrected.");
   if (blockedTrackEdit === sequence) notices.push("Blocked: the track is locked.");
 
   return {

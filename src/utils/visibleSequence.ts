@@ -9,7 +9,7 @@ import type {
   SourcesById,
   VideoClip,
 } from "@/types";
-import { getPlacementSourceRange, inSequenceOrder, transitionFields } from "./clipPlacements";
+import { getPlacementSourceRange, transitionFields } from "./clipPlacements";
 import { getProjectFrameCount, isValidFrameRate } from "./frames";
 import { getSource } from "./sourcesById";
 
@@ -37,6 +37,10 @@ export type ResolvedTransition = PlacementTransition & {
   edge: PlacementEdge;
 };
 
+function isValidStart(frame: number) {
+  return Number.isSafeInteger(frame) && frame >= 0;
+}
+
 /**
  * Flatten ordered tracks into spans of the uppermost placement.
  * Layout-only resolution allows missing media and mixed frame rates for authoring checks.
@@ -63,7 +67,13 @@ export function resolveVisibleSequence(
   for (const [trackIndex, track] of sequence.tracks.entries()) {
     let trackEndFrame = 0;
     let previousPlacementId: string | undefined;
-    for (const placement of inSequenceOrder(track.placements)) {
+    const placements = [...track.placements].sort((a, b) => {
+      // Invalid starts still get diagnostics, but must not disrupt the overlap scan.
+      const startA = isValidStart(a.sequenceStartFrame) ? a.sequenceStartFrame : -1;
+      const startB = isValidStart(b.sequenceStartFrame) ? b.sequenceStartFrame : -1;
+      return startA - startB || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
+    for (const placement of placements) {
       const { id: placementId, sequenceStartFrame } = placement;
       const edges = ["leading", "trailing"] as const;
       const validTransitions = edges
@@ -81,7 +91,7 @@ export function resolveVisibleSequence(
           return false;
         });
 
-      const validStart = Number.isSafeInteger(sequenceStartFrame) && sequenceStartFrame >= 0;
+      const validStart = isValidStart(sequenceStartFrame);
       if (!validStart) {
         issues.push({ code: "placement-outside-sequence", placementId });
         canResolveLayout = false;
@@ -128,13 +138,12 @@ export function resolveVisibleSequence(
         frameRate,
       );
       const sequenceEndFrame = sequenceStartFrame + frameCount;
-      if (
-        !Number.isSafeInteger(sequenceEndFrame) ||
-        (validDuration && sequenceEndFrame > durationFrames)
-      ) {
+      const safeEnd = Number.isSafeInteger(sequenceEndFrame);
+      if (!safeEnd || (validDuration && sequenceEndFrame > durationFrames)) {
         issues.push({ code: "placement-outside-sequence", placementId });
         canResolveLayout = false;
       }
+      if (!safeEnd) continue;
       if (previousPlacementId !== undefined && sequenceStartFrame < trackEndFrame) {
         issues.push({ code: "track-overlap", trackId: track.id, placementId, previousPlacementId });
         canResolveLayout = false;

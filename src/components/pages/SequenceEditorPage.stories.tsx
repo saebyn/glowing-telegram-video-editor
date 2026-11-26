@@ -254,6 +254,10 @@ function renderEditingHost({
             new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
           );
         }}
+        onSequenceInputError={(issues) => {
+          args.onSequenceInputError?.(issues);
+          window.dispatchEvent(new CustomEvent("sequence-editor:input-error", { detail: issues }));
+        }}
       />
     </>
   );

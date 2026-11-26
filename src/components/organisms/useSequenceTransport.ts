@@ -6,8 +6,13 @@ import { previewSoundStops } from "@/utils/previewSoundStops";
 type Direction = 1 | -1;
 type Playback = { direction: Direction; startFrame: number; startTime: number };
 
-export function useSequenceTransport(durationFrames: number, frameRate: FrameRate) {
+export function useSequenceTransport(
+  durationFrames: number,
+  frameRate: FrameRate,
+  enabled: boolean,
+) {
   const preview = useRef<SequencePreviewGate>(null);
+  const latest = useRef<{ durationFrames: number; playheadFrame: number } | null>(null);
   const registerPreview = useCallback((gate: SequencePreviewGate) => {
     preview.current = gate;
     return () => {
@@ -18,12 +23,29 @@ export function useSequenceTransport(durationFrames: number, frameRate: FrameRat
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [stoppedOn, setStoppedOn] = useState<Direction>();
   const lastTick = useRef<{ playback: Playback; frame: number }>(null);
-  const playheadFrame = snapFrame(frame, durationFrames);
+  const playheadFrame = enabled ? snapFrame(frame, durationFrames) : frame;
   // A host shrink replaces the stored position so later growth can't restore it.
   if (frame !== playheadFrame) setFrame(playheadFrame);
+  if (!enabled) {
+    if (playback) setPlayback(null);
+    if (stoppedOn !== undefined) setStoppedOn(undefined);
+  }
 
   useLayoutEffect(() => {
-    if (!playback) return;
+    latest.current = enabled ? { durationFrames, playheadFrame } : null;
+    return () => {
+      latest.current = null;
+    };
+  }, [enabled, durationFrames, playheadFrame]);
+
+  useLayoutEffect(() => {
+    if (enabled) return;
+    if (preview.current) previewSoundStops.get(preview.current)?.();
+    preview.current = null;
+  }, [enabled]);
+
+  useLayoutEffect(() => {
+    if (!enabled || !playback) return;
     let animationFrame: number;
     let { startFrame, startTime } = playback;
     if (lastTick.current?.playback === playback) {
@@ -90,25 +112,38 @@ export function useSequenceTransport(durationFrames: number, frameRate: FrameRat
     };
     animationFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrame);
-  }, [durationFrames, frameRate, playback]);
+  }, [durationFrames, frameRate, playback, enabled]);
+
+  function play(direction: Direction) {
+    const current = latest.current;
+    if (
+      !current ||
+      (direction === 1
+        ? current.playheadFrame >= current.durationFrames
+        : current.playheadFrame <= 0)
+    )
+      return;
+    setStoppedOn(undefined);
+    if (direction === 1) preview.current?.unlockSound?.();
+    setPlayback({ direction, startFrame: current.playheadFrame, startTime: performance.now() });
+  }
 
   return {
     registerPreview,
-    stoppedOn,
+    stoppedOn: enabled ? stoppedOn : undefined,
     playheadFrame,
-    isPlaying: playback !== null,
-    isReversing: playback?.direction === -1,
+    isPlaying: enabled && playback !== null,
+    isReversing: enabled && playback?.direction === -1,
     seek(frame: number) {
+      const current = latest.current;
+      if (!current || !Number.isFinite(frame)) return;
       if (preview.current) previewSoundStops.get(preview.current)?.();
       setStoppedOn(undefined);
       setPlayback(null);
-      setFrame(snapFrame(frame, durationFrames));
+      setFrame(snapFrame(frame, current.durationFrames));
     },
-    play(direction: Direction) {
-      setStoppedOn(undefined);
-      if (direction === 1) preview.current?.unlockSound?.();
-      setPlayback({ direction, startFrame: playheadFrame, startTime: performance.now() });
-    },
+    playForward: () => play(1),
+    playReverse: () => play(-1),
     pause() {
       if (preview.current) previewSoundStops.get(preview.current)?.();
       setStoppedOn(undefined);

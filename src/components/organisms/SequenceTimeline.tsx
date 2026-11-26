@@ -43,6 +43,7 @@ import {
   snapFrame,
 } from "@/utils/frames";
 import { getSource } from "@/utils/sourcesById";
+import { resolveVisibleSequence } from "@/utils/visibleSequence";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
   getSequenceTimelineViewport,
@@ -210,7 +211,25 @@ type TrimDraft = {
   scrollLeft: number;
 };
 
-export default function SequenceTimeline({
+export default function SequenceTimeline(props: SequenceTimelineProps) {
+  const { tracks, durationFrames, clips, sources, frameRate } = props;
+  const valid = useMemo(
+    () =>
+      resolveVisibleSequence({ tracks, durationFrames }, clips, sources, frameRate, true).layout !==
+      null,
+    [tracks, durationFrames, clips, sources, frameRate],
+  );
+  if (!valid) {
+    return (
+      <section aria-label="Sequence timeline">
+        <p>Timeline unavailable until the sequence inputs are corrected.</p>
+      </section>
+    );
+  }
+  return <SequenceTimelineWidget {...props} />;
+}
+
+function SequenceTimelineWidget({
   frameRate,
   playheadFrame,
   onSeek,

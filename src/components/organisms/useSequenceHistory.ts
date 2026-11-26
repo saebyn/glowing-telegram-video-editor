@@ -19,6 +19,7 @@ export function useSequenceHistory(
   sequence: Sequence,
   emitEdit: (next: Sequence) => void,
   onReplace: () => void,
+  canPropose: { readonly current: boolean },
 ) {
   const [history, setHistory] = useState<History>(() => ({
     current: sequence,
@@ -53,6 +54,7 @@ export function useSequenceHistory(
   }
 
   function propose(next: Sequence, operation: HistoryOperation, onAccept?: () => void) {
+    if (!canPropose.current) return;
     // Register before notifying the host, without keeping the proposed sequence alive.
     history.pending.set(next, { operation, onAccept });
     emitEdit(next);

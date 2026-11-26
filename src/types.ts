@@ -237,16 +237,13 @@ export interface SequencePreviewGate {
   unlockSound?(): void;
 }
 
-export type CutListIssue =
-  | { code: "empty-sequence" }
-  /** Zero-based sequence-frame range, with an exclusive end. */
-  | { code: "sequence-gap"; startFrame: number; endFrame: number }
+/** Host inputs that prevent the editor from resolving placement geometry. */
+export type SequenceInputIssue =
   | { code: "invalid-sequence-duration"; durationFrames: number }
   | { code: "invalid-project-frame-rate"; frameRate: FrameRate }
   | { code: "missing-clip"; placementId: string; clipId: string }
-  | { code: "missing-source"; placementId: string; sourceId: string }
   | {
-      code: "frame-rate-mismatch" | "invalid-source-frame-rate";
+      code: "invalid-source-frame-rate";
       placementId: string;
       sourceFrameRate: FrameRate;
     }
@@ -257,7 +254,15 @@ export type CutListIssue =
       sourceOutFrame: number;
     }
   | { code: "placement-outside-sequence"; placementId: string }
-  | { code: "track-overlap"; trackId: string; placementId: string; previousPlacementId: string }
+  | { code: "track-overlap"; trackId: string; placementId: string; previousPlacementId: string };
+
+export type CutListIssue =
+  | SequenceInputIssue
+  | { code: "empty-sequence" }
+  /** Zero-based sequence-frame range, with an exclusive end. */
+  | { code: "sequence-gap"; startFrame: number; endFrame: number }
+  | { code: "missing-source"; placementId: string; sourceId: string }
+  | { code: "frame-rate-mismatch"; placementId: string; sourceFrameRate: FrameRate }
   | {
       code:
         | "invalid-transition"
