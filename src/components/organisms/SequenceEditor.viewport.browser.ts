@@ -88,8 +88,8 @@ test("horizontal panning preserves the edit and the ruler seeks on the right of 
 
   const nearStart = await visibleBox(lighthouse);
   const rail = await visibleBox(ruler);
-  const pan = await visibleBox(timeline.getByRole("slider", { name: "Pan timeline" }));
-  await page.mouse.click(pan.x + pan.width - 2, pan.y + pan.height / 2);
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
+  await page.mouse.wheel(rail.width, 0);
   await expect
     .poll(async () => (await visibleBox(lighthouse)).x)
     .toBeLessThan(nearStart.x - rail.width / 2);
@@ -126,6 +126,67 @@ test("horizontal panning preserves the edit and the ruler seeks on the right of 
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
+test("a drag on empty track space pans before zero without seeking or clearing selection", async ({
+  page,
+}) => {
+  const { emissions, ruler, playhead, frameReadout, lighthouse } = await openViewport(page);
+  await lighthouse.click();
+  const rail = await visibleBox(ruler);
+  // Frame 165 is in the gap between Harbor and Lighthouse.
+  const x = rail.x + (rail.width * 165) / 480;
+  const y = rail.y + rail.height + 36;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 100, y, { steps: 8 });
+  await expect.poll(async () => (await visibleBox(playhead)).x + 8).toBeCloseTo(rail.x + 100, 0);
+  await page.mouse.up();
+  await expect(frameReadout).toHaveText("Sequence frame 0");
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.click(rail.x + 40, rail.y + rail.height * 0.75);
+  await expect(frameReadout).toHaveText("Sequence frame 0");
+  await page.mouse.move(rail.x + 40, y);
+  await page.mouse.down();
+  await page.mouse.move(rail.x + 42, y);
+  await page.mouse.up();
+  await expect(lighthouse).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(async () => (await visibleBox(playhead)).x + 8).toBeCloseTo(rail.x + 100, 0);
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("Shift+wheel crosses both ends of a zero-duration timeline with no tracks", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, { startWithoutTracks: "!true" });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const rail = await visibleBox(timeline.locator(".timeline-editor-time-area-interact"));
+  const readout = page.getByLabel("Sequence playhead position");
+  const labelsInView = () =>
+    timeline.locator(".timeline-editor-time-unit-scale").evaluateAll(
+      (labels, bounds) =>
+        labels
+          .filter((label) => {
+            const { left, right } = label.getBoundingClientRect();
+            return left >= bounds.x && right <= bounds.x + bounds.width;
+          })
+          .map((label) => label.textContent),
+      rail,
+    );
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
+  await page.keyboard.down("Shift");
+  await page.mouse.wheel(0, -rail.width * 600);
+  await expect.poll(labelsInView).toContain("−00:10");
+  await page.mouse.wheel(0, rail.width * 1200);
+  await expect.poll(labelsInView).toContain("00:10.017");
+  await page.keyboard.up("Shift");
+  await page.mouse.click(rail.x + rail.width / 2, rail.y + rail.height * 0.75);
+  await expect(readout).toHaveText("Sequence frame 0");
+  await expect(timeline).toContainText("Duration: 00:00");
+  await expect(timeline.getByText("Add your first track to begin")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+});
+
 test("dragging a placement after zoom and pan previews the exact frame and retains the panned view", async ({
   page,
 }) => {
@@ -135,8 +196,8 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
 
   const unpanned = await visibleBox(lighthouse);
   const rail = await visibleBox(ruler);
-  const pan = await visibleBox(timeline.getByRole("slider", { name: "Pan timeline" }));
-  await page.mouse.click(pan.x + pan.width / 2, pan.y + pan.height / 2);
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
+  await page.mouse.wheel(rail.width / 2 + 8, 0);
   await expect
     .poll(async () => (await visibleBox(lighthouse)).x)
     .toBeLessThan(unpanned.x - rail.width / 4);
@@ -178,17 +239,89 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
   await expect.poll(async () => (await visibleBox(lighthouse)).x).toBeCloseTo(draft.x, 0);
 });
 
+test("a placement drag stays on the same frame grid through a window shift", async ({ page }) => {
+  const { emissions, timeline, ruler, lighthouse, frameReadout } = await openViewport(page);
+  const rail = await visibleBox(ruler);
+  const placement = await visibleBox(lighthouse);
+  const x = placement.x + placement.width / 2;
+  const y = placement.y + placement.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + rail.width / 24, y, { steps: 6 });
+  await expect(timeline.getByRole("status")).toHaveText("Lighthouse → Main · Sequence frame 230");
+  // The mouse is stationary. A scroll by a full view must advance the
+  // proposal by another 480 frames, not reset the grab offset at recenter.
+  await page.mouse.wheel(rail.width, 0);
+  await expect(timeline.getByRole("status")).toHaveText("Lighthouse → Main · Sequence frame 710");
+  const preview = await visibleBox(
+    timeline.getByRole("figure", { name: "Proposed placement: Lighthouse" }),
+  );
+  expect(preview.x).toBeCloseTo(placement.x + rail.width / 24, 0);
+  expect(preview.width).toBeCloseTo(placement.width, 0);
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await emissions()).sequences[0]?.tracks[0].placements[1].sequenceStartFrame)
+    .toBe(710);
+  expect((await emissions()).cutListResults).toEqual([blockedOutput]);
+  await expect.poll(async () => (await visibleBox(lighthouse)).x).toBeCloseTo(preview.x, 0);
+  expect((await visibleBox(lighthouse)).width).toBeCloseTo(preview.width, 0);
+  await page.mouse.click(rail.x + rail.width * 0.9, rail.y + rail.height * 0.75);
+  await expect(frameReadout).toHaveText("Sequence frame 830");
+});
+
+test("changing duration by trimming leaves the same frame grid until Fit is requested", async ({
+  page,
+}) => {
+  const { emissions, ruler, lighthouse, timeline, fit } = await openViewport(page);
+  const rail = await visibleBox(ruler);
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
+  await page.mouse.wheel(rail.width / 8, 0);
+  await expect
+    .poll(async () => (await visibleBox(lighthouse)).x)
+    .toBeCloseTo(rail.x + (rail.width * 150) / 480 + 1, -1);
+  const unchanged = await visibleBox(lighthouse);
+  const edge = await visibleBox(
+    timeline.getByRole("button", { name: "Trim trailing edge: Departure" }),
+  );
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + edge.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - rail.width / 16, y, { steps: 8 });
+  await expect(timeline.getByRole("status")).toHaveText("Departure · Sequence frame 450");
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.up();
+  await expect(timeline).toContainText("Duration: 00:07.5");
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.sequences[0].tracks[0].placements.at(-1)).toMatchObject({
+    clipId: "departure",
+    sequenceStartFrame: 420,
+    sourceOutOffsetFrames: -30,
+  });
+  expect(result.cutListResults).toEqual([blockedOutput]);
+  const after = await visibleBox(lighthouse);
+  expect(after.x).toBeCloseTo(unchanged.x, 0);
+  expect(after.width).toBeCloseTo(unchanged.width, 0);
+  await fit.click();
+  await expect
+    .poll(async () => (await visibleBox(lighthouse)).width)
+    .toBeGreaterThan(unchanged.width);
+  expect(await emissions()).toEqual(result);
+});
+
 test("zooming out with the playhead offscreen anchors the center of the view", async ({ page }) => {
-  const { emissions, timeline, ruler, playhead, frameReadout, lighthouse, zoomIn, zoomOut } =
+  const { emissions, ruler, playhead, frameReadout, lighthouse, zoomIn, zoomOut } =
     await openViewport(page);
   const rail = await visibleBox(ruler);
   await page.mouse.click(rail.x + rail.width * 0.875, rail.y + rail.height * 0.75);
   await expect(frameReadout).toHaveText("Sequence frame 420");
   await zoomIn.click();
   await zoomIn.click();
-  const panControl = timeline.getByRole("slider", { name: "Pan timeline" });
-  const pan = await visibleBox(panControl);
-  await page.mouse.click(pan.x + pan.width / 2, pan.y + pan.height / 2);
+  // The viewport is now [315, 435); move left by 135 frames to show [180, 300).
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 50);
+  await page.mouse.wheel(-rail.width * (135 / 120), 0);
   await expect(playhead).toBeHidden();
   const before = await visibleBox(lighthouse);
   // A quarter of the way through Lighthouse is frame 240, the midpoint of
@@ -241,4 +374,30 @@ test("scrubbing past the zoomed ruler stops at the last visible sequence frame",
   await page.mouse.up();
   await expect(frameReadout).toHaveText("Sequence frame 240");
   expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("scrubbing in a panned viewport uses absolute frames and clamps to the sequence end", async ({
+  page,
+}) => {
+  const { emissions, ruler, playhead, frameReadout, zoomIn } = await openViewport(page);
+  const rail = await visibleBox(ruler);
+  const { x, y, width, height } = rail;
+  await zoomIn.click();
+  await page.mouse.move(x + width / 2, y + height + 36);
+  await page.mouse.wheel((width * 360) / 240, 0); // Show frames [360, 600).
+  await page.mouse.click(x + width / 4, y + height * 0.75);
+  await expect(frameReadout).toHaveText("Sequence frame 420");
+
+  const grip = await visibleBox(playhead);
+  const gripY = grip.y + grip.height / 2;
+  await page.mouse.move(grip.x + grip.width / 2, gripY);
+  await page.mouse.down();
+  await page.mouse.move(x + (width * 3) / 8, gripY, { steps: 5 });
+  await expect(frameReadout).toHaveText("Sequence frame 450");
+  await page.mouse.move(x + (width * 3) / 4, gripY, { steps: 5 });
+  await page.mouse.up();
+  await expect(frameReadout).toHaveText("Sequence frame 480");
+  const endpoint = await visibleBox(playhead);
+  expect(endpoint.x + endpoint.width / 2).toBeCloseTo(x + width / 2, 0);
+  expect(await emissions()).toEqual(noEdits);
 });

@@ -16,50 +16,33 @@
   background: transparent;
 }
 
+.gtve-sequence-timeline .timeline-editor .ReactVirtualized__Grid {
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+}
+
 /* Keep native drop targets stable while the virtualized grid is scrolling. */
 .gtve-sequence-timeline[data-pool-dragging] .timeline-editor-edit-row {
   pointer-events: auto;
 }
 
-/* Only the native grip in the ruler receives pointer events, not the playhead line. */
-.gtve-sequence-timeline .timeline-editor-cursor {
-  pointer-events: none;
-  z-index: 1;
-  width: 0;
-  border: 0;
-  transform: none;
+.gtve-sequence-playhead-grip {
+  position: absolute;
+  top: 0;
+  z-index: 20;
+  width: 16px;
+  height: 16px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  touch-action: none;
 }
 
-/* The cursor must have zero layout width to reach both drag bounds. */
-.gtve-sequence-timeline .timeline-editor-cursor::after {
+.gtve-sequence-playhead-grip::before {
   content: "";
   position: absolute;
-  height: 100%;
-  border-left: 1px solid #5297ff;
-  pointer-events: none;
-}
-
-.gtve-sequence-timeline .timeline-editor-cursor-top,
-.gtve-sequence-timeline .timeline-editor-cursor-area {
-  display: none;
-}
-
-.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-top,
-.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-area {
-  display: block;
-  top: calc(-1 * var(--gtve-ruler-height));
-  left: var(--gtve-cursor-grip-offset);
-  height: 16px;
-}
-
-.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-top {
-  width: 12px;
-  transform: translateX(-50%);
-}
-
-.gtve-sequence-timeline[data-seekable-playhead] .timeline-editor-cursor-area {
-  touch-action: none;
-  pointer-events: auto;
+  inset: 0 2px 2px;
+  background: #5297ff;
+  clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
 }
 
 .gtve-sequence-transport {

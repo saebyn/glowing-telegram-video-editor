@@ -231,7 +231,8 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
 
   const box = await ruler.boundingBox();
   if (!box) throw new Error("Expected a visible sequence ruler");
-  await ruler.click({ position: { x: box.width * 0.75, y: box.height / 2 } });
+  // The fitted frame scale remains based on the original 360-frame edit.
+  await ruler.click({ position: { x: (box.width * 230) / 360, y: box.height / 2 } });
   await expect(frameReadout).toHaveText("Sequence frame 230");
   await forward.click();
   await page.clock.runFor(2_000);

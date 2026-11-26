@@ -1,55 +1,36 @@
-export const SEQUENCE_VIEWPORT_TICKS = 4;
-
+const VISIBLE_TICKS = 4;
+// Keplar sees twelve ticks at a time, independent of the sequence duration.
+export const WIDGET_TICKS = 12;
 const DETAIL_PIXELS_PER_FRAME = 8;
-// Leave space for drag headroom below react-virtualized's grid width limit.
-const MAX_RULER_WIDTH = 500_000;
 
-export function getSequenceTimelineViewport(
-  width: number,
-  durationFrames: number,
-  requestedZoom: number,
-) {
-  const scaleWidth = Math.max(1, width / SEQUENCE_VIEWPORT_TICKS);
-  const fitWidth = scaleWidth * SEQUENCE_VIEWPORT_TICKS;
-  const frames = Math.max(1, durationFrames);
-  const maxZoom =
-    width === 0 || durationFrames === 0
-      ? 0
-      : Math.max(
-          0,
-          Math.min(
-            Math.ceil(Math.log2((frames * DETAIL_PIXELS_PER_FRAME) / fitWidth)),
-            Math.floor(Math.log2(MAX_RULER_WIDTH / fitWidth)),
-          ),
-        );
-  const zoom = Math.max(0, Math.min(requestedZoom, maxZoom));
-  const magnification = 2 ** zoom;
-  const rulerWidth = fitWidth * magnification;
-  return {
-    zoom,
-    maxZoom,
-    scaleWidth,
-    rulerWidth,
-    tickCount: SEQUENCE_VIEWPORT_TICKS * magnification,
-    pixelsPerFrame: rulerWidth / frames,
-    maxScrollLeft: rulerWidth - fitWidth,
-  };
+export function getSequenceTimelineViewport(width: number, fitFrames: number, zoom: number) {
+  const scaleWidth = Math.max(1, Math.round(width / VISIBLE_TICKS));
+  const pixelsPerFrame = (Math.max(1, width) * 2 ** zoom) / fitFrames;
+  return { scaleWidth, pixelsPerFrame, framesPerTick: scaleWidth / pixelsPerFrame };
 }
 
-type Viewport = ReturnType<typeof getSequenceTimelineViewport>;
-
-export function getZoomScrollLeft(
-  width: number,
-  scrollLeft: number,
-  playheadFrame: number,
-  current: Viewport,
-  next: Viewport,
-) {
-  const playheadX = playheadFrame * current.pixelsPerFrame - scrollLeft;
-  const anchorX = playheadX >= 0 && playheadX <= width ? playheadX : width / 2;
-  const anchorFrame = (scrollLeft + anchorX) / current.pixelsPerFrame;
+export function getMaxZoom(width: number, fitFrames: number) {
   return Math.max(
     0,
-    Math.min(next.maxScrollLeft, Math.round(anchorFrame * next.pixelsPerFrame - anchorX)),
+    Math.ceil(Math.log2((fitFrames * DETAIL_PIXELS_PER_FRAME) / Math.max(1, width))),
   );
+}
+
+export function getWidgetOrigin(leftFrame: number, framesPerTick: number, previousOrigin: number) {
+  const leftTick = leftFrame / framesPerTick;
+  if (leftTick >= previousOrigin + 2 && leftTick <= previousOrigin + 6) return previousOrigin;
+  // Keep the major tick lattice anchored to frame zero, including across a rebase.
+  return Math.floor(leftTick) - VISIBLE_TICKS;
+}
+
+export function getZoomLeftFrame(
+  width: number,
+  leftFrame: number,
+  playheadFrame: number,
+  pixelsPerFrame: number,
+  nextPixelsPerFrame: number,
+) {
+  const playheadX = (playheadFrame - leftFrame) * pixelsPerFrame;
+  const anchorX = playheadX >= 0 && playheadX <= width ? playheadX : width / 2;
+  return leftFrame + anchorX / pixelsPerFrame - anchorX / nextPixelsPerFrame;
 }

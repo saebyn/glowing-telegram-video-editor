@@ -105,9 +105,10 @@ rows are not editor state or compiler input.
   or beyond the latest placement at any zoom, even in an empty sequence.
   Use a bounded widget window that can move along the time axis; shifting
   that window must not change what frame a pointer, placement, or playhead
-  refers to. Frame zero never moves. An edit that would place material
-  before zero is blocked, and a ruler seek there lands at zero. Edits to
-  the right can extend the sequence; seeking there lands at the current end.
+  refers to. The frame at the viewport's left edge is independent of the
+  widget's scroll offset. Frame zero never moves. Edits cannot place
+  material before zero, and a ruler seek there lands at zero. An edit to the
+  right can extend the sequence; seeking there lands at the current end.
 - **Toolbar navigation.** **Pan left** and **Pan right** move the viewport
   by half its visible time span at the current zoom. **Fit to view** brings
   frame zero to the left and shows the whole sequence. For an empty sequence
@@ -119,7 +120,9 @@ rows are not editor state or compiler input.
   the selection and playhead alone, emit no edit callbacks, and don't join
   Undo history. An ordinary placement edit doesn't change viewport position
   or scale just because sequence duration changed. Edge auto-pan can still
-  reveal a proposed placement or trailing trim without changing scale.
+  reveal a proposed placement or trailing trim without changing scale. Zoom
+  anchors the visible playhead, or the viewport center when the playhead is
+  offscreen.
 
 ## Model and ownership
 

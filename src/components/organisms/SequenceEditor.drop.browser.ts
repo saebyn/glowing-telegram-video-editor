@@ -338,6 +338,48 @@ test("holding a pool clip at the right edge reaches past the endpoint without ch
   await expect(preview).toHaveCount(0);
 });
 
+test("a pool drop cannot place before zero and extends at the exact frame in a panned view", async ({
+  page,
+}) => {
+  const { timeline, startDrag, emissions } = await openDropStory(page, layeredEditStoryId);
+  const { xAt, y } = await trackGeometry(timeline, "Alternate", 240);
+  const width = xAt(240) - xAt(0);
+  const ruler = timeline.locator(".timeline-editor-time-area-interact");
+  const rail = (await ruler.boundingBox())!;
+  const readout = page.getByLabel("Sequence playhead position");
+  const preview = timeline.getByRole("figure", { name: "Proposed placement: Lighthouse" });
+  await ruler.click({ position: { x: width / 2, y: rail.height * 0.75 } });
+  await expect(readout).toHaveText("Sequence frame 120");
+  await page.mouse.move(xAt(120), y);
+  await page.mouse.wheel(-width, 0);
+  await expect(timeline.getByRole("slider", { name: "Sequence playhead" })).toBeHidden();
+  await startDrag(xAt(60), y); // The left edge is at −240, so this targets −180.
+  await expect(preview).toHaveCount(0);
+  await page.mouse.up();
+  expect(await emissions()).toEqual(noEdits);
+  await ruler.click({ position: { x: width / 4, y: rail.height * 0.75 } });
+  await expect(readout).toHaveText("Sequence frame 0");
+
+  await page.mouse.move(xAt(120), y);
+  await page.mouse.wheel(2 * width, 0);
+  await ruler.click({ position: { x: width / 4, y: rail.height * 0.75 } });
+  await expect(readout).toHaveText("Sequence frame 240");
+  await startDrag(xAt(60), y);
+  await expect(timeline.getByRole("status")).toHaveText(
+    "Lighthouse → Alternate · Sequence frame 300",
+  );
+  expect((await preview.boundingBox())?.x).toBeCloseTo(xAt(60) + 1, 0);
+  expect(await emissions()).toEqual(noEdits);
+  await page.mouse.up();
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.sequences[0].tracks[2].placements.at(-1)).toMatchObject({
+    clipId: "lighthouse",
+    sequenceStartFrame: 300,
+  });
+  expect(result.cutListResults).toEqual([blockedOutput]);
+});
+
 test("hovering a pool clip over a bounded gap previews the exact fitted placement before drop", async ({
   page,
 }) => {

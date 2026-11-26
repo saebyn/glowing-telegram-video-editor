@@ -130,7 +130,7 @@ export const LayeredSequence: Story = {
     docs: {
       description: {
         story:
-          "Inspect a picture track with a gap and a locked sound track that overlaps both picture placements. Click the opening fade indicator to inspect it, or the strip below it to select its placement. Zoom, pan, and use the sequence playhead to navigate.",
+          "Inspect a picture track with a gap and a locked sound track that overlaps both picture placements. Click the opening fade indicator to inspect it, or the strip below it to select its placement. Drag empty track space, scroll horizontally, or use Shift+wheel to pan. Zoom and use the sequence playhead to navigate; Fit sequence restores the overview.",
       },
     },
   },

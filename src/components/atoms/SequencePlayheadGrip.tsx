@@ -25,7 +25,7 @@ export default function SequencePlayheadGrip({
   return (
     <div
       ref={ref}
-      // Keplar handles pointer gestures; this coincident target handles keyboard seeking.
+      // The timeline handles pointer gestures; this coincident target handles keyboard seeking.
       // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="slider"
       tabIndex={0}

@@ -157,13 +157,12 @@ test("Paste without a hovered track enters drop mode; Escape after a locked clic
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
 });
 
-test("Paste recomputes the sequence frame under a stationary pointer after horizontal pan", async ({
+test("Paste drop mode retargets a stationary preview on pan and does not paste on a drag", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, roughCutDepartureAt(540).args);
-  const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbors = timeline.getByRole("button", { name: "Harbor", exact: true });
   await harbors.first().click();
@@ -171,14 +170,24 @@ test("Paste recomputes the sequence frame under a stationary pointer after horiz
   await timeline.getByRole("button", { name: "Zoom in" }).click();
   const ruler = (await timeline.locator(".timeline-editor-time-area-interact").boundingBox())!;
   const opening = (await harbors.first().boundingBox())!;
-  const pan = timeline.getByRole("slider", { name: "Pan timeline" });
-  await expect(pan).toBeEnabled();
-  // One zoom step shows 300 frames, so this point maps to 100 before pan and 400 after it.
-  await page.mouse.move(ruler.x + ruler.width / 3, opening.y + opening.height / 2);
-  await pan.press("End");
-  await expect.poll(async () => Number(await pan.inputValue())).toBeGreaterThan(0);
-  await editor.focus();
+  await page.mouse.move(ruler.x + ruler.width / 3, ruler.y + ruler.height / 2);
   await page.keyboard.press("Control+v");
+  await expect(timeline).toContainText("Paste: click to place");
+  // One zoom step shows 300 frames, so this point maps to 100 before pan and 400 after it.
+  const x = ruler.x + ruler.width / 3;
+  const y = opening.y + opening.height / 2;
+  await page.mouse.move(x, y);
+  await expect(timeline.getByRole("status")).toContainText("Main · Sequence frame 100 · Blocked");
+  await page.mouse.wheel(ruler.width, 0);
+  await expect(timeline.getByRole("status")).toHaveText(/Main · Sequence frame 400$/);
+  await page.mouse.down();
+  await page.mouse.move(x - 60, y, { steps: 8 });
+  await page.mouse.up();
+  await expect(timeline.getByRole("status")).toHaveText(/Main · Sequence frame 400$/);
+  expect(await emissions()).toEqual(noEdits);
+  await expect(harbors.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await page.mouse.click(x - 60, y);
   await expect
     .poll(
       async () => (await emissions()).sequences[0]?.tracks[0].placements.at(-1)?.sequenceStartFrame,

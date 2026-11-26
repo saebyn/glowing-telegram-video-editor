@@ -1,14 +1,15 @@
 import {
-  CutOverlay,
   Timeline,
   type TimelineEditor,
   type TimelineState,
 } from "@keplar-404/react-timeline-editor";
 import {
+  createContext,
   type CSSProperties,
   type DragEvent,
   type PointerEvent,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -46,15 +47,17 @@ import { getSource } from "@/utils/sourcesById";
 import { resolveSequencePlacements } from "@/utils/visibleSequence";
 import { mediaKindLabels } from "./mediaKindLabels";
 import {
+  getMaxZoom,
   getSequenceTimelineViewport,
-  getZoomScrollLeft,
-  SEQUENCE_VIEWPORT_TICKS,
+  getWidgetOrigin,
+  getZoomLeftFrame,
+  WIDGET_TICKS,
 } from "./sequenceTimelineViewport";
 
 const RULER_HEIGHT = 32;
 const RULER = ".timeline-editor-time-area-interact";
-const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
-const CURSOR_GRIP = ".timeline-editor-cursor-area";
+const ACTION = ".timeline-editor-action";
+const CURSOR_GRIP = "[data-sequence-playhead-grip]";
 const ROW_HEIGHT = 72;
 const PLACEMENT_INSET_Y = 4;
 const TRIM_GRIP_HEIGHT = 12;
@@ -68,6 +71,16 @@ const COMPACT_TRIM_GRIP_WIDTH = 12;
 const EFFECTS = {
   placement: { id: "placement", name: "Placement" },
 };
+
+// React Virtualized caches rendered cells while scrolling. Context lets cached
+// labels update when the same physical column now represents a different time.
+const RulerOrigin = createContext(0);
+
+function RulerLabel({ seconds, frameRate }: { seconds: number; frameRate: FrameRate }) {
+  const sequenceSeconds = useContext(RulerOrigin) + seconds;
+  const frame = secondsToFrame(sequenceSeconds, frameRate);
+  return `${frame < 0 ? "−" : ""}${formatFrames(Math.abs(frame), frameRate)}`;
+}
 
 export interface PlacementMoveIntent {
   placementId: string;
@@ -183,15 +196,15 @@ type MoveDestination = {
 type MoveDraft = MoveDestination & {
   placementId: string;
   placementIds: readonly string[];
-  scrollLeft: number;
 };
 type PointerPosition = { clientX: number; clientY: number };
+type SurfacePosition = { x: number; trackIndex: number };
 type PlacementDrag = {
   pointerId: number;
   placementId: string;
   placementIds: readonly string[];
   origin: PointerPosition;
-  contentX: number;
+  grabFrame: number;
   startFrame: number;
   width: number;
 };
@@ -199,7 +212,7 @@ type TrimDrag = {
   pointerId: number;
   placementId: string;
   edge: PlacementEdge;
-  contentX: number;
+  grabFrame: number;
   width: number;
   sourceFrame: number;
 };
@@ -208,8 +221,10 @@ type TrimDraft = {
   edge: PlacementEdge;
   frameOffset: number;
   sourceFrame: number;
-  scrollLeft: number;
 };
+
+type PanPress = { pointerId: number; x: number; leftFrame: number; active: boolean };
+type CursorPress = { pointerId: number; x: number; playheadX: number };
 
 export default function SequenceTimeline(props: SequenceTimelineProps) {
   const { tracks, clips, sources, frameRate } = props;
@@ -267,16 +282,19 @@ function SequenceTimelineWidget({
   const keyboardPlayhead = useRef<HTMLDivElement>(null);
   const drag = useRef<PlacementDrag | null>(null);
   const moved = useRef(false);
+  const panPress = useRef<PanPress | null>(null);
+  const cursorPress = useRef<CursorPress | null>(null);
   const splitPointerOrigin = useRef<PointerPosition | null>(null);
-  const [splitOverlayRevision, setSplitOverlayRevision] = useState(0);
+  const [splitPointer, setSplitPointer] = useState<SurfacePosition | null>(null);
   const pointer = useRef<PointerPosition | null>(null);
   const pastePointer = useRef<PointerPosition | null>(null);
   const reportedPasteTarget = useRef<PlacementPasteTarget | null>(null);
   const pasteReporter =
     useRef<NonNullable<SequenceTimelineProps["placementPaste"]>["onTargetChange"]>(undefined);
-  const scrollLeft = useRef(0);
-  const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
-  const pendingScrollLeft = useRef<number | null>(null);
+  // Gestures use the requested sequence frame, never the widget's rounded,
+  // asynchronously reported physical scroll position.
+  const leftFrame = useRef(0);
+  const [{ frame: visibleLeftFrame, originTick }, setView] = useState({ frame: 0, originTick: -4 });
   const [draft, setDraft] = useState<MoveDraft | null>(null);
   const trimDrag = useRef<TrimDrag | null>(null);
   const [trimDraft, setTrimDraft] = useState<TrimDraft | null>(null);
@@ -286,22 +304,27 @@ function SequenceTimelineWidget({
   const [poolDraft, setPoolDraft] = useState<{
     trackIndex: number;
     sequenceFrame: number;
-    scrollLeft: number;
   }>();
   const isTrailingTrim = trimDraft?.edge === "trailing";
-  const hasDragHeadroom = isDragging || isPoolDragging || isTrailingTrim;
+  const editing = isDragging || isPoolDragging || trimDraft !== null;
   const [width, setWidth] = useState(0);
-  const [requestedZoom, setRequestedZoom] = useState(0);
-  const viewport = getSequenceTimelineViewport(width, durationFrames, requestedZoom);
-  const { zoom, maxZoom, tickCount, scaleWidth, pixelsPerFrame, maxScrollLeft } = viewport;
-  const scale = framesToSeconds(Math.max(1, durationFrames) / tickCount, frameRate);
-  // One extra tick lets a placement grabbed at its far end start beyond the endpoint.
-  const headroomTicks = hasDragHeadroom ? SEQUENCE_VIEWPORT_TICKS + (isDragging ? 1 : 0) : 0;
-  const scaleCount = tickCount + headroomTicks;
-  const maxDragScrollLeft = maxScrollLeft + headroomTicks * scaleWidth;
+  const [fitFrames, setFitFrames] = useState(() => Math.max(1, durationFrames));
+  const [zoom, setZoom] = useState(0);
+  const { scaleWidth, pixelsPerFrame, framesPerTick } = getSequenceTimelineViewport(
+    width,
+    fitFrames,
+    zoom,
+  );
+  const maxZoom = getMaxZoom(width, fitFrames);
+  const widgetOriginTick = getWidgetOrigin(visibleLeftFrame, framesPerTick, originTick);
+  const widgetOriginFrame = widgetOriginTick * framesPerTick;
+  const widgetScroll = Math.round((visibleLeftFrame - widgetOriginFrame) * pixelsPerFrame);
+  const scale = framesToSeconds(framesPerTick, frameRate);
+  const visibleScrollLeft = visibleLeftFrame * pixelsPerFrame;
   const playheadX = playheadFrame * pixelsPerFrame - visibleScrollLeft;
   const playheadVisible = playheadX >= 0 && playheadX <= width;
-  const playheadGripOffset = Math.max(8, Math.min(width - 8, playheadX)) - playheadX;
+  const fitDisabled =
+    visibleLeftFrame === 0 && zoom === 0 && fitFrames === Math.max(1, durationFrames);
   const reportPasteTarget = placementPaste?.onTargetChange;
   const pasteDrop = placementPaste?.drop;
   const pastePress = useRef<PointerPosition | null>(null);
@@ -324,29 +347,64 @@ function SequenceTimelineWidget({
     }
   }
 
-  function seekFromCursor(seconds: number) {
-    const frame = snapFrame(secondsToFrame(seconds, frameRate), durationFrames);
-    onSeek(frame);
-    return frame;
+  const showFrom = useCallback((frame: number, tickSize: number) => {
+    leftFrame.current = frame;
+    setView((previous) => {
+      const nextOrigin = getWidgetOrigin(frame, tickSize, previous.originTick);
+      return frame === previous.frame && nextOrigin === previous.originTick
+        ? previous
+        : { frame, originTick: nextOrigin };
+    });
+  }, []);
+
+  function sequenceFrameAt(clientX: number) {
+    return (
+      leftFrame.current + (clientX - surface.current!.getBoundingClientRect().left) / pixelsPerFrame
+    );
   }
 
   function changeZoom(nextZoom: number, fit = false) {
-    const next = getSequenceTimelineViewport(width, durationFrames, nextZoom);
-    if (next.zoom === zoom) return;
-    pendingScrollLeft.current = fit
-      ? 0
-      : getZoomScrollLeft(width, scrollLeft.current, playheadFrame, viewport, next);
-    setRequestedZoom(next.zoom);
+    if (fit) {
+      const nextDuration = Math.max(1, durationFrames);
+      setFitFrames(nextDuration);
+      showFrom(0, getSequenceTimelineViewport(width, nextDuration, 0).framesPerTick);
+    } else {
+      const next = getSequenceTimelineViewport(width, fitFrames, nextZoom);
+      showFrom(
+        getZoomLeftFrame(
+          width,
+          leftFrame.current,
+          playheadFrame,
+          pixelsPerFrame,
+          next.pixelsPerFrame,
+        ),
+        next.framesPerTick,
+      );
+    }
+    setZoom(nextZoom);
   }
 
   useLayoutEffect(() => {
-    const left = pendingScrollLeft.current ?? scrollLeft.current;
-    const boundedLeft = Math.min(left, maxDragScrollLeft);
-    if (pendingScrollLeft.current !== null || boundedLeft !== scrollLeft.current) {
-      timeline.current?.setScrollLeft(boundedLeft);
-    }
-    pendingScrollLeft.current = null;
-  }, [zoom, maxDragScrollLeft]);
+    if (!width) return;
+    timeline.current?.setScrollLeft(widgetScroll);
+  }, [widgetOriginTick, widgetScroll, scaleWidth, width]);
+
+  useLayoutEffect(() => {
+    const node = surface.current!;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width : 1;
+      const horizontal = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+      if (!horizontal || (!event.shiftKey && Math.abs(event.deltaY) > Math.abs(horizontal))) return;
+      event.preventDefault();
+      if (cursorPress.current) return;
+      const delta = (horizontal * unit) / pixelsPerFrame;
+      if (panPress.current) panPress.current.leftFrame += delta;
+      showFrom(leftFrame.current + delta, framesPerTick);
+    };
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    return () => node.removeEventListener("wheel", handleWheel);
+  }, [framesPerTick, pixelsPerFrame, showFrom, width]);
 
   useLayoutEffect(() => {
     if (!reportPasteTarget && reportedPasteTarget.current) {
@@ -355,7 +413,7 @@ function SequenceTimelineWidget({
     }
     pasteReporter.current = reportPasteTarget;
     if (!reportPasteTarget) return;
-    // Re-evaluate when layout, zoom or the widget scroll changes without a pointer event.
+    // Re-evaluate when layout or the viewport changes without a pointer event.
     syncPasteTarget();
     window.addEventListener("scroll", syncPasteTarget, true);
     return () => window.removeEventListener("scroll", syncPasteTarget, true);
@@ -370,10 +428,6 @@ function SequenceTimelineWidget({
     },
     [],
   );
-
-  useLayoutEffect(() => {
-    timeline.current?.setTime(framesToSeconds(playheadFrame, frameRate));
-  }, [playheadFrame, frameRate]);
 
   const clearMove = useCallback(() => {
     drag.current = null;
@@ -416,7 +470,7 @@ function SequenceTimelineWidget({
   ]);
 
   useLayoutEffect(() => {
-    if (!hasDragHeadroom) return;
+    if (!isDragging && !isPoolDragging && !isTrailingTrim) return;
     let animationFrame: number;
     const scrollNearEdge = () => {
       const node = surface.current;
@@ -426,23 +480,25 @@ function SequenceTimelineWidget({
         const y = point.clientY - top - RULER_HEIGHT;
         if (y >= 0 && y < tracks.length * ROW_HEIGHT) {
           const x = point.clientX;
-          if (
-            x >= right - SCROLL_EDGE &&
-            (x < right || isTrailingTrim) &&
-            scrollLeft.current < maxDragScrollLeft
-          )
-            timeline.current?.setScrollLeft(
-              Math.min(scrollLeft.current + SCROLL_STEP, maxDragScrollLeft),
-            );
-          else if (x >= left && x < left + SCROLL_EDGE && scrollLeft.current > 0)
-            timeline.current?.setScrollLeft(Math.max(scrollLeft.current - SCROLL_STEP, 0));
+          if (x >= right - SCROLL_EDGE && (x < right || isTrailingTrim))
+            showFrom(leftFrame.current + SCROLL_STEP / pixelsPerFrame, framesPerTick);
+          else if (x >= left && x < left + SCROLL_EDGE)
+            showFrom(leftFrame.current - SCROLL_STEP / pixelsPerFrame, framesPerTick);
         }
       }
       animationFrame = requestAnimationFrame(scrollNearEdge);
     };
     animationFrame = requestAnimationFrame(scrollNearEdge);
     return () => cancelAnimationFrame(animationFrame);
-  }, [hasDragHeadroom, isDragging, isTrailingTrim, tracks.length, maxDragScrollLeft]);
+  }, [
+    isPoolDragging,
+    isDragging,
+    isTrailingTrim,
+    tracks.length,
+    pixelsPerFrame,
+    framesPerTick,
+    showFrom,
+  ]);
 
   const clearPoolDrag = useCallback(() => {
     if (!poolPointer.current) return;
@@ -472,9 +528,7 @@ function SequenceTimelineWidget({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [clearMove, clearTrim]);
 
-  // The widget updates its internal rows on a new array; keep the authored projection
-  // stable while its scroll notifications update the draft.
-  const { items, rows } = useMemo(() => {
+  const items = useMemo(() => {
     const items = new Map<
       string,
       {
@@ -489,14 +543,13 @@ function SequenceTimelineWidget({
         thumbnails: SequenceSource["frameThumbnails"];
       }
     >();
-    const rows: TimelineEditor["editorData"] = tracks.map((track, trackIndex) => ({
-      id: track.id,
-      actions: track.placements.flatMap((placement) => {
+    tracks.forEach((track, trackIndex) => {
+      for (const placement of track.placements) {
         const clip = clips.find(({ id }) => id === placement.clipId);
-        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) return [];
+        if (!clip || !isValidFrameRate(clip.sourceFrameRate)) continue;
         const range = getPlacementSourceRange(clip, placement);
         const duration = getProjectFrameCount(range, frameRate);
-        if (duration <= 0) return [];
+        if (duration <= 0) continue;
         const source = getSource(sources, clip.sourceId);
         items.set(placement.id, {
           label: titles[clip.id] ?? `Clip ${clip.id}`,
@@ -512,57 +565,74 @@ function SequenceTimelineWidget({
               ? undefined
               : frameThumbnailsInRange(source?.frameThumbnails, range),
         });
-        return {
-          id: placement.id,
-          effectId: "placement",
-          start: framesToSeconds(placement.sequenceStartFrame, frameRate),
-          end: framesToSeconds(placement.sequenceStartFrame + duration, frameRate),
-          movable: false,
-          flexible: false,
-        };
-      }),
-    }));
-    return { items, rows };
+      }
+    });
+    return items;
   }, [tracks, clips, sources, titles, frameRate, trimRanges]);
 
   const splitEnabled = splitMode && activatePlacement !== undefined;
-  const secondsPerFrame = framesToSeconds(1, frameRate);
-  const splitRows = useMemo(
+  const widgetEndFrame = widgetOriginFrame + WIDGET_TICKS * framesPerTick;
+  // Reproject only when the widget window shifts, not on every pan. Keep
+  // actions straddling the window at their true starts and widths.
+  const rows = useMemo<TimelineEditor["editorData"]>(
     () =>
-      splitEnabled
-        ? rows.map((row, index) => ({
-            ...row,
-            // Splitting, like trimming, requires matching source and project rates.
-            actions: tracks[index].locked
-              ? []
-              : row.actions.flatMap((action) => {
-                  const item = items.get(action.id);
-                  if (!item?.trimRange) return [];
-                  return [
-                    {
-                      ...action,
-                      start: item.sequenceFrame * secondsPerFrame,
-                      end: (item.sequenceFrame + item.duration) * secondsPerFrame,
-                    },
-                  ];
-                }),
-          }))
-        : [],
-    [splitEnabled, items, rows, tracks, secondsPerFrame],
+      tracks.map((track) => ({
+        id: track.id,
+        actions: track.placements.flatMap(({ id }) => {
+          const item = items.get(id);
+          if (!item) return [];
+          const end = item.sequenceFrame + item.duration;
+          if (end <= widgetOriginFrame || item.sequenceFrame >= widgetEndFrame) return [];
+          return [
+            {
+              id,
+              effectId: "placement",
+              start: framesToSeconds(item.sequenceFrame - widgetOriginFrame, frameRate),
+              end: framesToSeconds(end - widgetOriginFrame, frameRate),
+              movable: false,
+              flexible: false,
+            },
+          ];
+        }),
+      })),
+    [tracks, items, widgetOriginFrame, widgetEndFrame, frameRate],
   );
 
-  function poolDestination(event: PointerPosition, leftOffset = scrollLeft.current) {
+  function positionOnTrack(event: PointerPosition): SurfacePosition | null {
     const { left, right, top } = surface.current!.getBoundingClientRect();
-    if (event.clientX < left || event.clientX >= right) return;
+    if (event.clientX < left || event.clientX >= right) return null;
     const trackIndex = Math.floor((event.clientY - top - RULER_HEIGHT) / ROW_HEIGHT);
+    if (!tracks[trackIndex]) return null;
+    return { x: event.clientX - left, trackIndex };
+  }
+
+  function poolDestination(event: PointerPosition) {
+    const point = positionOnTrack(event);
+    if (!point) return;
+    return {
+      trackIndex: point.trackIndex,
+      sequenceFrame: Math.round(leftFrame.current + point.x / pixelsPerFrame),
+    };
+  }
+
+  function splitTargetAt(point: SurfacePosition | null, viewStart: number) {
+    if (!point) return;
+    const { trackIndex, x } = point;
     const track = tracks[trackIndex];
     if (!track) return;
-    const x = event.clientX - left + leftOffset;
-    return {
-      trackIndex,
-      sequenceFrame: secondsToFrame((x / scaleWidth) * scale, frameRate),
-      scrollLeft: leftOffset,
-    };
+    const sequenceFrame = Math.round(viewStart + x / pixelsPerFrame);
+    const placement = track.placements.find(({ id }) => {
+      const item = items.get(id);
+      return (
+        item &&
+        sequenceFrame < item.sequenceFrame + item.duration &&
+        (track.locked
+          ? item.sequenceFrame <= sequenceFrame
+          : item.trimRange && item.sequenceFrame < sequenceFrame)
+      );
+    });
+    if (placement)
+      return { placementId: placement.id, sequenceFrame, trackIndex, locked: track.locked };
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -571,7 +641,7 @@ function SequenceTimelineWidget({
     if (!placeClip || !activeClipId) return;
     event.preventDefault();
     endClipDrag();
-    if (destination) {
+    if (destination && destination.sequenceFrame >= 0) {
       placeClip({
         clipId: activeClipId,
         trackId: tracks[destination.trackIndex].id,
@@ -583,13 +653,12 @@ function SequenceTimelineWidget({
   function moveDestination(point: PointerPosition, activeDrag: PlacementDrag): MoveDestination {
     const { top, left, right } = surface.current!.getBoundingClientRect();
     const x = point.clientX;
-    const delta = x - left + scrollLeft.current - activeDrag.contentX;
+    const delta = sequenceFrameAt(x) - activeDrag.grabFrame;
     const trackIndex = Math.floor((point.clientY - top - RULER_HEIGHT) / ROW_HEIGHT);
     return {
       trackIndex: x >= left && x < right ? trackIndex : null,
-      sequenceFrame:
-        activeDrag.startFrame + secondsToFrame((delta / scaleWidth) * scale, frameRate),
-      unroundedStartFrame: activeDrag.startFrame + delta / pixelsPerFrame,
+      sequenceFrame: activeDrag.startFrame + Math.round(delta),
+      unroundedStartFrame: activeDrag.startFrame + delta,
     };
   }
 
@@ -598,29 +667,64 @@ function SequenceTimelineWidget({
       ...moveDestination(point, activeDrag),
       placementId: activeDrag.placementId,
       placementIds: activeDrag.placementIds,
-      scrollLeft: scrollLeft.current,
     });
   }
 
   function proposedTrim(clientX: number, activeTrim: TrimDrag): TrimDraft {
-    const { left, right } = surface.current!.getBoundingClientRect();
+    const { right } = surface.current!.getBoundingClientRect();
     // A pointer outside the right edge requests scrolling, not an unseen trim.
     const x = activeTrim.edge === "trailing" ? Math.min(clientX, right) : clientX;
-    const delta = x - left + scrollLeft.current - activeTrim.contentX;
-    const frameOffset = secondsToFrame((delta / scaleWidth) * scale, frameRate);
+    const frameOffset = Math.round(sequenceFrameAt(x) - activeTrim.grabFrame);
     return {
       placementId: activeTrim.placementId,
       edge: activeTrim.edge,
       frameOffset,
       sourceFrame: activeTrim.sourceFrame + frameOffset,
-      scrollLeft: scrollLeft.current,
     };
   }
 
+  const lastPreviewView = useRef({ frame: visibleLeftFrame, pixelsPerFrame });
+  function refreshDragPreviews() {
+    if (drag.current && pointer.current) previewMove(pointer.current, drag.current);
+    if (trimDrag.current && pointer.current)
+      setTrimDraft(proposedTrim(pointer.current.clientX, trimDrag.current));
+    if (activeClipId && poolPointer.current) setPoolDraft(poolDestination(poolPointer.current));
+  }
+
+  useLayoutEffect(() => {
+    const previous = lastPreviewView.current;
+    if (previous.frame === visibleLeftFrame && previous.pixelsPerFrame === pixelsPerFrame) return;
+    lastPreviewView.current = { frame: visibleLeftFrame, pixelsPerFrame };
+    refreshDragPreviews();
+  });
+
+  function seekToPointer(event: PointerEvent<HTMLDivElement>, press: CursorPress) {
+    const x = Math.max(0, Math.min(width, press.playheadX + event.clientX - press.x));
+    onSeek(snapFrame(leftFrame.current + x / pixelsPerFrame, durationFrames));
+  }
+
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const cursor = cursorPress.current;
+    if (cursor?.pointerId === event.pointerId) {
+      seekToPointer(event, cursor);
+      return;
+    }
+    const pan = panPress.current;
+    if (pan?.pointerId === event.pointerId) {
+      const delta = event.clientX - pan.x;
+      if (pan.active || Math.abs(delta) >= DRAG_THRESHOLD) {
+        if (!pan.active) event.currentTarget.setPointerCapture(event.pointerId);
+        pan.active = true;
+        moved.current = true;
+        showFrom(pan.leftFrame - delta / pixelsPerFrame, framesPerTick);
+      }
+    }
     if (event.isPrimary && event.pointerType !== "touch") {
       pastePointer.current = { clientX: event.clientX, clientY: event.clientY };
       syncPasteTarget();
+    }
+    if (splitEnabled) {
+      setSplitPointer(pan?.active ? null : positionOnTrack(event));
     }
     const pasteOrigin = pastePress.current;
     if (
@@ -667,12 +771,24 @@ function SequenceTimelineWidget({
   function cancelPlacementDrag(event: PointerEvent<HTMLDivElement>) {
     pastePress.current = null;
     splitPointerOrigin.current = null;
+    if (panPress.current?.pointerId === event.pointerId) panPress.current = null;
+    if (cursorPress.current?.pointerId === event.pointerId) cursorPress.current = null;
     if (trimDrag.current?.pointerId === event.pointerId) clearTrim();
     if (drag.current?.pointerId === event.pointerId) clearMove();
   }
 
   function finishPlacementDrag(event: PointerEvent<HTMLDivElement>) {
     splitPointerOrigin.current = null;
+    if (panPress.current?.pointerId === event.pointerId) {
+      const { x, leftFrame: origin, active } = panPress.current;
+      if (active) showFrom(origin - (event.clientX - x) / pixelsPerFrame, framesPerTick);
+      panPress.current = null;
+    }
+    if (cursorPress.current?.pointerId === event.pointerId) {
+      seekToPointer(event, cursorPress.current);
+      cursorPress.current = null;
+      return;
+    }
     const activeTrim = trimDrag.current;
     if (activeTrim?.pointerId === event.pointerId) {
       const next = proposedTrim(event.clientX, activeTrim);
@@ -765,6 +881,8 @@ function SequenceTimelineWidget({
         })
       : null;
   const poolLabel = activeClipId && (titles[activeClipId] ?? `Clip ${activeClipId}`);
+  const splitHover = splitEnabled ? splitTargetAt(splitPointer, visibleLeftFrame) : undefined;
+  const splitHoverItem = splitHover && items.get(splitHover.placementId);
 
   function draftRectangle(
     trackIndex: number,
@@ -809,34 +927,20 @@ function SequenceTimelineWidget({
         <h2 className="text-lg font-semibold">Sequence timeline</h2>
         <div className="flex min-w-0 flex-1 basis-[25rem] flex-wrap gap-2">
           {[
-            { label: "Zoom in", next: zoom + 1, disabled: zoom === maxZoom },
+            { label: "Zoom in", next: zoom + 1, disabled: zoom >= maxZoom },
             { label: "Zoom out", next: zoom - 1, disabled: zoom === 0 },
-            { label: "Fit sequence", next: 0, disabled: zoom === 0, fit: true },
+            { label: "Fit sequence", next: 0, disabled: fitDisabled, fit: true },
           ].map(({ label, next, disabled, fit }) => (
             <button
               key={label}
               type="button"
               className="rounded border px-2 py-0.5 text-sm disabled:opacity-50"
-              disabled={disabled || hasDragHeadroom}
+              disabled={disabled || editing}
               onClick={() => changeZoom(next, fit)}
             >
               {label}
             </button>
           ))}
-          <label className="flex min-w-32 flex-1 items-center gap-2 text-sm">
-            Pan timeline
-            <input
-              type="range"
-              min={0}
-              max={Math.round(maxScrollLeft)}
-              value={Math.min(visibleScrollLeft, maxScrollLeft)}
-              disabled={maxScrollLeft === 0 || hasDragHeadroom}
-              className="min-w-20 flex-1"
-              onChange={(event) =>
-                timeline.current?.setScrollLeft(event.currentTarget.valueAsNumber)
-              }
-            />
-          </label>
         </div>
         <span className="text-sm tabular-nums">
           Duration: {formatFrames(durationFrames, frameRate)}
@@ -854,29 +958,43 @@ function SequenceTimelineWidget({
         />
         <div
           ref={surface}
-          // CutOverlay finds the widget's horizontal scroll through `.timeline-wrapper`.
-          className="gtve-sequence-timeline timeline-wrapper relative overflow-hidden"
+          className="gtve-sequence-timeline relative touch-pan-y overflow-hidden"
           data-pool-dragging={isPoolDragging || undefined}
-          data-seekable-playhead={
-            (!hasDragHeadroom && width > 0 && durationFrames > 0 && playheadVisible) || undefined
-          }
-          style={
-            {
-              "--gtve-ruler-height": `${RULER_HEIGHT}px`,
-              "--gtve-cursor-grip-offset": `${playheadGripOffset}px`,
-            } as CSSProperties
-          }
-          onPointerDown={(event) => {
-            if (!event.isPrimary || event.button !== 0) return;
-            moved.current = false;
-            if ((event.target as Element).closest(CURSOR_GRIP)) {
-              keyboardPlayhead.current?.focus({ preventScroll: true });
-              onSeek(playheadFrame);
-            }
-          }}
+          style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
           tabIndex={pasteDrop ? -1 : undefined}
           onPointerDownCapture={(event) => {
             if (!event.isPrimary || event.button !== 0) return;
+            moved.current = false;
+            const target = event.target as Element;
+            if (target.closest(CURSOR_GRIP)) {
+              keyboardPlayhead.current?.focus({ preventScroll: true });
+              cursorPress.current = { pointerId: event.pointerId, x: event.clientX, playheadX };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              onSeek(snapFrame(playheadFrame, durationFrames));
+              return;
+            }
+            const rowY =
+              event.clientY - event.currentTarget.getBoundingClientRect().top - RULER_HEIGHT;
+            const inTracks = rowY >= 0 && rowY < Math.max(1, tracks.length) * ROW_HEIGHT;
+            const offset = sequenceFrameAt(event.clientX);
+            const inPlacement =
+              splitEnabled &&
+              tracks[Math.floor(rowY / ROW_HEIGHT)]?.placements.some(({ id }) => {
+                const item = items.get(id);
+                return (
+                  item &&
+                  offset >= item.sequenceFrame &&
+                  offset < item.sequenceFrame + item.duration
+                );
+              });
+            if (inTracks && !inPlacement && !target.closest(`${ACTION}, button`)) {
+              panPress.current = {
+                pointerId: event.pointerId,
+                x: event.clientX,
+                leftFrame: leftFrame.current,
+                active: false,
+              };
+            }
             if (event.pointerType !== "touch") {
               pastePointer.current = { clientX: event.clientX, clientY: event.clientY };
               syncPasteTarget();
@@ -891,11 +1009,17 @@ function SequenceTimelineWidget({
           onPointerLeave={() => {
             pastePointer.current = null;
             pastePress.current = null;
+            setSplitPointer(null);
+            if (!panPress.current?.active) panPress.current = null;
             syncPasteTarget();
           }}
           onPointerUp={finishPlacementDrag}
           onPointerCancel={cancelPlacementDrag}
           onClickCapture={(event) => {
+            if (moved.current && event.detail !== 0) {
+              event.stopPropagation();
+              return;
+            }
             const target = pasteDrop && event.detail !== 0 && pasteTargetAt(event);
             if (pasteDrop && target) {
               event.stopPropagation();
@@ -903,6 +1027,7 @@ function SequenceTimelineWidget({
               pastePress.current = null;
               if (
                 origin &&
+                target.sequenceFrame >= 0 &&
                 Math.hypot(event.clientX - origin.clientX, event.clientY - origin.clientY) <
                   DRAG_THRESHOLD
               )
@@ -910,13 +1035,8 @@ function SequenceTimelineWidget({
               return;
             }
             if (!(event.target as Element).closest(RULER)) return;
-            // The widget's ruler right-bound check subtracts the scroll offset
-            // twice. Read the tracks' current scroll before seeking.
-            const node = event.currentTarget;
-            const left = node.querySelector(EDIT_GRID)?.scrollLeft ?? scrollLeft.current;
-            const x = event.clientX - node.getBoundingClientRect().left + left;
             event.stopPropagation();
-            onSeek(snapFrame(x / pixelsPerFrame, durationFrames));
+            onSeek(snapFrame(sequenceFrameAt(event.clientX), durationFrames));
           }}
           onLostPointerCapture={(event) => {
             if (!moved.current || event.target === event.currentTarget) cancelPlacementDrag(event);
@@ -939,231 +1059,227 @@ function SequenceTimelineWidget({
           }}
           onDrop={handleDrop}
         >
-          {/* Keep the keyboard target hidden while placement gestures extend the ruler. */}
-          {!hasDragHeadroom && width > 0 && durationFrames > 0 && (
-            <SequencePlayheadGrip
-              ref={keyboardPlayhead}
-              frame={playheadFrame}
-              durationFrames={durationFrames}
-              pixelsPerFrame={pixelsPerFrame}
-              scrollLeft={visibleScrollLeft}
-              viewportWidth={width}
-              onSeek={onSeek}
+          {width > 0 && playheadVisible && (
+            <div
+              className="pointer-events-none absolute top-(--gtve-ruler-height) bottom-0 z-[4] border-l border-[#5297ff]"
+              style={{ left: playheadX }}
             />
           )}
-          <Timeline
-            ref={timeline}
-            editorData={rows}
-            effects={EFFECTS}
-            style={{ width: "100%", height: RULER_HEIGHT + rows.length * ROW_HEIGHT }}
-            startLeft={0}
-            scale={scale}
-            scaleWidth={scaleWidth}
-            scaleSplitCount={4}
-            // Add ruler space, not authored duration, while dragging along the tracks.
-            minScaleCount={scaleCount}
-            maxScaleCount={scaleCount}
-            onScroll={({ scrollLeft: left }) => {
-              if (scrollLeft.current === left) return;
-              scrollLeft.current = left;
-              setVisibleScrollLeft(left);
-              syncPasteTarget();
-              if (drag.current && pointer.current) previewMove(pointer.current, drag.current);
-              if (trimDrag.current && pointer.current)
-                setTrimDraft(proposedTrim(pointer.current.clientX, trimDrag.current));
-              if (activeClipId && poolPointer.current)
-                setPoolDraft(poolDestination(poolPointer.current));
-            }}
-            rowHeight={ROW_HEIGHT}
-            onCursorDrag={seekFromCursor}
-            onCursorDragEnd={(seconds) => {
-              const frame = seekFromCursor(seconds);
-              // The widget ends the gesture in seconds, even when the rounded frame didn't change.
-              timeline.current?.setTime(framesToSeconds(frame, frameRate));
-            }}
-            onClickRow={(event) => {
-              if (
-                !splitEnabled &&
-                !moved.current &&
-                event.detail !== 0 &&
-                !(event.target as Element).closest("button")
-              ) {
-                clearPlacementSelection?.();
-              }
-            }}
-            getScaleRender={(seconds) => {
-              const frame = secondsToFrame(seconds, frameRate);
-              const label = formatFrames(frame, frameRate);
-              // The widget centers labels on ticks; keep the final one inside the ruler.
-              return frame === durationFrames ? (
-                <span className="inline-block -translate-x-1/2">{label}</span>
-              ) : (
-                label
-              );
-            }}
-            disableDrag
-            autoReRender={false}
-            getActionRender={({ id }) => {
-              const item = items.get(id);
-              if (!item) return null;
-              const { label, transitionIn, transitionOut, trimRange, mediaKind, thumbnails } = item;
-              const mediaKindLabel = mediaKind && mediaKindLabels[mediaKind];
-              const title = mediaKindLabel ? `${label} — ${mediaKindLabel}` : label;
-              const audioOnly = mediaKind === "audio-only";
-              const placementWidth = item.duration * pixelsPerFrame;
-              const placementX = item.sequenceFrame * pixelsPerFrame;
-              // Use the bottom of the row for wider hit targets on tiny placements.
-              // The clipped bodies sit above this lane so a neighboring body keeps its move target.
-              const compactTrim = placementWidth < 16;
-              const gripPairWidth = COMPACT_TRIM_GRIP_WIDTH * 2;
-              const gripPairLeft =
-                Math.max(
-                  0,
-                  Math.min(
-                    width - gripPairWidth,
-                    placementX + (placementWidth - gripPairWidth) / 2,
-                  ),
-                ) - placementX;
-              const hasThumbnails = !compactTrim && (thumbnails?.length ?? 0) > 0;
-              const content = (
-                <>
-                  {hasThumbnails && (
-                    <span className="pointer-events-none absolute inset-x-0 top-4 bottom-7 flex overflow-hidden">
-                      {thumbnails?.map(({ sourceFrame, url }) => (
-                        <img
-                          key={`${sourceFrame}:${url}`}
-                          src={url}
-                          alt=""
-                          draggable={false}
-                          loading="lazy"
-                          className="h-full min-w-0 max-w-16 flex-1 object-cover"
-                        />
-                      ))}
-                    </span>
-                  )}
-                  {label}
-                  {mediaKindLabel && <span className="ml-2 text-[10px]/3">{mediaKindLabel}</span>}
-                </>
-              );
-              const classes = `absolute inset-0 flex overflow-hidden rounded text-xs font-medium whitespace-nowrap ${
-                audioOnly
-                  ? "bg-violet-950 text-violet-100 border-violet-400 inset-ring-violet-400"
-                  : "bg-sky-950 text-sky-100 border-sky-400 inset-ring-sky-400"
-              } ${compactTrim ? "inset-ring" : "border px-2"} ${
-                transitionIn || transitionOut
-                  ? "items-end pb-0.5"
-                  : hasThumbnails
-                    ? "items-end pb-3"
-                    : "items-center"
-              }`;
-              const trimGrips =
-                !splitEnabled &&
-                previewTrim &&
-                trimPlacement &&
-                trimRange &&
-                (["leading", "trailing"] as const).map((edge) => (
-                  <button
-                    key={edge}
-                    type="button"
-                    aria-label={`Trim ${edge} edge: ${label}`}
-                    title={`Trim ${edge} edge: ${label}`}
-                    className={`absolute bottom-0 cursor-ew-resize touch-none rounded-sm bg-sky-700 inset-ring inset-ring-sky-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
-                      compactTrim
-                        ? "z-[1] h-2"
-                        : `z-10 h-3 w-3 max-w-[40%] ${edge === "leading" ? "left-0" : "right-0"}`
-                    }`}
-                    style={
-                      compactTrim
-                        ? {
-                            left:
-                              gripPairLeft + (edge === "trailing" ? COMPACT_TRIM_GRIP_WIDTH : 0),
-                            width: COMPACT_TRIM_GRIP_WIDTH,
-                          }
-                        : undefined
-                    }
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      if (!event.isPrimary || event.button !== 0) return;
-                      const node = surface.current!;
-                      const { left, width } = node.getBoundingClientRect();
-                      node.setPointerCapture(event.pointerId);
-                      moved.current = true;
-                      trimDrag.current = {
-                        pointerId: event.pointerId,
-                        placementId: id,
-                        edge,
-                        contentX: event.clientX - left + scrollLeft.current,
-                        width,
-                        sourceFrame:
-                          edge === "leading" ? trimRange.sourceInFrame : trimRange.sourceOutFrame,
-                      };
-                    }}
-                  />
-                ));
-              return (
-                <>
-                  <div
-                    className={`absolute inset-y-1 z-[2] overflow-hidden rounded ${compactTrim ? "inset-x-0" : "inset-x-px"}`}
-                  >
-                    {activatePlacement ? (
-                      <button
-                        type="button"
-                        title={title}
-                        aria-pressed={selectedPlacementIds.includes(id)}
-                        onPointerDown={(event) => {
-                          if (
-                            splitEnabled ||
-                            !movePlacement ||
-                            !event.isPrimary ||
-                            event.button !== 0
-                          )
-                            return;
-                          const { left, width } = surface.current!.getBoundingClientRect();
-                          event.currentTarget.setPointerCapture(event.pointerId);
-                          drag.current = {
-                            pointerId: event.pointerId,
-                            placementId: id,
-                            placementIds: selectedPlacementIds.includes(id)
-                              ? selectedPlacementIds
-                              : [id],
-                            origin: { clientX: event.clientX, clientY: event.clientY },
-                            contentX: event.clientX - left + scrollLeft.current,
-                            startFrame: item.sequenceFrame,
-                            width,
-                          };
-                        }}
-                        onClick={(event) => {
-                          if (!splitEnabled && (event.detail === 0 || !moved.current))
-                            activatePlacement({
-                              placementId: id,
-                              toggle: event.shiftKey,
-                              sequenceFrame:
-                                event.detail === 0
-                                  ? undefined
-                                  : poolDestination(event)?.sequenceFrame,
-                            });
-                        }}
-                        className={`${classes} ${splitEnabled ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      <div title={title} className={classes}>
-                        {content}
-                      </div>
+          {!editing && width > 0 && durationFrames > 0 && (
+            <>
+              <SequencePlayheadGrip
+                ref={keyboardPlayhead}
+                frame={playheadFrame}
+                durationFrames={durationFrames}
+                pixelsPerFrame={pixelsPerFrame}
+                scrollLeft={visibleScrollLeft}
+                viewportWidth={width}
+                onSeek={onSeek}
+              />
+              {playheadVisible && (
+                <div
+                  aria-hidden="true"
+                  data-sequence-playhead-grip
+                  className="gtve-sequence-playhead-grip"
+                  style={{ left: Math.max(8, Math.min(width - 8, playheadX)) }}
+                />
+              )}
+            </>
+          )}
+          <RulerOrigin.Provider value={framesToSeconds(widgetOriginFrame, frameRate)}>
+            <Timeline
+              ref={timeline}
+              editorData={rows}
+              effects={EFFECTS}
+              style={{
+                width: "100%",
+                height: RULER_HEIGHT + Math.max(1, rows.length) * ROW_HEIGHT,
+              }}
+              startLeft={0}
+              scale={scale}
+              scaleWidth={scaleWidth}
+              scaleSplitCount={4}
+              minScaleCount={WIDGET_TICKS}
+              maxScaleCount={WIDGET_TICKS}
+              rowHeight={ROW_HEIGHT}
+              hideCursor
+              autoScroll={false}
+              onClickRow={(event) => {
+                if (
+                  !splitEnabled &&
+                  !moved.current &&
+                  event.detail !== 0 &&
+                  !(event.target as Element).closest("button")
+                ) {
+                  clearPlacementSelection?.();
+                }
+              }}
+              getScaleRender={(seconds) => <RulerLabel seconds={seconds} frameRate={frameRate} />}
+              disableDrag
+              autoReRender={false}
+              getActionRender={({ id }) => {
+                const item = items.get(id);
+                if (!item) return null;
+                const { label, transitionIn, transitionOut, trimRange, mediaKind, thumbnails } =
+                  item;
+                const mediaKindLabel = mediaKind && mediaKindLabels[mediaKind];
+                const title = mediaKindLabel ? `${label} — ${mediaKindLabel}` : label;
+                const audioOnly = mediaKind === "audio-only";
+                const placementWidth = item.duration * pixelsPerFrame;
+                const placementX = (item.sequenceFrame - widgetOriginFrame) * pixelsPerFrame;
+                // Use the bottom of the row for wider hit targets on tiny placements.
+                // The clipped bodies sit above this lane so a neighboring body keeps its move target.
+                const compactTrim = placementWidth < 16;
+                const gripPairWidth = COMPACT_TRIM_GRIP_WIDTH * 2;
+                const gripPairLeft =
+                  Math.max(
+                    0,
+                    Math.min(
+                      WIDGET_TICKS * scaleWidth - gripPairWidth,
+                      placementX + (placementWidth - gripPairWidth) / 2,
+                    ),
+                  ) - placementX;
+                const hasThumbnails = !compactTrim && (thumbnails?.length ?? 0) > 0;
+                const content = (
+                  <>
+                    {hasThumbnails && (
+                      <span className="pointer-events-none absolute inset-x-0 top-4 bottom-7 flex overflow-hidden">
+                        {thumbnails?.map(({ sourceFrame, url }) => (
+                          <img
+                            key={`${sourceFrame}:${url}`}
+                            src={url}
+                            alt=""
+                            draggable={false}
+                            loading="lazy"
+                            className="h-full min-w-0 max-w-16 flex-1 object-cover"
+                          />
+                        ))}
+                      </span>
                     )}
-                    {!compactTrim && trimGrips}
-                  </div>
-                  {compactTrim && trimGrips}
-                </>
-              );
-            }}
-          />
+                    {label}
+                    {mediaKindLabel && <span className="ml-2 text-[10px]/3">{mediaKindLabel}</span>}
+                  </>
+                );
+                const classes = `absolute inset-0 flex overflow-hidden rounded text-xs font-medium whitespace-nowrap ${
+                  audioOnly
+                    ? "bg-violet-950 text-violet-100 border-violet-400 inset-ring-violet-400"
+                    : "bg-sky-950 text-sky-100 border-sky-400 inset-ring-sky-400"
+                } ${compactTrim ? "inset-ring" : "border px-2"} ${
+                  transitionIn || transitionOut
+                    ? "items-end pb-0.5"
+                    : hasThumbnails
+                      ? "items-end pb-3"
+                      : "items-center"
+                }`;
+                const trimGrips =
+                  !splitEnabled &&
+                  previewTrim &&
+                  trimPlacement &&
+                  trimRange &&
+                  (["leading", "trailing"] as const).map((edge) => (
+                    <button
+                      key={edge}
+                      type="button"
+                      aria-label={`Trim ${edge} edge: ${label}`}
+                      title={`Trim ${edge} edge: ${label}`}
+                      className={`absolute bottom-0 cursor-ew-resize touch-none rounded-sm bg-sky-700 inset-ring inset-ring-sky-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
+                        compactTrim
+                          ? "z-[1] h-2"
+                          : `z-10 h-3 w-3 max-w-[40%] ${edge === "leading" ? "left-0" : "right-0"}`
+                      }`}
+                      style={
+                        compactTrim
+                          ? {
+                              left:
+                                gripPairLeft + (edge === "trailing" ? COMPACT_TRIM_GRIP_WIDTH : 0),
+                              width: COMPACT_TRIM_GRIP_WIDTH,
+                            }
+                          : undefined
+                      }
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        if (!event.isPrimary || event.button !== 0) return;
+                        const node = surface.current!;
+                        const { width } = node.getBoundingClientRect();
+                        node.setPointerCapture(event.pointerId);
+                        moved.current = true;
+                        trimDrag.current = {
+                          pointerId: event.pointerId,
+                          placementId: id,
+                          edge,
+                          grabFrame: sequenceFrameAt(event.clientX),
+                          width,
+                          sourceFrame:
+                            edge === "leading" ? trimRange.sourceInFrame : trimRange.sourceOutFrame,
+                        };
+                      }}
+                    />
+                  ));
+                return (
+                  <>
+                    <div
+                      className={`absolute inset-y-1 z-[2] overflow-hidden rounded ${compactTrim ? "inset-x-0" : "inset-x-px"}`}
+                    >
+                      {activatePlacement ? (
+                        <button
+                          type="button"
+                          title={title}
+                          aria-pressed={selectedPlacementIds.includes(id)}
+                          onPointerDown={(event) => {
+                            if (
+                              splitEnabled ||
+                              !movePlacement ||
+                              !event.isPrimary ||
+                              event.button !== 0
+                            )
+                              return;
+                            const { width } = surface.current!.getBoundingClientRect();
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            drag.current = {
+                              pointerId: event.pointerId,
+                              placementId: id,
+                              placementIds: selectedPlacementIds.includes(id)
+                                ? selectedPlacementIds
+                                : [id],
+                              origin: { clientX: event.clientX, clientY: event.clientY },
+                              grabFrame: sequenceFrameAt(event.clientX),
+                              startFrame: item.sequenceFrame,
+                              width,
+                            };
+                          }}
+                          onClick={(event) => {
+                            if (!splitEnabled && (event.detail === 0 || !moved.current))
+                              activatePlacement({
+                                placementId: id,
+                                toggle: event.shiftKey,
+                                sequenceFrame:
+                                  event.detail === 0
+                                    ? undefined
+                                    : poolDestination(event)?.sequenceFrame,
+                              });
+                          }}
+                          className={`${classes} ${splitEnabled ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div title={title} className={classes}>
+                          {content}
+                        </div>
+                      )}
+                      {!compactTrim && trimGrips}
+                    </div>
+                    {compactTrim && trimGrips}
+                  </>
+                );
+              }}
+            />
+          </RulerOrigin.Provider>
           {splitEnabled && width > 0 && tracks.length > 0 && (
             // Leave the ruler and playhead reachable above the overlay.
             <div
-              className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height) z-[6]"
+              className="absolute inset-x-0 bottom-0 top-(--gtve-ruler-height) z-[6] cursor-crosshair"
               onPointerDown={(event) => {
                 if (!event.isPrimary || event.button !== 0) return;
                 splitPointerOrigin.current = { clientX: event.clientX, clientY: event.clientY };
@@ -1173,46 +1289,38 @@ function SequenceTimelineWidget({
                 // Consume the click here and hit-test the current layout instead.
                 event.stopPropagation();
                 if (moved.current || event.detail === 0) return;
-                setSplitOverlayRevision((revision) => revision + 1);
-                const destination = poolDestination(
-                  event,
-                  surface.current?.querySelector(EDIT_GRID)?.scrollLeft,
-                );
-                if (!destination) return;
-                const { trackIndex, sequenceFrame } = destination;
-                const locked = tracks[trackIndex].locked;
-                const action = rows[trackIndex].actions.find(({ id }) => {
-                  const item = items.get(id)!;
-                  const start = item.sequenceFrame;
-                  // A locked placement still reports a blocked edit on its inclusive in edge.
-                  return (
-                    sequenceFrame < start + item.duration &&
-                    (locked ? start <= sequenceFrame : item.trimRange && start < sequenceFrame)
-                  );
-                });
-                if (!action) return;
-                activatePlacement({ placementId: action.id, sequenceFrame });
+                setSplitPointer(null);
+                const target = splitTargetAt(positionOnTrack(event), leftFrame.current);
+                if (target)
+                  activatePlacement({
+                    placementId: target.placementId,
+                    sequenceFrame: target.sequenceFrame,
+                  });
               }}
             >
-              <CutOverlay
-                // The widget retains its hover until the pointer moves. Clear it on pan, zoom or click.
-                key={`${visibleScrollLeft}:${pixelsPerFrame}:${splitOverlayRevision}`}
-                data={splitRows}
-                // Same pixels/second as the ruler, but snap the blade to sequence frames, not ruler ticks.
-                scale={secondsPerFrame}
-                scaleWidth={pixelsPerFrame}
-                scaleSplitCount={1}
-                startLeft={0}
-                rowHeight={ROW_HEIGHT}
-                editAreaTopOffset={0}
-                gridSnap
-                config={{
-                  cursor: "crosshair",
-                  formatPillLabel: (seconds) =>
-                    `Split at sequence frame ${secondsToFrame(seconds, frameRate)}`,
-                }}
-                onCut={() => {}}
-              />
+              {splitHover && splitHoverItem && !splitHover.locked && (
+                <div
+                  className="pointer-events-none absolute bg-red-500/10 outline outline-red-500/30 -outline-offset-1"
+                  style={{
+                    left: (splitHoverItem.sequenceFrame - visibleLeftFrame) * pixelsPerFrame,
+                    width: splitHoverItem.duration * pixelsPerFrame,
+                    top: splitHover.trackIndex * ROW_HEIGHT,
+                    height: ROW_HEIGHT,
+                  }}
+                >
+                  <div
+                    className="absolute inset-y-0 w-px bg-red-500"
+                    style={{
+                      left:
+                        (splitHover.sequenceFrame - splitHoverItem.sequenceFrame) * pixelsPerFrame,
+                    }}
+                  >
+                    <span className="absolute top-1 left-2 rounded bg-red-700 px-1 text-xs whitespace-nowrap text-white">
+                      Split at sequence frame {splitHover.sequenceFrame}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {/* All transition bodies share a stacking context, even when a window
@@ -1303,7 +1411,7 @@ function SequenceTimelineWidget({
                 trimItem.trackIndex,
                 trimStart,
                 trimEnd - trimStart,
-                trimDraft.scrollLeft,
+                visibleScrollLeft,
               )}
             />
           )}
@@ -1318,7 +1426,7 @@ function SequenceTimelineWidget({
                 trackIndex,
                 sequenceStartFrame,
                 item.duration,
-                draft.scrollLeft,
+                visibleScrollLeft,
                 blocked,
               );
             })}
@@ -1327,7 +1435,7 @@ function SequenceTimelineWidget({
               role="img"
               aria-label={`Snap guide at sequence frame ${draftResult.snapTargetFrame}`}
               className="pointer-events-none absolute top-0 z-20 h-full w-0.5 fill-amber-300"
-              style={{ left: draftResult.snapTargetFrame * pixelsPerFrame - draft.scrollLeft }}
+              style={{ left: draftResult.snapTargetFrame * pixelsPerFrame - visibleScrollLeft }}
             >
               <rect width="100%" height="100%" />
             </svg>
@@ -1341,7 +1449,7 @@ function SequenceTimelineWidget({
               poolDraft.trackIndex,
               poolDrop.sequenceStartFrame,
               poolDrop.duration,
-              poolDraft.scrollLeft,
+              visibleScrollLeft,
               poolDrop.kind === "blocked",
             )}
           {pasteDrop?.preview?.placements.map((placement, index) => {

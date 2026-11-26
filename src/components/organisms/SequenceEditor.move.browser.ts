@@ -118,7 +118,8 @@ test("moving the last placement earlier shrinks the sequence but keeps its sourc
   await expect(timeline.getByText("Fade in", { exact: true })).toBeVisible();
   await expect
     .poll(async () => (await lighthouse.boundingBox())?.x)
-    .toBeCloseTo(first.x + ((last.x - first.x) * 372) / (2 * 252), 0);
+    .toBeCloseTo(first.x + pixelsFor120Frames, 0);
+  expect((await lighthouse.boundingBox())?.width).toBeCloseTo(last.width, 0);
 });
 
 test("moving a placement to an upper track covers the lower track at the matching source frames", async ({

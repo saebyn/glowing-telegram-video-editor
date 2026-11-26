@@ -136,11 +136,25 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
   await expect(harbors.first()).toHaveAttribute("aria-pressed", "true");
   await expect(timeline.getByRole("button", { name: "Trim leading edge: Harbor" })).toHaveCount(0);
 
+  // Dragging the gap pans in Split mode, even if the drag ends over
+  // a placement's old position. It doesn't cut, seek, or clear selection.
+  const gapX = (first.x + first.width + last.x) / 2;
+  await page.mouse.move(gapX, y);
+  await page.mouse.down();
+  await page.mouse.move(gapX + 85, y, { steps: 6 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await harbors.first().boundingBox())!.x)
+    .toBeCloseTo(first.x + 85, 0);
+  expect(await emissions()).toEqual(noEdits);
+  await expect(playhead).toHaveText("Sequence frame 0");
+  await timeline.getByRole("button", { name: "Fit sequence" }).click();
   await timeline.getByRole("button", { name: "Zoom in" }).click();
-  const pan = timeline.getByRole("slider", { name: "Pan timeline" });
-  await pan.focus();
-  await page.keyboard.press("End");
-  expect(Number(await pan.inputValue())).toBeGreaterThan(0);
+  await page.mouse.move(ruler.x + ruler.width / 2, y);
+  await page.mouse.wheel(ruler.width, 0);
+  await expect
+    .poll(async () => (await harbors.last().boundingBox())!.x)
+    .toBeLessThan(ruler.x + ruler.width / 2);
   await harbors.last().scrollIntoViewIfNeeded();
   const closing = (await harbors.last().boundingBox())!;
   const cutX = closing.x + closing.width / 2;
