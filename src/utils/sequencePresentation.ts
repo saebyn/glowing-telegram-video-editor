@@ -30,17 +30,17 @@ interface PreviewFrame {
   probes?: string[];
 }
 
-export function createSequencePresentation(
+type Channel = "picture" | "sound";
+
+function resolveContributions(
   sequence: Sequence,
   clips: readonly VideoClip[],
   sources: SourcesById<SequenceSource>,
   frameRate: FrameRate,
 ) {
   const { geometry } = resolveSequencePlacements(sequence, clips, sources, frameRate, true);
-  if (!geometry)
-    return { durationFrames: null, at: (): PreviewFrame => ({ picture: [], sound: [] }) };
+  if (!geometry) return null;
   const { durationFrames } = geometry;
-  const frameSeconds = framesToSeconds(1, frameRate);
   const byPlacement = new Map(
     geometry.placements.map((placement) => {
       const { sourceId, sourceFrameRate, sourceInFrame, sourceOutFrame, sourceDurationFrames } =
@@ -107,6 +107,7 @@ export function createSequencePresentation(
             phaseOffsetFrames: 0,
           };
     return {
+      id: transition.id,
       owner,
       fadeTrim:
         transition.kind === "fade" ? getFadeTrim(owner, leading, startFrame, endFrame) : owner,
@@ -122,36 +123,63 @@ export function createSequencePresentation(
   const boundaries = [...new Set(placements.flatMap(({ start, end }) => [start, end]))].sort(
     (a, b) => a - b,
   );
-  function at(frame: number, kinds?: ReadonlyMap<string, MediaKind>, audible = true): PreviewFrame {
-    const probes = new Set<string>();
-    function winner(frame: number, channel: "picture" | "sound") {
+  type Transition = (typeof transitions)[number];
+  function forChannel(
+    channel: Channel,
+    kinds?: ReadonlyMap<string, MediaKind>,
+    probe?: (sourceId: string) => void,
+  ) {
+    function winner(frame: number) {
+      if (frame < 0 || frame >= durationFrames) return undefined;
       return placements.find(({ start, end, mediaKind, sourceId }) => {
-        if (frame < 0 || frame >= durationFrames || start > frame || frame >= end) return false;
+        if (start > frame || frame >= end) return false;
         const kind = mediaKind ?? kinds?.get(sourceId);
-        if (!kind) probes.add(sourceId);
+        if (!kind) probe?.(sourceId);
         return kind !== (channel === "picture" ? "audio-only" : "video-only");
       });
     }
-    const continuous = (
-      channel: "picture" | "sound",
-      expected: Placement | undefined,
-      from: number,
-      to: number,
-      ownerTrack: number,
-    ) =>
-      from >= to ||
-      [from, ...boundaries.filter((frame) => from < frame && frame < to)].every((frame) => {
-        const visible = winner(frame, channel);
-        return (
-          visible === expected ||
-          (!!visible && visible.track < (expected?.track ?? ownerTrack)) ||
-          (!!visible && !!expected && sameSourceTime(visible, expected))
-        );
-      });
+    function atAnchor({ owner, leading, cut }: Transition) {
+      return owner === winner(leading ? cut : cut - 1);
+    }
+    function isActive(transition: Transition, frame: number, visible: Placement | undefined) {
+      const { owner, fadeTrim, cut, kind, startFrame, endFrame } = transition;
+      if (startFrame > frame || frame >= endFrame) return false;
+      const anchored = atAnchor(transition);
+      if (kind === "fade") {
+        if (owner === visible) return true;
+        if (fadeTrim.start <= frame && frame < fadeTrim.end)
+          return visible?.track === owner.track && sameSourceTime(visible, owner);
+        return anchored && (!visible || visible.track >= owner.track);
+      }
+      const side = winner(frame < cut ? cut - 1 : cut);
+      return anchored && (!visible || visible.track >= (side?.track ?? owner.track));
+    }
+    function claimsSameCut(claimant: Transition, active: Transition) {
+      return claimant !== active && claimant.cut === active.cut && atAnchor(claimant);
+    }
+    return { winner, isActive, claimsSameCut };
+  }
+  return { durationFrames, transitions, boundaries, sameSourceTime, forChannel };
+}
+
+export function createSequencePresentation(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: SourcesById<SequenceSource>,
+  frameRate: FrameRate,
+) {
+  const contributions = resolveContributions(sequence, clips, sources, frameRate);
+  if (!contributions)
+    return { durationFrames: null, at: (): PreviewFrame => ({ picture: [], sound: [] }) };
+  const { durationFrames, transitions, boundaries, sameSourceTime, forChannel } = contributions;
+  type Placement = (typeof transitions)[number]["owner"];
+  const frameSeconds = framesToSeconds(1, frameRate);
+  function at(frame: number, kinds?: ReadonlyMap<string, MediaKind>, audible = true): PreviewFrame {
+    const probes = new Set<string>();
     let problem: PreviewFrame["problem"];
     const sample = (
       placement: Placement | undefined,
-      channel: "picture" | "sound",
+      channel: Channel,
       weight: number,
       endWeight?: number,
     ): PreviewSample[] => {
@@ -187,23 +215,12 @@ export function createSequencePresentation(
         },
       ];
     };
-    const resolve = (channel: "picture" | "sound") => {
-      const visible = winner(frame, channel);
-      const active = transitions.filter(
-        ({ owner, fadeTrim, leading, cut, kind, startFrame, endFrame }) => {
-          if (startFrame > frame || frame >= endFrame) return false;
-          const atAnchor = owner === winner(leading ? cut : cut - 1, channel);
-          if (kind === "fade") {
-            const outsideTrim = frame < fadeTrim.start || frame >= fadeTrim.end;
-            if (owner === visible) return true;
-            if (!outsideTrim)
-              return visible?.track === owner.track && sameSourceTime(visible, owner);
-            return atAnchor && (!visible || visible.track >= owner.track);
-          }
-          const side = winner(frame < cut ? cut - 1 : cut, channel);
-          return atAnchor && (!visible || visible.track >= (side?.track ?? owner.track));
-        },
+    const resolve = (channel: Channel) => {
+      const { winner, isActive, claimsSameCut } = forChannel(channel, kinds, (id) =>
+        probes.add(id),
       );
+      const visible = winner(frame);
+      const active = transitions.filter((transition) => isActive(transition, frame, visible));
       const transition = active[0];
       if (!transition) return sample(visible, channel, 1);
       const {
@@ -217,25 +234,33 @@ export function createSequencePresentation(
         phaseOffsetFrames,
         duration,
       } = transition;
-      const outgoing = kind === "fade" && !leading ? fadeTrim : winner(cut - 1, channel);
-      const incoming = kind === "fade" && leading ? fadeTrim : winner(cut, channel);
-      const sameCut = transitions.some(
-        (other) =>
-          other !== transition &&
-          other.cut === cut &&
-          other.owner === winner(other.leading ? cut : cut - 1, channel),
-      );
+      const outgoing = kind === "fade" && !leading ? fadeTrim : winner(cut - 1);
+      const incoming = kind === "fade" && leading ? fadeTrim : winner(cut);
+      const sameCut = transitions.some((other) => claimsSameCut(other, transition));
+      const continuous = (
+        expected: Placement | undefined,
+        from: number,
+        to: number,
+        ownerTrack: number,
+      ) =>
+        from >= to ||
+        [from, ...boundaries.filter((frame) => from < frame && frame < to)].every((frame) => {
+          const visible = winner(frame);
+          return (
+            visible === expected ||
+            (!!visible && visible.track < (expected?.track ?? ownerTrack)) ||
+            (!!visible && !!expected && sameSourceTime(visible, expected))
+          );
+        });
       const fadeInterrupted =
         kind === "fade" &&
         (!continuous(
-          channel,
           owner,
           Math.max(0, startFrame, fadeTrim.start),
           Math.min(endFrame, fadeTrim.end, durationFrames),
           owner.track,
         ) ||
           !continuous(
-            channel,
             leading ? outgoing : incoming,
             leading ? fadeTrim.end : Math.max(0, startFrame),
             leading ? Math.min(endFrame, durationFrames) : fadeTrim.start,
@@ -246,8 +271,8 @@ export function createSequencePresentation(
         sameCut ||
         fadeInterrupted ||
         (kind === "dissolve" &&
-          (!continuous(channel, outgoing, startFrame, cut, owner.track) ||
-            !continuous(channel, incoming, cut, endFrame, owner.track)))
+          (!continuous(outgoing, startFrame, cut, owner.track) ||
+            !continuous(incoming, cut, endFrame, owner.track)))
       ) {
         problem = "undefined-transition";
         return [];
@@ -270,4 +295,56 @@ export function createSequencePresentation(
     };
   }
   return { durationFrames, at };
+}
+
+/** Authoring checks the proposed transition's competition independently of export and playback errors. */
+export function hasPresentationTransitionConflict(
+  sequence: Sequence,
+  clips: readonly VideoClip[],
+  sources: SourcesById<SequenceSource>,
+  frameRate: FrameRate,
+  transitionId: string,
+) {
+  const contributions = resolveContributions(sequence, clips, sources, frameRate);
+  if (!contributions) return false;
+  const { durationFrames, transitions, boundaries, forChannel } = contributions;
+  const changed = transitions.find(({ id }) => id === transitionId);
+  if (!changed) return false;
+
+  // Without probed media kinds, an unspecified source can contribute to either channel.
+  return (["picture", "sound"] as const).some((channel) => {
+    const { winner, isActive, claimsSameCut } = forChannel(channel);
+    function withinWindow(start: number, end: number, check: (frame: number) => boolean) {
+      start = Math.max(0, start);
+      end = Math.min(end, durationFrames);
+      if (start >= end) return false;
+      // The first frame accounts for the transition window. Inside it activity can change
+      // only at placement boundaries, which include both transitions' cuts and fade trim edges.
+      return (
+        check(start) || boundaries.some((frame) => start < frame && frame < end && check(frame))
+      );
+    }
+    const contributes = (transition: typeof changed) =>
+      withinWindow(transition.startFrame, transition.endFrame, (frame) =>
+        isActive(transition, frame, winner(frame)),
+      );
+    return transitions.some((other) => {
+      if (other === changed) return false;
+      // Either transition can claim the same cut as the other's active contribution,
+      // even when their windows don't overlap.
+      if (
+        (claimsSameCut(other, changed) && contributes(changed)) ||
+        (claimsSameCut(changed, other) && contributes(other))
+      )
+        return true;
+      return withinWindow(
+        Math.max(changed.startFrame, other.startFrame),
+        Math.min(changed.endFrame, other.endFrame),
+        (frame) => {
+          const visible = winner(frame);
+          return isActive(changed, frame, visible) && isActive(other, frame, visible);
+        },
+      );
+    });
+  });
 }

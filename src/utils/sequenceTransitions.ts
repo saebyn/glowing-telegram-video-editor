@@ -8,6 +8,7 @@ import type {
 } from "@/types";
 import { getSource } from "./sourcesById";
 import { getDissolveWindow } from "./dissolveWindow";
+import { hasPresentationTransitionConflict } from "./sequencePresentation";
 import {
   resolveVisibleSequence,
   type ResolvedTransition,
@@ -280,56 +281,7 @@ export function hasTransitionAuthoringConflict(
   frameRate: FrameRate,
   transitionId: string,
 ) {
-  // Check picture and sound separately. Unspecified kinds contribute to both in authoring.
-  return (["audio-only", "video-only"] as const).some((excludedKind) => {
-    const { layout } = resolveVisibleSequence(
-      sequence,
-      clips,
-      sources,
-      frameRate,
-      true,
-      (sourceId) => getSource(sources, sourceId)?.mediaKind !== excludedKind,
-    );
-    return (
-      layout !== null &&
-      hasVisibleTransitionConflict(
-        layout.spans,
-        layout.transitions,
-        layout.durationFrames,
-        transitionId,
-      )
-    );
-  });
-}
-
-function hasVisibleTransitionConflict(
-  spans: readonly VisibleSpan[],
-  transitions: readonly ResolvedTransition[],
-  sequenceDuration: number,
-  transitionId: string,
-) {
-  const changed = transitions.find(({ id }) => id === transitionId);
-  if (!changed) return false;
-  if (changed.kind === "dissolve") {
-    return resolveDissolve(spans, transitions, changed, sequenceDuration).conflict;
-  }
-  const authoredSpans = visibleFadeSpans(spans, changed);
-  return (
-    authoredSpans.length > 0 &&
-    transitions.some((other) => {
-      if (other.id === transitionId) return false;
-      if (other.kind === "dissolve") {
-        return resolveDissolve(spans, [changed, other], other, sequenceDuration).conflict;
-      }
-      return visibleFadeSpans(spans, other).some(
-        (span) =>
-          transitionCut(changed) === transitionCut(other) ||
-          authoredSpans.some(
-            ({ startFrame, endFrame }) => startFrame < span.endFrame && endFrame > span.startFrame,
-          ),
-      );
-    })
-  );
+  return hasPresentationTransitionConflict(sequence, clips, sources, frameRate, transitionId);
 }
 
 function* getDissolveIssues(
