@@ -438,6 +438,23 @@ contributions, not the downstream render's pixels or audio samples.
   case playback stops at the affected position, the edit is intact, and
   the user can seek elsewhere. Diagnose unsupported browser or codec
   combinations explicitly rather than substituting an approximation.
+- **Preview cache budget.** Each mounted reader keeps at most four open or
+  opening playback renditions, keyed by URL. A dissolve can use two picture
+  and two sound contributors. Reads, including media-kind probes, lease
+  their rendition until finished; if all four are leased, another URL
+  waits. The least recently used idle rendition is disposed to make room,
+  and revisiting it can reopen it. Each retained rendition caches up to six
+  half-second windows per channel, with at most 32 pictures per picture
+  window (768 cached picture entries across four renditions).
+  Separately, the reader caches up to `round(project fps × 0.25) + 8`
+  prepared-frame entries (23 at 60 fps), each with at most two picture
+  references and two sound contributions. It admits at most that many
+  unfinished preparations at a time, so partially decoded frames cannot
+  accumulate behind a slow read. Queued preparations do not hold decoded
+  samples. Closing the reader disposes its inputs, drops cached results,
+  and prevents queued or late reads from publishing results. These are
+  cache and concurrency limits, not measurements of browser heap or of
+  media already handed to the compositor or Web Audio.
 
 ## `CutList` boundary
 

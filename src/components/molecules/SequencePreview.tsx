@@ -1,115 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type {
-  FrameRate,
-  MediaKind,
-  SequencePreviewGate,
-  SequencePreviewMedia,
-  SequenceTransportSnapshot,
-} from "@/types";
+import type { SequencePreviewGate, SequencePreviewMedia, SequenceTransportSnapshot } from "@/types";
 import { framesToSeconds, secondsToFrame } from "@/utils/frames";
-import { previewHeight, previewWidth, createPreviewRendition } from "@/utils/previewRendition";
+import { createPreviewReader } from "@/utils/previewReader";
+import { previewHeight, previewWidth } from "@/utils/previewRendition";
 import { createPreviewSound } from "@/utils/previewSound";
 import { previewSoundStops } from "@/utils/previewSoundStops";
-import { createSequencePresentation } from "@/utils/sequencePresentation";
-import { getSource } from "@/utils/sourcesById";
 
 export interface SequencePreviewProps extends SequenceTransportSnapshot {
   readonly media?: SequencePreviewMedia;
   readonly registerPreview?: (preview: SequencePreviewGate) => () => void;
   readonly stoppedOnSound?: boolean;
-}
-
-function createPreviewReader(media: SequencePreviewMedia, frameRate: FrameRate) {
-  const at = createSequencePresentation(media.sequence, media.clips, media.sources, frameRate);
-  const frameSeconds = framesToSeconds(1, frameRate);
-  const frameCacheSize = Math.ceil(secondsToFrame(0.25, frameRate)) + 8;
-  const kinds = new Map<string, MediaKind>();
-  const renditions = new Map<string, ReturnType<typeof createPreviewRendition>>();
-  function getRendition(sourceId: string) {
-    const url = getSource(media.sources, sourceId)?.previewHlsUrl;
-    if (!url) throw new Error("No playback rendition was supplied.");
-    let rendition = renditions.get(url);
-    if (!rendition) {
-      rendition = createPreviewRendition(url);
-      renditions.set(url, rendition);
-    }
-    return rendition.ready;
-  }
-  let disposed = false;
-  async function read(frame: number, audible: boolean) {
-    audible &&= frame < media.sequence.durationFrames;
-    const position = Math.min(frame, media.sequence.durationFrames - 1);
-    let presentation = at(position, kinds, audible);
-    while (presentation.probes) {
-      await Promise.all(
-        presentation.probes.map(async (sourceId) => {
-          const { kind } = await getRendition(sourceId);
-          kinds.set(sourceId, kind);
-        }),
-      );
-      if (disposed) throw new Error("Preview was closed.");
-      presentation = at(position, kinds, audible);
-    }
-    if (presentation.problem) return presentation.problem;
-    const [picture, sound] = await Promise.all([
-      Promise.all(
-        presentation.picture.map(async ({ sourceId, time, weight, extension }) => {
-          const { pictureAt } = await getRendition(sourceId);
-          const sample = await pictureAt(time, extension);
-          return sample ? { picture: sample.canvas, weight } : null;
-        }),
-      ),
-      Promise.all(
-        presentation.sound.map(async (sample) => {
-          const { soundBetween } = await getRendition(sample.sourceId);
-          return {
-            ...sample,
-            buffers: await soundBetween(
-              sample.time,
-              sample.length ?? frameSeconds,
-              sample.extension,
-            ),
-          };
-        }),
-      ),
-    ]);
-    return { picture: picture.filter((sample) => sample !== null), sound };
-  }
-  type Pending = {
-    state: "loading" | "ready" | "failed";
-    value: ReturnType<typeof read>;
-    result?: Awaited<ReturnType<typeof read>>;
-  };
-  const requests = new Map<string, Pending>();
-  function prepare(frame: number, audible: boolean) {
-    const key = `${frame}/${audible}`;
-    const prepared = requests.get(key);
-    if (prepared) {
-      requests.delete(key);
-      requests.set(key, prepared);
-      return prepared;
-    }
-    const pending: Pending = { state: "loading", value: read(frame, audible) };
-    requests.set(key, pending);
-    if (requests.size > frameCacheSize) requests.delete(requests.keys().next().value!);
-    void pending.value.then(
-      (value) => {
-        pending.result = value;
-        pending.state = typeof value === "string" ? "failed" : "ready";
-      },
-      () => {
-        pending.state = "failed";
-      },
-    );
-    return pending;
-  }
-  return {
-    prepare,
-    dispose() {
-      disposed = true;
-      for (const rendition of renditions.values()) rendition.dispose();
-    },
-  };
 }
 
 export default function SequencePreview({
