@@ -58,6 +58,7 @@ import {
 const RULER_HEIGHT = 32;
 const RULER = ".timeline-editor-time-area-interact";
 const ACTION = ".timeline-editor-action";
+const EDIT_GRID = ".timeline-editor-edit-area .ReactVirtualized__Grid";
 const CURSOR_GRIP = "[data-sequence-playhead-grip]";
 const ROW_HEIGHT = 72;
 const PLACEMENT_INSET_Y = 4;
@@ -295,8 +296,7 @@ function SequenceTimelineWidget({
   const reportedPasteTarget = useRef<PlacementPasteTarget | null>(null);
   const pasteReporter =
     useRef<NonNullable<SequenceTimelineProps["placementPaste"]>["onTargetChange"]>(undefined);
-  // Gestures use the requested sequence frame, never the widget's rounded,
-  // asynchronously reported physical scroll position.
+  // Gestures use the logical sequence frame, not the widget's rounded pixel offset.
   const leftFrame = useRef(0);
   const [{ frame: visibleLeftFrame, originTick }, setView] = useState({ frame: 0, originTick: -4 });
   const [draft, setDraft] = useState<MoveDraft | null>(null);
@@ -969,7 +969,7 @@ function SequenceTimelineWidget({
       <p className="mb-2 text-right text-sm tabular-nums">
         Duration: {formatFrames(durationFrames, frameRate)}
       </p>
-      <div className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-md bg-slate-800 text-slate-100">
+      <div className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-clip rounded-md bg-slate-800 text-slate-100">
         <SequenceTrackHeaders
           tracks={tracks}
           rulerHeight={RULER_HEIGHT}
@@ -981,10 +981,18 @@ function SequenceTimelineWidget({
         />
         <div
           ref={surface}
-          className="gtve-sequence-timeline relative touch-pan-y overflow-hidden"
+          className="gtve-sequence-timeline relative touch-pan-y overflow-clip"
           data-pool-dragging={isPoolDragging || undefined}
           style={{ "--gtve-ruler-height": `${RULER_HEIGHT}px` } as CSSProperties}
           tabIndex={pasteDrop ? -1 : undefined}
+          onScrollCapture={(event) => {
+            const grid = event.target;
+            if (!width || !(grid instanceof HTMLElement) || !grid.matches(EDIT_GRID)) return;
+            // Tab can scroll Keplar's grid natively. Adopt only the movement
+            // beyond our requested scroll, not our own rounded scroll writes.
+            const delta = grid.scrollLeft - widgetScroll;
+            if (delta) showFrom(visibleLeftFrame + delta / pixelsPerFrame, framesPerTick);
+          }}
           onPointerDownCapture={(event) => {
             if (!event.isPrimary || event.button !== 0) return;
             moved.current = false;
@@ -1282,7 +1290,7 @@ function SequenceTimelineWidget({
                                     : poolDestination(event)?.sequenceFrame,
                               });
                           }}
-                          className={`${classes} ${splitEnabled ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
+                          className={`${classes} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${splitEnabled ? "cursor-crosshair select-none" : movePlacement ? "touch-none cursor-grab select-none active:cursor-grabbing" : "cursor-pointer"} ${audioOnly ? "aria-pressed:bg-violet-800" : "aria-pressed:bg-sky-800"}`}
                         >
                           {content}
                         </button>
@@ -1349,7 +1357,22 @@ function SequenceTimelineWidget({
           {/* All transition bodies share a stacking context, even when a window
               extends outside its owner's widget action. The underlay still receives
               placement and trim gestures outside the interactive transition bodies. */}
-          <div className="pointer-events-none absolute inset-0 z-[5]">
+          <div
+            className="pointer-events-none absolute inset-0 z-[5]"
+            onFocusCapture={(event) => {
+              // Overlay controls aren't in Keplar's scrollable grid.
+              const viewport = event.currentTarget.getBoundingClientRect();
+              const control = event.target.getBoundingClientRect();
+              const visibleWidth = Math.min(control.width, viewport.width);
+              const delta =
+                control.right <= viewport.left
+                  ? control.right - viewport.left - visibleWidth
+                  : control.left >= viewport.right
+                    ? control.left - viewport.right + visibleWidth
+                    : 0;
+              if (delta) showFrom(leftFrame.current + delta / pixelsPerFrame, framesPerTick);
+            }}
+          >
             {[...items].flatMap(([id, item]) =>
               (["leading", "trailing"] as const).flatMap((edge) => {
                 const transition = item[transitionFields[edge]];

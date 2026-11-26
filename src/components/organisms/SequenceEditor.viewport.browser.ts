@@ -151,6 +151,110 @@ test("keyboard toolbar navigation pans half a view at both zooms and fits from f
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
+test("tabbing in both directions keeps the zoomed ruler aligned with the sequence frame", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1_280, height: 1_100 });
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, { reviewEdits: "true" });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const ruler = timeline.locator(".timeline-editor-time-area-interact");
+  const readout = page.getByLabel("Sequence playhead position");
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const opening = harbor.first();
+  const closing = harbor.last();
+  const leading = timeline.getByRole("button", { name: "Trim leading edge: Harbor" });
+  const trailing = timeline.getByRole("button", { name: "Trim trailing edge: Harbor" });
+
+  async function expectNavigationOnly(frame: number) {
+    await expect(readout).toHaveText(`Sequence frame ${frame}`);
+    await expect(opening).toHaveAttribute("aria-pressed", "false");
+    await expect(closing).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Accept proposed edit" })).toBeHidden();
+    expect(await emissions()).toEqual(noEdits);
+  }
+
+  async function clickTick(label: string, frame: number, placement: Locator, fraction: number) {
+    const tick = timeline.getByText(label, { exact: true });
+    await expect(tick).toBeInViewport();
+    const { x, width } = await visibleBox(tick);
+    const rail = await visibleBox(ruler);
+    const tickX = x + width / 2;
+    const clip = await visibleBox(placement);
+    expect(Math.abs(clip.x + clip.width * fraction - tickX)).toBeLessThan(2);
+    await page.mouse.click(tickX, rail.y + rail.height * 0.75);
+    await expect(readout).toHaveText(`Sequence frame ${frame}`);
+  }
+
+  await closing.click();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(closing).not.toBeInViewport();
+  await opening.focus();
+
+  for (const control of [leading.first(), trailing.first(), closing]) {
+    await page.keyboard.press("Tab");
+    await expect(control).toBeFocused();
+  }
+  await expect(closing).toBeInViewport();
+  await expectNavigationOnly(0);
+  // The closing placement spans [240, 360), and the opening one spans [0, 120).
+  await clickTick("00:04.5", 270, closing, 1 / 4);
+
+  await closing.focus();
+  for (const control of [leading.last(), trailing.last()]) {
+    await page.keyboard.press("Tab");
+    await expect(control).toBeFocused();
+  }
+  for (const control of [leading.last(), closing, trailing.first(), leading.first(), opening]) {
+    await page.keyboard.press("Shift+Tab");
+    await expect(control).toBeFocused();
+  }
+  await expect(opening).toBeInViewport();
+  await expectNavigationOnly(270);
+  await clickTick("00:01.5", 90, opening, 3 / 4);
+  await expectNavigationOnly(90);
+
+  await opening.press("Enter");
+  await expect(opening).toHaveAttribute("aria-pressed", "true");
+  await expect(closing).toHaveAttribute("aria-pressed", "false");
+  await expect(readout).toHaveText("Sequence frame 90");
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("tabbing from a later placement reveals the opening fade overlay without selecting it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1_280, height: 1_100 });
+  const emissions = await recordEditorEmissions(page);
+  await openWorkflow(page, roughCutStoryId, {
+    "sequence.tracks[0].placements[0].transitionIn.id": "harbor-entry",
+    "sequence.tracks[0].placements[0].transitionIn.kind": "fade",
+    "sequence.tracks[0].placements[0].transitionIn.durationFrames": 60,
+  });
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const closing = timeline.getByRole("button", { name: "Harbor", exact: true }).last();
+  const trailing = timeline.getByRole("button", { name: "Trim trailing edge: Harbor" }).last();
+  const fade = timeline.getByRole("button", { name: "Select entry fade: Harbor" });
+  const readout = page.getByLabel("Sequence playhead position");
+
+  await closing.click();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await trailing.focus();
+  await expect(trailing).toBeInViewport();
+  await expect(fade).not.toBeInViewport();
+  await page.keyboard.press("Tab");
+  await expect(fade).toBeFocused();
+  await expect(fade).toBeInViewport();
+  await expect(fade).toHaveAttribute("aria-pressed", "false");
+  await expect(closing).toHaveAttribute("aria-pressed", "true");
+  await expect(readout).toHaveText("Sequence frame 0");
+
+  await page.keyboard.press("Enter");
+  await expect(fade).toHaveAttribute("aria-pressed", "true");
+  await expect(readout).toHaveText("Sequence frame 0");
+  expect(await emissions()).toEqual(noEdits);
+});
+
 test("horizontal panning preserves the edit and the ruler seeks on the right of the panned view", async ({
   page,
 }) => {
