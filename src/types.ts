@@ -198,10 +198,18 @@ export interface Sequence {
   tracks: readonly SequenceTrack[];
 }
 
+type SequenceTimelineZoomAction = {
+  run: () => void;
+  /** The action is supported, but can't be used at the moment. */
+  disabled?: boolean;
+};
+
 /** Viewport navigation supported by the currently mounted sequence timeline. */
 export interface SequenceTimelineNavigation {
   panLeft?: () => void;
   panRight?: () => void;
+  zoomOut?: SequenceTimelineZoomAction;
+  zoomIn?: SequenceTimelineZoomAction;
   fitToView?: () => void;
 }
 

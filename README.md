@@ -187,6 +187,9 @@ The default Timeline registers its viewport actions with the session. A replacem
 can call `timelineProps.registerNavigation?.({ panLeft, panRight, fitToView })`
 when mounted and return its cleanup function from the effect. Register only supported
 actions; `toolbarProps.navigation` exposes just those actions to the Toolbar.
+To expose zoom, register `zoomOut` or `zoomIn` as `{ run, disabled }` and update the
+registration when availability changes. A standalone `SequenceTimeline` does not
+render its own zoom buttons.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
@@ -259,8 +262,9 @@ Click the ruler or drag the playhead to seek. Forward, reverse, and pause work e
 the media preview is disconnected. Transport and selection do not emit edits.
 Drag empty track space, scroll horizontally, or use Shift+wheel to pan before or
 beyond the edit. The toolbar’s **Pan left** and **Pan right** move by half the
-visible span. **Fit to view** brings the whole edit into view from frame zero.
-Panning, fitting, and the timeline’s zoom controls do not seek or change the edit.
+visible span. **Zoom out** and **Zoom in** change the scale, and **Fit to view**
+brings the whole edit into view from frame zero. These controls don't move the
+playhead or change the edit.
 With focus in the editor (outside text and number fields), Left and Right Arrow step the
 playhead one sequence frame. The `[` and `]` keys nudge selected placements earlier or later.
 

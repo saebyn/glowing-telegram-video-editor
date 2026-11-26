@@ -167,7 +167,7 @@ test("Paste drop mode retargets a stationary preview on pan and does not paste o
   const harbors = timeline.getByRole("button", { name: "Harbor", exact: true });
   await harbors.first().click();
   await page.keyboard.press("Control+c");
-  await timeline.getByRole("button", { name: "Zoom in" }).click();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   const ruler = (await timeline.locator(".timeline-editor-time-area-interact").boundingBox())!;
   const opening = (await harbors.first().boundingBox())!;
   await page.mouse.move(ruler.x + ruler.width / 3, ruler.y + ruler.height / 2);

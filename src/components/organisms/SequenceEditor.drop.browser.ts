@@ -460,9 +460,9 @@ test("leaving the tracks clears a pool preview without committing an edit", asyn
   await startDrag(xAt(180), y);
   await expect(preview).toBeVisible();
 
-  const heading = await timeline.getByRole("heading", { name: "Sequence timeline" }).boundingBox();
-  if (!heading) throw new Error("Expected the timeline heading above the tracks");
-  await page.mouse.move(xAt(180), heading.y + heading.height / 2, { steps: 4 });
+  const duration = await timeline.getByText("Duration: 00:06").boundingBox();
+  if (!duration) throw new Error("Expected the duration readout above the tracks");
+  await page.mouse.move(xAt(180), duration.y + duration.height / 2, { steps: 4 });
   await expect(preview).toHaveCount(0);
   await expect(timeline.getByRole("status")).toHaveCount(0);
   await page.mouse.up();

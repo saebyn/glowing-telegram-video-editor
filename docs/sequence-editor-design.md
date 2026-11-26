@@ -110,13 +110,16 @@ rows are not editor state or compiler input.
   material before zero, and a ruler seek there lands at zero. An edit to the
   right can extend the sequence; seeking there lands at the current end.
 - **Toolbar navigation.** **Pan left** and **Pan right** move the viewport
-  by half its visible time span at the current zoom. **Fit to view** brings
-  frame zero to the left and shows the whole sequence. For an empty sequence
-  it returns to zero at a usable default scale. Use icon buttons with
+  by half its visible time span at the current zoom. **Zoom out** and **Zoom in**
+  step the scale; they stay visible but are disabled at their respective limits
+  and during placement or clip pool drags and placement trims. **Fit to view**
+  brings frame zero to the left and shows the whole sequence. For an empty
+  sequence it returns to zero at a usable default scale. Use icon buttons with
   accessible names and tooltips. Host-built layouts can use the same actions
   through the toolbar and timeline slots; omit actions an absent, hidden, or
-  replacement Timeline doesn't provide. The separate pan slider is removed.
-- **Keep navigation separate from authoring.** Panning and fitting leave
+  replacement Timeline doesn't provide. The sequence timeline keeps its
+  accessible region name and duration readout without a visible heading.
+- **Keep navigation separate from authoring.** Panning, zooming, and fitting leave
   the selection and playhead alone, emit no edit callbacks, and don't join
   Undo history. An ordinary placement edit doesn't change viewport position
   or scale just because sequence duration changed. Edge auto-pan can still

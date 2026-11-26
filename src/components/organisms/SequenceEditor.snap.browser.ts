@@ -176,7 +176,7 @@ test("the playhead guide has the same CSS-pixel reach at Fit and after zooming",
   await snap.click();
   for (const zoomed of [false, true]) {
     if (zoomed) {
-      await timeline.getByRole("button", { name: "Zoom in", exact: true }).click();
+      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
       await expect.poll(async () => (await visibleBox(placement)).width).toBeGreaterThan(fitWidth);
     }
     const playhead = await visibleBox(timeline.getByRole("slider", { name: "Sequence playhead" }));

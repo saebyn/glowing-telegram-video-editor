@@ -321,6 +321,7 @@ function SequenceTimelineWidget({
     zoom,
   );
   const maxZoom = getMaxZoom(width, fitFrames);
+  const latestPlayheadFrame = useRef(playheadFrame);
   const widgetOriginTick = getWidgetOrigin(visibleLeftFrame, framesPerTick, originTick);
   const widgetOriginFrame = widgetOriginTick * framesPerTick;
   const widgetScroll = Math.round((visibleLeftFrame - widgetOriginFrame) * pixelsPerFrame);
@@ -366,34 +367,65 @@ function SequenceTimelineWidget({
     );
   }
 
-  function changeZoom(nextZoom: number) {
-    const next = getSequenceTimelineViewport(width, fitFrames, nextZoom);
-    showFrom(
-      getZoomLeftFrame(
-        width,
-        leftFrame.current,
-        playheadFrame,
-        pixelsPerFrame,
-        next.pixelsPerFrame,
-      ),
-      next.framesPerTick,
-    );
-    setZoom(nextZoom);
-  }
+  useLayoutEffect(() => {
+    // Zoom uses the current playhead without re-registering controls on every frame.
+    latestPlayheadFrame.current = playheadFrame;
+  }, [playheadFrame]);
 
   useLayoutEffect(() => {
     if (!registerNavigation || !width) return;
     const halfView = width / (2 * pixelsPerFrame);
+    const canZoomOut = !editing && zoom > 0;
+    const canZoomIn = !editing && zoom < maxZoom;
+
+    function changeZoom(nextZoom: number) {
+      const next = getSequenceTimelineViewport(width, fitFrames, nextZoom);
+      showFrom(
+        getZoomLeftFrame(
+          width,
+          leftFrame.current,
+          latestPlayheadFrame.current,
+          pixelsPerFrame,
+          next.pixelsPerFrame,
+        ),
+        next.framesPerTick,
+      );
+      setZoom(nextZoom);
+    }
+
     return registerNavigation({
       panLeft: () => showFrom(leftFrame.current - halfView, framesPerTick),
       panRight: () => showFrom(leftFrame.current + halfView, framesPerTick),
+      zoomOut: {
+        disabled: !canZoomOut,
+        run: () => {
+          if (canZoomOut) changeZoom(zoom - 1);
+        },
+      },
+      zoomIn: {
+        disabled: !canZoomIn,
+        run: () => {
+          if (canZoomIn) changeZoom(zoom + 1);
+        },
+      },
       fitToView: () => {
         setFitFrames(fitSpan);
         setZoom(0);
         showFrom(0, getSequenceTimelineViewport(width, fitSpan, 0).framesPerTick);
       },
     });
-  }, [registerNavigation, width, pixelsPerFrame, framesPerTick, fitSpan, showFrom]);
+  }, [
+    registerNavigation,
+    width,
+    pixelsPerFrame,
+    framesPerTick,
+    fitFrames,
+    fitSpan,
+    showFrom,
+    editing,
+    maxZoom,
+    zoom,
+  ]);
 
   useLayoutEffect(() => {
     if (!width) return;
@@ -934,28 +966,9 @@ function SequenceTimelineWidget({
 
   return (
     <section aria-label="Sequence timeline">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 className="text-lg font-semibold">Sequence timeline</h2>
-        <div className="flex min-w-0 flex-1 basis-[25rem] flex-wrap gap-2">
-          {[
-            { label: "Zoom in", next: zoom + 1, disabled: zoom >= maxZoom },
-            { label: "Zoom out", next: zoom - 1, disabled: zoom === 0 },
-          ].map(({ label, next, disabled }) => (
-            <button
-              key={label}
-              type="button"
-              className="rounded border px-2 py-0.5 text-sm disabled:opacity-50"
-              disabled={disabled || editing}
-              onClick={() => changeZoom(next)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <span className="text-sm tabular-nums">
-          Duration: {formatFrames(durationFrames, frameRate)}
-        </span>
-      </div>
+      <p className="mb-2 text-right text-sm tabular-nums">
+        Duration: {formatFrames(durationFrames, frameRate)}
+      </p>
       <div className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-md bg-slate-800 text-slate-100">
         <SequenceTrackHeaders
           tracks={tracks}

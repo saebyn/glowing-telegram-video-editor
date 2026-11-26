@@ -30,7 +30,7 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
   await expect(timeline).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("region", { name: "Wrapped Inspector" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^(Pan left|Pan right|Fit to view)$/ }),
+    page.getByRole("button", { name: /^(Pan left|Pan right|Zoom in|Zoom out|Fit to view)$/ }),
   ).toHaveCount(0);
   await timeline.getByLabel("Seek by sequence frame").fill("60");
   await expect(page.getByLabel("Timeline sequence frame")).toHaveText("60");
@@ -110,14 +110,20 @@ test("a host-built toolbar exposes only actions from the mounted Timeline", asyn
   const host = page.getByRole("region", { name: "Host-built sequence editor" });
   const panLeft = host.getByRole("button", { name: "Pan left", exact: true });
   const panRight = host.getByRole("button", { name: "Pan right", exact: true });
+  const zoomIn = host.getByRole("button", { name: "Zoom in", exact: true });
+  const zoomOut = host.getByRole("button", { name: "Zoom out", exact: true });
   const fit = host.getByRole("button", { name: "Fit to view", exact: true });
   const replace = host.getByRole("button", { name: "Use a fit-only timeline" });
   await expect(panLeft).toBeVisible({ timeout: 20_000 });
   await expect(panRight).toBeVisible();
+  await expect(zoomIn).toBeVisible();
+  await expect(zoomOut).toBeVisible();
   await expect(fit).toBeVisible();
   await replace.click();
   await expect(panLeft).toHaveCount(0);
   await expect(panRight).toHaveCount(0);
+  await expect(zoomIn).toHaveCount(0);
+  await expect(zoomOut).toHaveCount(0);
   await fit.press("Enter");
   await expect(host.getByLabel("Fit requests")).toHaveText("1");
   await host.getByRole("button", { name: "Hide timeline", exact: true }).click();

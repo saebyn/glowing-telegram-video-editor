@@ -119,12 +119,13 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const harbors = timeline.getByRole("button", { name: "Harbor", exact: true });
   const playhead = page.getByLabel("Sequence playhead position");
+  const rulerRail = timeline.locator(".timeline-editor-time-area-interact");
   await harbors.first().click();
   await page.getByRole("button", { name: "Split mode", exact: true }).click();
   await harbors.first().scrollIntoViewIfNeeded();
   const first = (await harbors.first().boundingBox())!;
   const last = (await harbors.last().boundingBox())!;
-  const ruler = (await timeline.locator(".timeline-editor-time-area-interact").boundingBox())!;
+  const ruler = (await rulerRail.boundingBox())!;
   const y = first.y + first.height / 2;
   await page.mouse.click(ruler.x + 0.25, y);
   await page.mouse.click((first.x + first.width + last.x) / 2, y);
@@ -149,12 +150,18 @@ test("Split mode ignores drags, empty space and edge clicks but uses the panned 
   expect(await emissions()).toEqual(noEdits);
   await expect(playhead).toHaveText("Sequence frame 0");
   await page.getByRole("button", { name: "Fit to view" }).click();
-  await timeline.getByRole("button", { name: "Zoom in" }).click();
-  await page.mouse.move(ruler.x + ruler.width / 2, y);
-  await page.mouse.wheel(ruler.width, 0);
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await harbors.first().scrollIntoViewIfNeeded();
+  const zoomedRuler = (await rulerRail.boundingBox())!;
+  const zoomedFirst = (await harbors.first().boundingBox())!;
+  await page.mouse.move(
+    zoomedRuler.x + zoomedRuler.width / 2,
+    zoomedFirst.y + zoomedFirst.height / 2,
+  );
+  await page.mouse.wheel(zoomedRuler.width, 0);
   await expect
     .poll(async () => (await harbors.last().boundingBox())!.x)
-    .toBeLessThan(ruler.x + ruler.width / 2);
+    .toBeLessThan(zoomedRuler.x + zoomedRuler.width / 2);
   await harbors.last().scrollIntoViewIfNeeded();
   const closing = (await harbors.last().boundingBox())!;
   const cutX = closing.x + closing.width / 2;

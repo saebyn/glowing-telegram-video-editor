@@ -125,13 +125,17 @@ export function useSequenceEditor({
   const [navigation, setNavigation] = useState<SequenceTimelineNavigation>();
   const registerNavigation = useCallback((actions: SequenceTimelineNavigation) => {
     let mounted = true;
+    const guard = (invoke: () => void) => () => {
+      if (mounted) invoke();
+    };
     const guarded: SequenceTimelineNavigation = {};
     for (const action of ["panLeft", "panRight", "fitToView"] as const) {
       const invoke = actions[action];
-      if (invoke)
-        guarded[action] = () => {
-          if (mounted) invoke();
-        };
+      if (invoke) guarded[action] = guard(invoke);
+    }
+    for (const action of ["zoomOut", "zoomIn"] as const) {
+      const control = actions[action];
+      if (control) guarded[action] = { ...control, run: guard(control.run) };
     }
     setNavigation(guarded);
     return () => {

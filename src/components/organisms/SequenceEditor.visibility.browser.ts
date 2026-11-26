@@ -117,8 +117,10 @@ test("the toolbar can restore the hidden timeline without losing the playhead or
   await placement.click();
   await timeline.getByRole("slider", { name: "Sequence playhead", exact: true }).press("End");
   const caret = editor.getByLabel("Sequence playhead position");
-  const navigation = editor.getByRole("button", { name: /^(Pan left|Pan right|Fit to view)$/ });
-  await expect(navigation).toHaveCount(3);
+  const navigation = editor.getByRole("button", {
+    name: /^(Pan left|Pan right|Zoom in|Zoom out|Fit to view)$/,
+  });
+  await expect(navigation).toHaveCount(5);
   await expect(caret).toHaveText("Sequence frame 360");
   const before = await bounds(editor);
 
@@ -134,7 +136,7 @@ test("the toolbar can restore the hidden timeline without losing the playhead or
   await expect(caret).toHaveText("Sequence frame 360");
 
   await toggle.click();
-  await expect(navigation).toHaveCount(3);
+  await expect(navigation).toHaveCount(5);
   await expect(placement).toHaveAttribute("aria-pressed", "true");
   await expect(
     timeline.getByRole("slider", { name: "Sequence playhead", exact: true }),

@@ -130,7 +130,7 @@ export const LayeredSequence: Story = {
     docs: {
       description: {
         story:
-          "Inspect a picture track with a gap and a locked sound track that overlaps both picture placements. Click the opening fade indicator to inspect it, or the strip below it to select its placement. Drag empty track space, scroll horizontally, or use Shift+wheel to pan. Zoom and use the sequence playhead to navigate.",
+          "Inspect a picture track with a gap and a locked sound track that overlaps both picture placements. Click the opening fade indicator to inspect it, or the strip below it to select its placement. Drag empty track space, scroll horizontally, or use Shift+wheel to pan. Use the sequence playhead to seek. For toolbar zoom, try the Sequence Editor page stories.",
       },
     },
   },
@@ -156,7 +156,7 @@ export const LayeredSequence: Story = {
 export const EmptySequence: Story = {
   args: { durationFrames: 0, playheadFrame: 0, tracks: [] },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Sequence timeline" })).toBeVisible();
+    await expect(canvas.getByRole("region", { name: "Sequence timeline" })).toBeVisible();
     await expect(canvas.queryByRole("group", { name: /^Track:/ })).not.toBeInTheDocument();
     await expect(canvas.getByText("Duration: 00:00")).toBeVisible();
   },

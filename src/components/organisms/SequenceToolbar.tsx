@@ -44,7 +44,6 @@ export default function SequenceToolbar({
 }: SequenceToolbarProps) {
   return (
     <header className="flex flex-wrap items-center gap-2">
-      <h1 className="mr-3 text-xl font-semibold">Sequence editor</h1>
       <SequenceTransportControls {...transport} />
       <SequenceEditButton onClick={splitAtPlayhead}>Split</SequenceEditButton>
       {toggleSplitMode && (
@@ -85,6 +84,18 @@ export default function SequenceToolbar({
             path="M10 5l7 7-7 7M17 12H4"
           />
           <NavigationButton
+            label="Zoom out"
+            action={navigation.zoomOut?.run}
+            disabled={navigation.zoomOut?.disabled}
+            path="M21 21l-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8 11h6"
+          />
+          <NavigationButton
+            label="Zoom in"
+            action={navigation.zoomIn?.run}
+            disabled={navigation.zoomIn?.disabled}
+            path="M21 21l-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8 11h6m-3-3v6"
+          />
+          <NavigationButton
             label="Fit to view"
             action={navigation.fitToView}
             path="M4 8V4h4m8 0h4v4m0 8v4h-4m-8 0H4v-4M7 12h10"
@@ -99,10 +110,12 @@ export default function SequenceToolbar({
 function NavigationButton({
   label,
   action,
+  disabled,
   path,
 }: {
   label: string;
   action: (() => void) | undefined;
+  disabled?: boolean;
   path: string;
 }) {
   if (!action) return null;
@@ -112,7 +125,8 @@ function NavigationButton({
       aria-label={label}
       title={label}
       onClick={action}
-      className="rounded border p-2"
+      disabled={disabled}
+      className="rounded border p-2 disabled:opacity-50"
     >
       <svg
         aria-hidden="true"

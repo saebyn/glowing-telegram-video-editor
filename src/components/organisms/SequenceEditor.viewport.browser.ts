@@ -35,10 +35,49 @@ async function openViewport(page: Page) {
     frameReadout: page.getByLabel("Sequence playhead position"),
     lighthouse: timeline.getByRole("button", { name: "Lighthouse", exact: true }),
     fit: page.getByRole("button", { name: "Fit to view", exact: true }),
-    zoomIn: timeline.getByRole("button", { name: "Zoom in", exact: true }),
-    zoomOut: timeline.getByRole("button", { name: "Zoom out", exact: true }),
+    zoomIn: page.getByRole("button", { name: "Zoom in", exact: true }),
+    zoomOut: page.getByRole("button", { name: "Zoom out", exact: true }),
   };
 }
+
+test("toolbar zoom stays visible but disables at both ends of its range", async ({ page }) => {
+  const { timeline, fit, zoomIn, zoomOut, lighthouse } = await openViewport(page);
+  await expect(zoomIn).toBeEnabled();
+  await expect(zoomOut).toBeDisabled();
+  await expect(zoomIn).toHaveAttribute("title", "Zoom in");
+  await expect(zoomOut).toHaveAttribute("title", "Zoom out");
+  await expect(timeline.getByRole("button", { name: /^Zoom (in|out)$/ })).toHaveCount(0);
+
+  const overview = await visibleBox(lighthouse);
+  await zoomIn.press("Enter");
+  await expect(zoomOut).toBeEnabled();
+  await expect
+    .poll(async () => (await visibleBox(lighthouse)).width)
+    .toBeGreaterThan(overview.width);
+  await zoomOut.press("Space");
+  await expect(zoomOut).toBeDisabled();
+  await expect
+    .poll(async () => (await visibleBox(lighthouse)).width)
+    .toBeCloseTo(overview.width, 0);
+
+  for (let step = 0; step < 8 && (await zoomIn.isEnabled()); step++) {
+    await zoomIn.click();
+  }
+  await expect(zoomIn).toBeDisabled();
+  await expect(zoomOut).toBeEnabled();
+  await fit.click();
+  await expect(zoomIn).toBeEnabled();
+  await expect(zoomOut).toBeDisabled();
+});
+
+test("the sequence timeline keeps its accessible name and duration without a visible title", async ({
+  page,
+}) => {
+  const { timeline } = await openViewport(page);
+  await expect(timeline).toBeVisible();
+  await expect(timeline.getByText("Duration: 00:08")).toBeVisible();
+  await expect(timeline.getByText("Sequence timeline", { exact: true })).toBeHidden();
+});
 
 test("zooming in from Fit widens placements without moving a visible playhead or editing", async ({
   page,
@@ -227,7 +266,7 @@ test("Shift+wheel crosses both ends of a zero-duration timeline with no tracks",
 test("dragging a placement after zoom and pan previews the exact frame and retains the panned view", async ({
   page,
 }) => {
-  const { emissions, timeline, ruler, lighthouse, zoomIn } = await openViewport(page);
+  const { emissions, timeline, ruler, lighthouse, zoomIn, zoomOut } = await openViewport(page);
   await lighthouse.click();
   await zoomIn.click();
 
@@ -247,6 +286,8 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
   await page.mouse.down();
   await page.mouse.move(x + delta, y, { steps: 8 });
   await expect(timeline.getByRole("status")).toHaveText("Lighthouse → Main · Sequence frame 230");
+  await expect(zoomIn).toBeDisabled();
+  await expect(zoomOut).toBeDisabled();
   const preview = timeline.getByRole("figure", { name: "Proposed placement: Lighthouse" });
   const draft = await visibleBox(preview);
   expect(draft.x).toBeCloseTo(placement.x + delta, 0);
@@ -273,6 +314,8 @@ test("dragging a placement after zoom and pan previews the exact frame and retai
     cutListResults: [blockedOutput],
   });
   await expect(preview).toHaveCount(0);
+  await expect(zoomIn).toBeEnabled();
+  await expect(zoomOut).toBeEnabled();
   await expect.poll(async () => (await visibleBox(lighthouse)).x).toBeCloseTo(draft.x, 0);
 });
 
