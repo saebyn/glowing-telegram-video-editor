@@ -180,6 +180,93 @@ test("a dissolve and fade at the same cut compete even when their windows only t
   ).toStrictEqual({ kind: "conflict" });
 });
 
+const coverClip = { ...clips[0], id: "cover", sourceId: "cover", sourceOutFrame: 58 };
+const coverPlacement = { id: "cover", clipId: "cover", sequenceStartFrame: 0 };
+const outgoingReveal = {
+  ...a,
+  transitionOut: { id: "outgoing", kind: "fade", durationFrames: 8 },
+} satisfies ClipPlacement;
+const audioSource = { mediaKind: "audio-only", s3Location: "s3://audio" } as const;
+const pictureSource = {
+  mediaKind: "video-only",
+  s3Location: "s3://picture",
+  previewHlsUrl: "/picture.m3u8",
+} as const;
+const unknownSource = { s3Location: "s3://unknown", previewHlsUrl: "/unknown.m3u8" };
+
+function layeredSequence(cover: ClipPlacement): Sequence {
+  const lower = sequence(outgoingReveal, b);
+  return {
+    ...lower,
+    tracks: [{ id: "upper", label: "Upper", placements: [cover] }, ...lower.tracks],
+  };
+}
+
+const incomingDissolve = {
+  placementId: "b",
+  edge: "leading",
+  transition: { kind: "dissolve", durationFrames: 8 },
+} as const;
+
+test.each([
+  { upper: pictureSource, lower: audioSource },
+  { upper: audioSource, lower: pictureSource },
+])(
+  "$upper.mediaKind coverage cannot hide a competing $lower.mediaKind dissolve",
+  ({ lower, upper }) => {
+    expect(
+      evaluateTransitionEdit(
+        layeredSequence(coverPlacement),
+        [...clips, coverClip],
+        { a: lower, b: lower, cover: upper },
+        rate,
+        incomingDissolve,
+        () => "incoming",
+      ),
+    ).toStrictEqual({ kind: "conflict" });
+  },
+);
+
+test("a picture dissolve and an audio reveal at the same sequence frame remain editable", () => {
+  const picture = { ...coverPlacement, sequenceStartFrame: 24, sourceOutOffsetFrames: -24 };
+  expect(
+    evaluateTransitionEdit(
+      layeredSequence(picture),
+      [...clips, coverClip],
+      { a: audioSource, b: audioSource, cover: pictureSource },
+      rate,
+      {
+        placementId: "cover",
+        edge: "leading",
+        transition: { kind: "dissolve", durationFrames: 8 },
+      },
+      () => "incoming-picture",
+    ),
+  ).toMatchObject({
+    kind: "edit",
+    transition: { id: "incoming-picture", kind: "dissolve", durationFrames: 8 },
+  });
+});
+
+test.each([audioSource, pictureSource])(
+  "an undeclared media kind can still cover $mediaKind transitions during authoring",
+  (lower) => {
+    expect(
+      evaluateTransitionEdit(
+        layeredSequence(coverPlacement),
+        [...clips, coverClip],
+        { a: lower, b: lower, cover: unknownSource },
+        rate,
+        incomingDissolve,
+        () => "covered",
+      ),
+    ).toMatchObject({
+      kind: "edit",
+      transition: { id: "covered", kind: "dissolve", durationFrames: 8 },
+    });
+  },
+);
+
 test("an unrelated invalid transition does not let two valid transitions own a cut", () => {
   const before = sequence(
     { ...a, transitionOut: { id: "outgoing", kind: "fade", durationFrames: 1 } },

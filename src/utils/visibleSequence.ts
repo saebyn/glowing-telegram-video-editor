@@ -40,6 +40,7 @@ export type ResolvedTransition = PlacementTransition & {
 /**
  * Flatten ordered tracks into spans of the uppermost placement.
  * Layout-only resolution allows missing media and mixed frame rates for authoring checks.
+ * A source filter restricts the layout without skipping authored placement validation.
  */
 export function resolveVisibleSequence(
   sequence: Sequence,
@@ -47,6 +48,7 @@ export function resolveVisibleSequence(
   sources: SourcesById<CutListSource>,
   frameRate: FrameRate,
   layoutOnly = false,
+  includeSource?: (sourceId: string) => boolean,
 ) {
   const boundaries: { frame: number; trackIndex: number; placement?: ResolvedPlacement }[] = [];
   const transitions: ResolvedTransition[] = [];
@@ -137,6 +139,12 @@ export function resolveVisibleSequence(
         issues.push({ code: "track-overlap", trackId: track.id, placementId, previousPlacementId });
         canResolveLayout = false;
       }
+      if (sequenceEndFrame > trackEndFrame) {
+        trackEndFrame = sequenceEndFrame;
+        previousPlacementId = placementId;
+      }
+      if (includeSource && !includeSource(clip.sourceId)) continue;
+
       const resolved = {
         trackIndex,
         sequenceStartFrame,
@@ -160,10 +168,6 @@ export function resolveVisibleSequence(
         { frame: sequenceStartFrame, trackIndex, placement: resolved },
         { frame: sequenceEndFrame, trackIndex },
       );
-      if (sequenceEndFrame > trackEndFrame) {
-        trackEndFrame = sequenceEndFrame;
-        previousPlacementId = placementId;
-      }
     }
   }
   if (!canResolveLayout) return { issues, layout: null };

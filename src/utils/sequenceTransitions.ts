@@ -254,13 +254,38 @@ export function hasTransitionAuthoringConflict(
   frameRate: FrameRate,
   transitionId: string,
 ) {
-  const { layout } = resolveVisibleSequence(sequence, clips, sources, frameRate, true);
-  if (!layout) return false;
-  const { spans, transitions } = layout;
+  // Check picture and sound separately. Unspecified kinds contribute to both in authoring.
+  return (["audio-only", "video-only"] as const).some((excludedKind) => {
+    const { layout } = resolveVisibleSequence(
+      sequence,
+      clips,
+      sources,
+      frameRate,
+      true,
+      (sourceId) => getSource(sources, sourceId)?.mediaKind !== excludedKind,
+    );
+    return (
+      layout !== null &&
+      hasVisibleTransitionConflict(
+        layout.spans,
+        layout.transitions,
+        sequence.durationFrames,
+        transitionId,
+      )
+    );
+  });
+}
+
+function hasVisibleTransitionConflict(
+  spans: readonly VisibleSpan[],
+  transitions: readonly ResolvedTransition[],
+  sequenceDuration: number,
+  transitionId: string,
+) {
   const changed = transitions.find(({ id }) => id === transitionId);
   if (!changed) return false;
   if (changed.kind === "dissolve") {
-    return resolveDissolve(spans, transitions, changed, sequence.durationFrames).conflict;
+    return resolveDissolve(spans, transitions, changed, sequenceDuration).conflict;
   }
   const authoredSpans = visibleFadeSpans(spans, changed);
   return (
@@ -268,7 +293,7 @@ export function hasTransitionAuthoringConflict(
     transitions.some((other) => {
       if (other.id === transitionId) return false;
       if (other.kind === "dissolve") {
-        return resolveDissolve(spans, [changed, other], other, sequence.durationFrames).conflict;
+        return resolveDissolve(spans, [changed, other], other, sequenceDuration).conflict;
       }
       return visibleFadeSpans(spans, other).some(
         (span) =>

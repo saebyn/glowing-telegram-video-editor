@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import { layeredEditStoryId } from "./SequenceEditor.browserHarness";
+import {
+  layeredEditStoryId,
+  noEdits,
+  recordEditorEmissions,
+} from "./SequenceEditor.browserHarness";
 
 test("the clip pool labels the host-supplied media kinds", async ({ page }) => {
   await openMediaKinds(page, [
@@ -72,6 +76,44 @@ test("the timeline keeps thumbnails without inferring a media kind", async ({ pa
     "background-color",
     await harbor.evaluate((placement) => getComputedStyle(placement).backgroundColor),
   );
+});
+
+test("converting an audio transition to a competing dissolve under video is blocked", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await openMediaKinds(page, [
+    "sources.harbor-recording.mediaKind:video-only",
+    "sources.lighthouse-recording.mediaKind:audio-only",
+    // Harbor covers [0, 240) in picture. The two Lighthouse placements meet at 120 in sound.
+    "sequence.tracks[0].placements[0].clipId:harbor",
+    "sequence.tracks[0].placements[0].sourceOutOffsetFrames:120",
+    "sequence.tracks[1].placements[0].clipId:lighthouse",
+    "sequence.tracks[1].placements[0].sourceOutOffsetFrames:0",
+    "sequence.tracks[2].placements[0].sourceInOffsetFrames:0",
+    "sequence.tracks[2].placements[0].sourceOutOffsetFrames:0",
+    // Load an authored pair (as can result from a move). The Inspector can edit, but not add,
+    // a dissolve directly.
+    "sequence.tracks[1].placements[0].transitionOut.id:outgoing-reveal",
+    "sequence.tracks[1].placements[0].transitionOut.kind:fade",
+    "sequence.tracks[1].placements[0].transitionOut.durationFrames:12",
+    "sequence.tracks[2].placements[0].transitionIn.id:incoming-fade",
+    "sequence.tracks[2].placements[0].transitionIn.kind:fade",
+    "sequence.tracks[2].placements[0].transitionIn.durationFrames:12",
+  ]);
+
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const inspector = page.getByRole("region", { name: "Inspector" });
+  const entry = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
+  await entry.click();
+  await inspector.getByRole("combobox", { name: "Type", exact: true }).selectOption("dissolve");
+  await inspector.getByRole("button", { name: "Apply", exact: true }).click();
+
+  expect.soft(await emissions()).toStrictEqual(noEdits);
+  await expect(inspector.getByRole("alert")).toHaveText(
+    "This transition competes with another transition on the same cut or visible frames.",
+  );
+  await expect(entry).toHaveAttribute("aria-pressed", "true");
 });
 
 async function openMediaKinds(page: Page, args: string[]) {
