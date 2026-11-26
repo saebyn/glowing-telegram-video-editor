@@ -45,6 +45,25 @@ contract; the original PRD's stored duration rule is historical.
 4. [81 — Pan the sequence timeline directly in both directions](issues/81-pan-the-sequence-timeline-directly.md)
 5. [82 — Add toolbar controls for timeline navigation](issues/82-add-timeline-navigation-buttons.md)
 
+### Branch review follow-ups
+
+See [Sequence editor data flow](../../docs/sequence-editor-data-flow.md) for
+current and intended flows between the host, editor session, compiler, and Preview.
+
+| Ticket | State | Priority |
+| --- | --- | --- |
+| [83 — Revalidate retained Split, Reorder, and Paste actions](issues/83-revalidate-remaining-timeline-actions.md) | Ready | P1 |
+| [84 — Keep keyboard focus and the logical viewport aligned](issues/84-keep-keyboard-focus-and-viewport-aligned.md) | Ready | P2 |
+| [85 — Preserve gestures when host clip inputs are equivalent](issues/85-preserve-gestures-on-equivalent-inputs.md) | Ready | P2 |
+| [86 — Reject invalid source ranges before placing a pool clip](issues/86-reject-invalid-pool-clip-ranges.md) | Ready | P2 |
+| [87 — Define Undo and Redo when host clip inputs change](issues/87-define-history-after-clip-changes.md) | Needs info: what history should retain when host metadata changes | P2 |
+| [88 — Check transition conflicts over contributing frames](issues/88-align-transition-conflicts-with-presentation.md) | Ready | P2 |
+| [89 — Omit fully hidden fades from the CutList after a trim](issues/89-omit-fully-hidden-fades-from-cutlist.md) | Ready | P2 |
+| [90 — Show dissolve details independently of export eligibility](issues/90-resolve-dissolve-inspector-details-without-export.md) | Ready | P2 |
+| [91 — Report a missing opaque render source reference](issues/91-require-a-render-source-reference.md) | Ready | P2 |
+| [92 — Keep obsolete Preview reads from blocking the current seek](issues/92-prioritize-the-current-preview-seek.md) | Ready | P2 |
+| [94 — Keep decodable audio before an HLS failure](issues/94-keep-decodable-audio-before-hls-failure.md) | Ready | P2 |
+
 ## Needs more information
 
 | Ticket | Decision still needed | Fit to revisit |
@@ -98,5 +117,7 @@ changing standalone thumbnail inputs.
 - [#23 — Placement clipboard](issues/23-duplicate-copy-and-paste-placements.md):
   Copy, Duplicate, and Paste are editor-scoped; Paste uses the pointer or
   enters drop mode (`4e19840`).
+- [#93 — HLS variant selection](issues/93-clarify-hls-variant-contributions.md):
+  closed as out of scope; the target host supplies direct media playlists.
 
 See individual tickets for completed work and resolutions.

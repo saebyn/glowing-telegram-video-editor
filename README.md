@@ -93,7 +93,9 @@ metadata values have no `id` field. Several clips can reference the same entry.
 Supply source metadata as own properties; inherited properties are ignored.
 Replace the record when updating metadata.
 
-Each source value includes its render `s3Location`. Before mounting the editor, supply
+Each source value includes `s3Location`, the host's opaque render source
+reference. The host decides what it means; it need not be a URL or a nonempty
+string. Before mounting the editor, supply
 `previewHlsUrl` for `video-only`, `audio-video`, and sources with no declared
 `mediaKind`. An explicitly `audio-only` source does not require a preview URL;
 its streaming contract is not defined yet. The HLS playback rendition must
@@ -138,8 +140,9 @@ The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, 
 `timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane
 toggle. The default `SequencePreview` presents the current edit using the
 supplied HLS playback renditions, without requiring a successful `CutList`
-compile. Use finite, seekable playlists whose media is aligned to source
-elapsed time. Playlist and segment requests must be accessible to the browser
+compile. Supply a direct, finite, seekable HLS media playlist aligned to source
+elapsed time; multivariant playlists are outside the target host contract.
+Playlist and segment requests must be accessible to the browser
 (including CORS for cross-origin media), and the browser must support decoding
 the rendition codecs through WebCodecs. Forward playback includes sound;
 reverse playback is picture-only. You can wrap any default by forwarding its

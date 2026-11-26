@@ -9,6 +9,9 @@ compiler. Saving projects and final rendering are outside its scope.
 This document describes the intended behavior, not a checklist of what the
 current Storybook stories already support.
 
+See [Sequence editor data flow](sequence-editor-data-flow.md) for the
+relationships between host inputs, edit proposals, Preview, and compilation.
+
 ## Component tree
 
 `SequenceEditorPage` is the default assembly, analogous to `VideoSelectionPage`.
@@ -461,9 +464,10 @@ contributions, not the downstream render's pixels or audio samples.
   blend weights, and undefined spans. The player consumes that result;
   neither an HLS playlist nor a `CutList` defines the edit. Media fetching,
   compositing, and audio scheduling are separate from resolving the edit.
-- **Playback renditions.** Use host-supplied, finite, seekable HLS proxies
-  covering the whole source, including material outside current trims.
-  The intended host uses MPEG-TS segments. Normalize media timestamps to
+- **Playback renditions.** The target host supplies a direct, finite, seekable
+  HLS media playlist with MPEG-TS segments covering the whole source, including
+  material outside current trims. Multivariant playlists are not required
+  inputs for Sequence Preview. Normalize media timestamps to
   source elapsed time; playlist and container timestamps need not start
   at zero. The browser must be able to fetch the playlist and referenced
   resources. Never derive a playback URL from `s3Location`.
@@ -524,7 +528,7 @@ defines schema version `"1.0.0"`:
 
 | Field | What the schema carries |
 | --- | --- |
-| `inputMedia` | Media identified by `s3Location`, with source-frame sections and exclusive out points |
+| `inputMedia` | Media identified by the host's opaque render source reference (`s3Location`), with source-frame sections and exclusive out points |
 | `outputTrack` | A nonempty ordered list of references into those sections, with optional `fade` or `cut` transitions at section edges |
 | `overlayTracks` | Media-section references with an explicit start frame, `alpha` or `colorkey` type, and optional X/Y position |
 | `audioMixing` | Optional channel routing and volume keyframes; no controls planned in the first slice |

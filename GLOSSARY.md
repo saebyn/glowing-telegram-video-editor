@@ -11,8 +11,15 @@ _Avoid_: “Video” when it could also mean the preview or rendered output.
 **Source ID**:
 The host-assigned identifier for one source in the supplied source collection, distinct from its media URLs. Multiple clips can reference the same source ID.
 
+**Render source reference**:
+An opaque value supplied by the host that identifies source media to the renderer. It is distinct from the source ID and the playback rendition URL.
+
 **Playback rendition**:
 A version of a source used in a sequence preview, aligned to the source's elapsed time. It can differ in quality or frame cadence from the media used to render the sequence.
+
+**HLS multivariant playlist**:
+An HLS index that lists alternative streams and any associated renditions, such as separate audio tracks, for the same source.
+_Avoid_: “Master playlist,” the older HLS name.
 
 **Source frame**:
 Zero-based frame index within a specific video source.

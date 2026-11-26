@@ -68,7 +68,8 @@ hard cut (8s), and closing fade (11–12s). In **Controls → Media**, you can r
 the sequence, clips, or `sources.<sourceId>.previewHlsUrl` (keep the trim and
 duration within the new source). A finite MPEG-TS playlist and its segments
 must be accessible from the Storybook origin. The Mux story is a
-network-dependent smoke check, not a timing assertion.
+network-dependent smoke check, not a timing assertion or a commitment to
+multivariant playlist support for the target host.
 
 ## Source layout
 
