@@ -61,6 +61,34 @@ export function createSequencePresentation(
     }),
   );
   type Placement = (typeof placements)[number];
+  const offset = (placement: Placement) =>
+    placement.sourceIn - framesToSeconds(placement.start, frameRate);
+  const sameSourceTime = (a: Placement, b: Placement) =>
+    a.sourceId === b.sourceId && Math.abs(offset(a) - offset(b)) < 1e-8;
+  function getFadeTrim(
+    owner: Placement,
+    leading: boolean,
+    startFrame: number,
+    endFrame: number,
+  ): Placement {
+    let edge = owner;
+    // A source-continuous split widens the in-trim material, not the fade window.
+    while (leading ? edge.end < endFrame : edge.start > startFrame) {
+      const next = placements.find(
+        (placement) =>
+          placement.track === owner.track &&
+          (leading ? placement.start === edge.end : placement.end === edge.start) &&
+          placement.end > placement.start &&
+          sameSourceTime(placement, owner),
+      );
+      if (!next) break;
+      edge = next;
+    }
+    if (edge === owner) return owner;
+    return leading
+      ? { ...owner, end: edge.end, sourceOut: edge.sourceOut }
+      : { ...owner, start: edge.start, sourceIn: edge.sourceIn };
+  }
   const transitions = placements.flatMap((owner) =>
     [owner.transitionIn, owner.transitionOut].flatMap((transition, edge) => {
       if (!transition || transition.durationFrames <= 0) return [];
@@ -77,6 +105,8 @@ export function createSequencePresentation(
             };
       return {
         owner,
+        fadeTrim:
+          transition.kind === "fade" ? getFadeTrim(owner, leading, startFrame, endFrame) : owner,
         leading,
         cut,
         duration,
@@ -90,8 +120,6 @@ export function createSequencePresentation(
   const boundaries = [...new Set(placements.flatMap(({ start, end }) => [start, end]))].sort(
     (a, b) => a - b,
   );
-  const offset = (placement: Placement) =>
-    placement.sourceIn - framesToSeconds(placement.start, frameRate);
   return (frame, kinds, audible = true) => {
     const probes = new Set<string>();
     function winner(frame: number, channel: "picture" | "sound") {
@@ -116,10 +144,7 @@ export function createSequencePresentation(
         return (
           visible === expected ||
           (!!visible && visible.track < (expected?.track ?? ownerTrack)) ||
-          (!!visible &&
-            !!expected &&
-            visible.sourceId === expected.sourceId &&
-            Math.abs(offset(visible) - offset(expected)) < 1e-8)
+          (!!visible && !!expected && sameSourceTime(visible, expected))
         );
       });
     let problem: PreviewFrame["problem"];
@@ -163,23 +188,36 @@ export function createSequencePresentation(
     };
     const resolve = (channel: "picture" | "sound") => {
       const visible = winner(frame, channel);
-      const active = transitions.filter(({ owner, leading, cut, kind, startFrame, endFrame }) => {
-        if (startFrame > frame || frame >= endFrame) return false;
-        const atAnchor = owner === winner(leading ? cut : cut - 1, channel);
-        if (kind === "fade") {
-          if (owner === visible) return true;
-          const outsideTrim = frame < owner.start || frame >= owner.end;
-          return outsideTrim && atAnchor && (!visible || visible.track >= owner.track);
-        }
-        const side = winner(frame < cut ? cut - 1 : cut, channel);
-        return atAnchor && (!visible || visible.track >= (side?.track ?? owner.track));
-      });
+      const active = transitions.filter(
+        ({ owner, fadeTrim, leading, cut, kind, startFrame, endFrame }) => {
+          if (startFrame > frame || frame >= endFrame) return false;
+          const atAnchor = owner === winner(leading ? cut : cut - 1, channel);
+          if (kind === "fade") {
+            const outsideTrim = frame < fadeTrim.start || frame >= fadeTrim.end;
+            if (owner === visible) return true;
+            if (!outsideTrim)
+              return visible?.track === owner.track && sameSourceTime(visible, owner);
+            return atAnchor && (!visible || visible.track >= owner.track);
+          }
+          const side = winner(frame < cut ? cut - 1 : cut, channel);
+          return atAnchor && (!visible || visible.track >= (side?.track ?? owner.track));
+        },
+      );
       const transition = active[0];
       if (!transition) return sample(visible, channel, 1);
-      const { owner, leading, cut, kind, startFrame, endFrame, phaseOffsetFrames, duration } =
-        transition;
-      const outgoing = kind === "fade" && !leading ? owner : winner(cut - 1, channel);
-      const incoming = kind === "fade" && leading ? owner : winner(cut, channel);
+      const {
+        owner,
+        fadeTrim,
+        leading,
+        cut,
+        kind,
+        startFrame,
+        endFrame,
+        phaseOffsetFrames,
+        duration,
+      } = transition;
+      const outgoing = kind === "fade" && !leading ? fadeTrim : winner(cut - 1, channel);
+      const incoming = kind === "fade" && leading ? fadeTrim : winner(cut, channel);
       const sameCut = transitions.some(
         (other) =>
           other !== transition &&
@@ -191,15 +229,15 @@ export function createSequencePresentation(
         (!continuous(
           channel,
           owner,
-          Math.max(0, startFrame, owner.start),
-          Math.min(endFrame, owner.end, sequence.durationFrames),
+          Math.max(0, startFrame, fadeTrim.start),
+          Math.min(endFrame, fadeTrim.end, sequence.durationFrames),
           owner.track,
         ) ||
           !continuous(
             channel,
             leading ? outgoing : incoming,
-            leading ? owner.end : Math.max(0, startFrame),
-            leading ? Math.min(endFrame, sequence.durationFrames) : owner.start,
+            leading ? fadeTrim.end : Math.max(0, startFrame),
+            leading ? Math.min(endFrame, sequence.durationFrames) : fadeTrim.start,
             owner.track,
           ));
       if (

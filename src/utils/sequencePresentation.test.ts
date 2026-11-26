@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import type { Sequence, SequenceSource, SourcesById, VideoClip } from "@/types";
 import { createSequencePresentation } from "./sequencePresentation";
+import { splitPlacementsAtPlayhead } from "./splitPlacement";
 
 const projectRate = { numerator: 10, denominator: 1 };
 
@@ -298,4 +299,153 @@ test("a fade longer than its trimmed placement uses recorded material after the 
   );
   expect(at(5).picture).toEqual([{ sourceId: "a", time: 1.5, weight: 0.6875, extension: true }]);
   expect(at(8).picture).toEqual([]);
+});
+
+function expectEightFrameFade(
+  at: ReturnType<typeof createSequencePresentation>,
+  frames: readonly (readonly [sequenceFrame: number, outgoingTime: number, incomingTime: number])[],
+  extensionSourceId: "a" | "b",
+) {
+  // Picture samples the middle of each frame; sound ramps from its start to its end.
+  // Each row gives picture weight, sound start and sound end, alternating a and b.
+  const ramp = [
+    [0.9375, 0.0625, 1, 0, 0.875, 0.125],
+    [0.8125, 0.1875, 0.875, 0.125, 0.75, 0.25],
+    [0.6875, 0.3125, 0.75, 0.25, 0.625, 0.375],
+    [0.5625, 0.4375, 0.625, 0.375, 0.5, 0.5],
+    [0.4375, 0.5625, 0.5, 0.5, 0.375, 0.625],
+    [0.3125, 0.6875, 0.375, 0.625, 0.25, 0.75],
+    [0.1875, 0.8125, 0.25, 0.75, 0.125, 0.875],
+    [0.0625, 0.9375, 0.125, 0.875, 0, 1],
+  ];
+  for (const [i, [frame, outgoingTime, incomingTime]] of frames.entries()) {
+    const [aPicture, bPicture, aStart, bStart, aEnd, bEnd] = ramp[i];
+    const a = {
+      sourceId: "a",
+      time: expect.closeTo(outgoingTime, 9),
+      ...(extensionSourceId === "a" ? { extension: true } : {}),
+    };
+    const b = {
+      sourceId: "b",
+      time: expect.closeTo(incomingTime, 9),
+      ...(extensionSourceId === "b" ? { extension: true } : {}),
+    };
+    expect(at(frame), `sequence frame ${frame}`).toStrictEqual({
+      picture: [
+        { ...a, weight: aPicture },
+        { ...b, weight: bPicture },
+      ],
+      sound: [
+        { ...a, weight: aStart, endWeight: aEnd },
+        { ...b, weight: bStart, endWeight: bEnd },
+      ],
+    });
+  }
+}
+
+const fadeClips = [clip("a", 20, 30), clip("b", 50, 60)];
+const fadeSources = { a: source("a"), b: source("b") };
+
+function splitFade(edge: "entry" | "reveal") {
+  const entry = edge === "entry";
+  const fade = { id: edge, kind: "fade", durationFrames: 8 } as const;
+  const sequence: Sequence = {
+    durationFrames: 20,
+    tracks: [
+      {
+        id: "main",
+        label: "Main",
+        placements: [
+          {
+            id: "outgoing",
+            clipId: "a",
+            sequenceStartFrame: 0,
+            ...(!entry && { transitionOut: fade }),
+          },
+          {
+            id: "incoming",
+            clipId: "b",
+            sequenceStartFrame: 10,
+            ...(entry && { transitionIn: fade }),
+          },
+        ],
+      },
+    ],
+  };
+  const split = splitPlacementsAtPlayhead(
+    sequence,
+    fadeClips,
+    projectRate,
+    [entry ? "incoming" : "outgoing"],
+    entry ? 14 : 6,
+    () => "right",
+  );
+  if (!split) throw new Error(`Expected to split four sequence frames into the ${edge} fade`);
+  return split;
+}
+
+test("an entry fade preserves picture and sound through a source-continuous split", () => {
+  const at = createSequencePresentation(splitFade("entry"), fadeClips, fadeSources, projectRate);
+
+  // Sequence [10, 18) blends source a [30, 38) into source b [50, 58) at 10 fps.
+  expectEightFrameFade(
+    at,
+    [
+      [10, 3.0, 5.0],
+      [11, 3.1, 5.1],
+      [12, 3.2, 5.2],
+      [13, 3.3, 5.3],
+      [14, 3.4, 5.4],
+      [15, 3.5, 5.5],
+      [16, 3.6, 5.6],
+      [17, 3.7, 5.7],
+    ],
+    "a",
+  );
+});
+
+test("a reveal fade preserves picture and sound through a source-continuous split", () => {
+  const at = createSequencePresentation(splitFade("reveal"), fadeClips, fadeSources, projectRate);
+
+  // Sequence [2, 10) blends source a [22, 30) into source b [42, 50) at 10 fps.
+  expectEightFrameFade(
+    at,
+    [
+      [2, 2.2, 4.2],
+      [3, 2.3, 4.3],
+      [4, 2.4, 4.4],
+      [5, 2.5, 4.5],
+      [6, 2.6, 4.6],
+      [7, 2.7, 4.7],
+      [8, 2.8, 4.8],
+      [9, 2.9, 4.9],
+    ],
+    "b",
+  );
+});
+
+test("an entry fade is undefined across a visible cut that jumps within the same source", () => {
+  const split = splitFade("entry");
+  const [track] = split.tracks;
+  const sequence: Sequence = {
+    ...split,
+    tracks: [
+      {
+        ...track,
+        // Sequence [14, 20) now plays source b [74, 80) instead of [54, 60).
+        placements: track.placements.map((placement) =>
+          placement.id === "right"
+            ? { ...placement, sourceInOffsetFrames: 24, sourceOutOffsetFrames: 20 }
+            : placement,
+        ),
+      },
+    ],
+  };
+  const at = createSequencePresentation(sequence, fadeClips, fadeSources, projectRate);
+
+  for (const frame of [10, 11, 12, 13, 14, 15, 16, 17]) {
+    expect(at(frame).problem, `sequence frame ${frame}`).toBe("undefined-transition");
+  }
+  const sample = { sourceId: "b", time: expect.closeTo(7.8, 9), weight: 1 };
+  expect(at(18)).toStrictEqual({ picture: [sample], sound: [sample] });
 });
