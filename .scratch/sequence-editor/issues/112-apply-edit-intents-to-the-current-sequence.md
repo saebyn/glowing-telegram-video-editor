@@ -1,6 +1,6 @@
 # 112 — Apply edit intents to the current working sequence
 
-Status: ready-for-agent
+Resolution: Apply retained actions to current inputs and use explicit track lock state.
 Review priority: P1
 Depends on: [111](111-own-the-working-sequence-and-history.md)
 Design: [Action intent and history](../../../docs/sequence-editor-design.md#action-intent-and-history).
@@ -40,3 +40,18 @@ retained action can undo unrelated work or bypass a newly applicable rule.
   populated track, a repeated request for the same lock state, and a valid
   action that preserves an intervening edit. Blocked or unchanged actions
   emit no edit callbacks.
+
+## Comments
+
+- Observed the retained Lock toggle, Rename retargeting, and Inspector Apply
+  recreating a removed fade fail in Chromium before fixing them. Added
+  coverage for blocked and successful retained Remove/Lock, Rename after
+  removal or Undo, and Apply/Remove following a fade through a split.
+- The full Playwright run passed 241 tests; the sole failure was an ambiguous
+  Remove button locator. The corrected case and the additional successful
+  retained Lock case both passed in an isolated rerun. Vitest (301), build,
+  typecheck, formatting, `git diff --check`, and lint (existing captions
+  warning only) passed.
+- Four isolated mutants were caught: toggle instead of explicit lock state,
+  stale Remove snapshot, Rename retargeting, and stale transition owner.
+  Logs: `/tmp/opencode/gtve-112-mutations.IQmkpy/`.

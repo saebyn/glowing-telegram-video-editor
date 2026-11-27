@@ -168,7 +168,7 @@ function StandaloneHlsPreview({
             resizeTransition={undefined}
             reorderTrack={undefined}
             removeTrack={undefined}
-            toggleTrackLock={undefined}
+            setTrackLocked={undefined}
           />
         </div>
       )}

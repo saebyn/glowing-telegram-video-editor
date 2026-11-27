@@ -3,7 +3,7 @@ import type { Sequence, VideoClip } from "@/types";
 import compileCutList from "./compileCutList";
 import { evaluatePlacementMove, evaluatePoolDrop } from "./placementDrag";
 import { evaluateTransitionEdit, removePlacementTransition } from "./placementTransition";
-import { toggleSequenceTrackLock } from "./sequenceTracks";
+import { setSequenceTrackLocked } from "./sequenceTracks";
 import { canSplitPlacementsAtPlayhead, splitPlacementsAtPlayhead } from "./splitPlacement";
 import { applyLeadingTrim, applyTrailingTrim } from "./trimPlacement";
 
@@ -33,13 +33,15 @@ const sequence: Sequence = {
 };
 
 test("lock is authored on the intended track but does not change the compiled result", () => {
-  const next = toggleSequenceTrackLock(sequence, "middle")!;
+  const next = setSequenceTrackLocked(sequence, "middle", true)!;
   expect(next).toEqual({
     ...sequence,
     tracks: [sequence.tracks[0], { ...sequence.tracks[1], locked: true }, sequence.tracks[2]],
   });
-  expect(toggleSequenceTrackLock(next, "middle")?.tracks[1].locked).toBe(false);
-  expect(toggleSequenceTrackLock(next, "missing")).toBeNull();
+  expect(setSequenceTrackLocked(next, "middle", false)?.tracks[1].locked).toBe(false);
+  expect(setSequenceTrackLocked(next, "middle", true)).toBeNull();
+  expect(setSequenceTrackLocked(sequence, "middle", false)).toBeNull();
+  expect(setSequenceTrackLocked(next, "missing", true)).toBeNull();
   const expected = {
     version: "1.0.0",
     inputMedia: [

@@ -109,7 +109,7 @@ function FrameBasedTimeline({
   placeClip,
   previewTransitionResize,
   resizeTransition,
-  toggleTrackLock,
+  setTrackLocked,
 }: SequenceTimelineProps) {
   const [showPreview, setShowPreview] = useState(false);
   const track = tracks[0];
@@ -179,7 +179,7 @@ function FrameBasedTimeline({
             previewTransitionResize={previewTransitionResize}
             resizeTransition={resizeTransition}
           />
-          <button type="button" onClick={() => track && toggleTrackLock?.(track.id)}>
+          <button type="button" onClick={() => track && setTrackLocked?.(track.id, !track.locked)}>
             {track?.locked ? "Unlock Main" : "Lock Main"}
           </button>
         </>
@@ -550,7 +550,7 @@ function RetainedPlacementTimeline({
   reorderTrack,
   tracks,
   placementPaste,
-  toggleTrackLock,
+  setTrackLocked,
   removeTrack,
 }: SequenceTimelineProps) {
   const [release, setRelease] = useState<() => void>();
@@ -610,11 +610,21 @@ function RetainedPlacementTimeline({
         Confirm Paste at frame 60
       </RetainedPointerAction>
       {confirmPaste && <output>Paste drop active</output>}
-      {toggleTrackLock && (
-        <button type="button" onClick={() => toggleTrackLock("main")}>
+      {setTrackLocked && (
+        <button
+          type="button"
+          onClick={() => setTrackLocked("main", !tracks.find(({ id }) => id === "main")?.locked)}
+        >
           {tracks.find(({ id }) => id === "main")?.locked ? "Unlock Main" : "Lock Main"}
         </button>
       )}
+      <button
+        type="button"
+        disabled={!setTrackLocked || tracks.find(({ id }) => id === "main")?.locked}
+        onClick={() => setRelease(() => () => setTrackLocked?.("main", true))}
+      >
+        Capture Lock Main
+      </button>
       <button
         type="button"
         onClick={() => placeClip?.({ ...drop, trackId: "reserve", sequenceFrame: 180 })}
@@ -634,6 +644,16 @@ function RetainedPlacementTimeline({
       </button>
       <button type="button" onClick={() => removeTrack?.("reserve")}>
         Remove Reserve
+      </button>
+      <button
+        type="button"
+        disabled={
+          !removeTrack ||
+          !tracks.some(({ id, placements }) => id === "reserve" && !placements.length)
+        }
+        onClick={() => setRelease(() => () => removeTrack?.("reserve"))}
+      >
+        Capture Remove Reserve
       </button>
       <button
         type="button"
@@ -679,4 +699,91 @@ function RetainedPlacementActionsExample() {
 export const ReleaseRetainedPlacementActions: StoryObj = {
   name: "Release retained placement actions",
   render: () => <RetainedPlacementActionsExample />,
+};
+
+function RenameDuringAnotherEditExample() {
+  const { toolbarProps, timelineProps } = useSequenceEditor({
+    ...options,
+    initialSequence: {
+      tracks: [{ id: "reserve", label: "Reserve", placements: [] }, ...original.tracks],
+    },
+  });
+  return (
+    // Test fixture: trigger an independent edit without closing the modal.
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
+    <div
+      onKeyDown={(event) => {
+        if (event.key === "F2") timelineProps.removeTrack?.("reserve");
+        if (event.key === "F3") toolbarProps.undo?.();
+        if (event.key === "F4") timelineProps.setTrackLocked?.("main", true);
+      }}
+    >
+      <SequenceToolbar {...toolbarProps} />
+      <SequenceTimeline {...timelineProps} />
+    </div>
+  );
+}
+
+export const RenameDuringAnotherEdit: StoryObj = {
+  render: () => <RenameDuringAnotherEditExample />,
+};
+
+function RetainedInspector(props: SequenceInspectorProps) {
+  const [release, setRelease] = useState<() => void>();
+  const edit =
+    props.inspection.kind === "transition" ? props.inspection.properties.edit : undefined;
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!edit}
+        onClick={() =>
+          setRelease(() => () => edit?.applyTransition({ kind: "fade", durationFrames: 6 }))
+        }
+      >
+        Capture Apply fade
+      </button>
+      <button
+        type="button"
+        disabled={!edit}
+        onClick={() => setRelease(() => edit?.removeTransition)}
+      >
+        Capture Remove fade
+      </button>
+      <button
+        type="button"
+        disabled={!release}
+        onClick={() => {
+          release?.();
+          setRelease(undefined);
+        }}
+      >
+        Release retained Inspector action
+      </button>
+      <SequenceInspector {...props} />
+    </>
+  );
+}
+
+export const ReleaseRetainedInspectorActions: StoryObj = {
+  render: () => (
+    <SequenceEditorPage
+      {...options}
+      initialSequence={{
+        tracks: [
+          {
+            ...original.tracks[0],
+            placements: [
+              original.tracks[0].placements[0],
+              {
+                ...original.tracks[0].placements[1],
+                transitionOut: { id: "closing-fade", kind: "fade", durationFrames: 8 },
+              },
+            ],
+          },
+        ],
+      }}
+      slots={{ preview: null, inspector: RetainedInspector }}
+    />
+  ),
 };

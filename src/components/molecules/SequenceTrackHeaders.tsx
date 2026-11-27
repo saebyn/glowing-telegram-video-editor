@@ -11,7 +11,7 @@ export type SequenceTrackHeadersProps = {
   reorderTrack?: (trackId: string, destinationTrackId: string) => void;
   removeTrack?: (trackId: string) => void;
   removableTrackIds: readonly string[];
-  toggleTrackLock?: (trackId: string) => void;
+  setTrackLocked?: (trackId: string, locked: boolean) => void;
 };
 
 type TrackDrag = { pointerId: number; id: string; origin: number };
@@ -24,7 +24,7 @@ export default function SequenceTrackHeaders({
   reorderTrack,
   removeTrack,
   removableTrackIds,
-  toggleTrackLock,
+  setTrackLocked,
 }: SequenceTrackHeadersProps) {
   const editable = reorderTrack !== undefined;
   const drag = useRef<TrackDrag | null>(null);
@@ -98,7 +98,7 @@ export default function SequenceTrackHeaders({
           role="group"
           aria-label={`Track: ${track.label}`}
           className={`relative flex items-center gap-1 border-t border-slate-600 pl-3 pr-1 ${
-            toggleTrackLock || removeTrack || track.locked ? "pb-6" : ""
+            setTrackLocked || removeTrack || track.locked ? "pb-6" : ""
           }`}
           style={{ height: rowHeight }}
         >
@@ -142,7 +142,7 @@ export default function SequenceTrackHeaders({
           <ToggleSequenceTrackLock
             label={track.label}
             locked={track.locked}
-            onToggle={toggleTrackLock && (() => toggleTrackLock(track.id))}
+            onToggle={setTrackLocked && (() => setTrackLocked(track.id, !track.locked))}
           />
         </div>
       ))}

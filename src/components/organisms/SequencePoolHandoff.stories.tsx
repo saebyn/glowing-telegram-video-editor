@@ -105,7 +105,7 @@ function HandoffHost({ testMove = false }: { testMove?: boolean }) {
           <button
             type="button"
             onClick={() => {
-              timelineProps.toggleTrackLock?.(original.tracks[0].id);
+              timelineProps.setTrackLocked?.(original.tracks[0].id, true);
             }}
           >
             Lock destination

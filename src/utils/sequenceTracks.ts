@@ -14,13 +14,16 @@ export function findPlacementTrack(sequence: Sequence, placementId: string) {
   return sequence.tracks.find(({ placements }) => placements.some(({ id }) => id === placementId));
 }
 
-export function toggleSequenceTrackLock(sequence: Sequence, trackId: string): Sequence | null {
-  if (!sequence.tracks.some(({ id }) => id === trackId)) return null;
+export function setSequenceTrackLocked(
+  sequence: Sequence,
+  trackId: string,
+  locked: boolean,
+): Sequence | null {
+  const track = sequence.tracks.find(({ id }) => id === trackId);
+  if (!track || !!track.locked === locked) return null;
   return {
     ...sequence,
-    tracks: sequence.tracks.map((track) =>
-      track.id === trackId ? { ...track, locked: !track.locked } : track,
-    ),
+    tracks: sequence.tracks.map((track) => (track.id === trackId ? { ...track, locked } : track)),
   };
 }
 

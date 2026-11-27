@@ -145,3 +145,52 @@ test("Cancel and Escape discard a track name draft without committing or keeping
   await page.keyboard.press("Enter");
   await expect(trackName).toHaveValue("Cutaways");
 });
+
+for (const duringRename of ["remove", "restore", "lock another track"] as const) {
+  test(`an open Rename keeps its original target when an edit can ${duringRename}`, async ({
+    page,
+  }) => {
+    const emissions = await recordEditorEmissions(page);
+    await page.goto(
+      "/iframe.html?id=examples-sequence-editor-composition--rename-during-another-edit&viewMode=story",
+    );
+    await page
+      .getByRole("button", { name: "Rename track", exact: true })
+      .click({ timeout: 20_000 });
+    const dialog = page.getByRole("dialog");
+    const name = dialog.getByRole("textbox", { name: "Track name" });
+    if (duringRename === "remove") {
+      // Even the default target must be captured before any typing.
+      await name.press("F2");
+      await name.fill("Do not rename Main");
+    } else {
+      await name.fill("Assembly");
+      await name.press(duringRename === "restore" ? "F2" : "F4");
+      if (duringRename === "restore") await name.press("F3");
+    }
+    const intervening = await emissions();
+    expect(intervening.sequences).toHaveLength(duringRename === "restore" ? 2 : 1);
+    await dialog.getByRole("button", { name: "Save name" }).click();
+    await expect(dialog).toBeHidden();
+    if (duringRename === "remove") {
+      expect(await emissions()).toEqual(intervening);
+      await expect(page.getByText("Main", { exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText("Assembly", { exact: true })).toBeVisible();
+      const result = await emissions();
+      expect(result.sequences).toEqual([
+        ...intervening.sequences,
+        {
+          tracks: [
+            { id: "reserve", label: "Assembly", placements: [] },
+            intervening.sequences.at(-1)!.tracks[1],
+          ],
+        },
+      ]);
+      expect(result.cutListResults).toEqual([
+        ...intervening.cutListResults,
+        intervening.cutListResults.at(-1),
+      ]);
+    }
+  });
+}

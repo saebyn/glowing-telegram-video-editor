@@ -166,7 +166,7 @@ export type SequenceTimelineProps = SequenceTimelinePlacementProps & {
   reorderTrack?: (trackId: string, destinationTrackId: string) => void;
   removeTrack?: (trackId: string) => void;
   removableTrackIds: readonly string[];
-  toggleTrackLock?: (trackId: string) => void;
+  setTrackLocked?: (trackId: string, locked: boolean) => void;
   previewTransitionResize?: (intent: TransitionResizeIntent) => "valid" | "blocked" | "conflict";
   resizeTransition?: (intent: TransitionResizeIntent) => void;
   previewTrim?: (intent: TimelineTrimIntent) => boolean;
@@ -260,7 +260,7 @@ function SequenceTimelineWidget({
   reorderTrack,
   removeTrack,
   removableTrackIds,
-  toggleTrackLock,
+  setTrackLocked,
   activeClipId,
   endClipDrag,
   previewClipPlacement,
@@ -994,7 +994,7 @@ function SequenceTimelineWidget({
           reorderTrack={reorderTrack}
           removeTrack={removeTrack}
           removableTrackIds={removableTrackIds}
-          toggleTrackLock={toggleTrackLock}
+          setTrackLocked={setTrackLocked}
         />
         <div
           ref={surface}

@@ -11,6 +11,128 @@ const hookStory = "examples-sequence-editor-composition--assemble-with-the-hook"
 const resizeStory = "examples-sequence-editor-composition--resize-a-transition";
 const retainedStory = "examples-sequence-editor-composition--release-retained-placement-actions";
 
+for (const intervening of [
+  "Place Bridge in Reserve",
+  "Remove Reserve",
+  "Trim Closing to source frame 222",
+]) {
+  test(`retained Remove revalidates after ${intervening}`, async ({ page }) => {
+    const emissions = await recordEditorEmissions(page);
+    await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+    await page
+      .getByRole("button", { name: "Capture Remove Reserve", exact: true })
+      .click({ timeout: 20_000 });
+    await page.getByRole("button", { name: intervening, exact: true }).click();
+    const before = await emissions();
+    expect(before.sequences).toHaveLength(1);
+    expect(before.cutListResults).toHaveLength(1);
+    await page.getByRole("button", { name: "Release retained action" }).click();
+    if (intervening === "Trim Closing to source frame 222") {
+      expect(await emissions()).toEqual({
+        sequences: [
+          ...before.sequences,
+          { tracks: before.sequences[0].tracks.filter(({ id }) => id !== "reserve") },
+        ],
+        cutListResults: [...before.cutListResults, before.cutListResults[0]],
+      });
+    } else {
+      expect(await emissions()).toEqual(before);
+    }
+  });
+}
+
+test("a retained Lock request cannot unlock a track already locked by another edit", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  await page
+    .getByRole("button", { name: "Capture Lock Main", exact: true })
+    .click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Lock Main", exact: true }).click();
+  const locked = await emissions();
+  expect(locked.sequences).toHaveLength(1);
+  expect(locked.sequences[0].tracks[0].locked).toBe(true);
+  expect(locked.cutListResults).toHaveLength(1);
+  await page.getByRole("button", { name: "Release retained action" }).click();
+  await expect(page.getByRole("button", { name: "Unlock Main", exact: true })).toBeVisible();
+  expect(await emissions()).toEqual(locked);
+});
+
+test("a retained Lock commits once and preserves an intervening placement", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
+  await page
+    .getByRole("button", { name: "Capture Lock Main", exact: true })
+    .click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Place Bridge in Reserve", exact: true }).click();
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(1);
+  expect(before.cutListResults).toHaveLength(1);
+  await page.getByRole("button", { name: "Release retained action" }).click();
+  await expect(page.getByRole("button", { name: "Unlock Main", exact: true })).toBeVisible();
+  const [main, ...otherTracks] = before.sequences[0].tracks;
+  expect(await emissions()).toEqual({
+    sequences: [...before.sequences, { tracks: [{ ...main, locked: true }, ...otherTracks] }],
+    cutListResults: [...before.cutListResults, before.cutListResults[0]],
+  });
+});
+
+for (const action of ["Apply", "Remove"] as const) {
+  test(`retained Inspector ${action} follows the same fade to the right half of a split`, async ({
+    page,
+  }) => {
+    const emissions = await recordEditorEmissions(page);
+    await page.goto(
+      "/iframe.html?id=examples-sequence-editor-composition--release-retained-inspector-actions&viewMode=story",
+    );
+    await page
+      .getByRole("button", { name: "Select reveal fade: Harbor" })
+      .click({ timeout: 20_000 });
+    await page.getByRole("button", { name: `Capture ${action} fade` }).click();
+    const timeline = page.getByRole("region", { name: "Sequence timeline" });
+    const ruler = timeline.locator(".timeline-editor-time-area-interact");
+    const rail = (await ruler.boundingBox())!;
+    await ruler.click({ position: { x: rail.width * 0.75, y: rail.height / 2 } });
+    await expect(page.getByLabel("Sequence playhead position")).toHaveText("Sequence frame 180");
+    await page.getByRole("button", { name: "Split", exact: true }).click();
+    const before = await emissions();
+    expect(before.sequences).toHaveLength(1);
+    expect(before.sequences[0].tracks[0].placements.at(-1)?.transitionOut?.id).toBe("closing-fade");
+
+    await page.getByRole("button", { name: "Release retained Inspector action" }).click();
+    const result = await emissions();
+    expect(result.sequences).toHaveLength(2);
+    const edited = result.sequences[1].tracks[0].placements;
+    expect(
+      edited.map(({ sequenceStartFrame, transitionOut }) => [sequenceStartFrame, transitionOut]),
+    ).toEqual([
+      [0, undefined],
+      [120, undefined],
+      [
+        180,
+        action === "Apply" ? { id: "closing-fade", kind: "fade", durationFrames: 6 } : undefined,
+      ],
+    ]);
+    expect(result.cutListResults).toHaveLength(2);
+  });
+}
+
+test("retained Inspector Apply cannot recreate a removed transition", async ({ page }) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(
+    "/iframe.html?id=examples-sequence-editor-composition--release-retained-inspector-actions&viewMode=story",
+  );
+  await page.getByRole("button", { name: "Select reveal fade: Harbor" }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Capture Apply fade" }).click();
+  await page.getByRole("button", { name: "Remove transition" }).click();
+  const removed = await emissions();
+  expect(removed.sequences).toHaveLength(1);
+  expect(removed.cutListResults).toHaveLength(1);
+  await page.getByRole("button", { name: "Release retained Inspector action" }).click();
+  expect(await emissions()).toEqual(removed);
+});
+
 test("Storybook lists both composition examples separately from the default workflows", async ({
   request,
 }) => {
@@ -852,7 +974,7 @@ test("a retained Reorder cannot restore a destination track removed by another e
   const reorder = page.getByRole("button", { name: "Reorder Main to Reserve" });
   await reorder.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Remove Reserve" }).press("Space");
+  await page.getByRole("button", { name: "Remove Reserve", exact: true }).press("Space");
   const before = await emissions();
   expect(before.sequences).toHaveLength(1);
   expect(before.cutListResults).toHaveLength(1);
