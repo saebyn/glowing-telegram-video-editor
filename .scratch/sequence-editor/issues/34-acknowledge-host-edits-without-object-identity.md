@@ -1,6 +1,6 @@
 # 34 — Decide whether the editor needs explicit edit acknowledgement
 
-Status: needs-info
+Resolution: Superseded by [session-owned working sequences](../../../docs/adr/0002-own-the-working-sequence-in-the-editor.md). [#111](111-own-the-working-sequence-and-history.md) removes host acknowledgement rather than adding another form of it.
 
 Today the host must feed back the exact proposed sequence object to
 preserve Undo history. A host that confirms an edit asynchronously and

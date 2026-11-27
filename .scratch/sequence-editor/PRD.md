@@ -151,7 +151,7 @@ pre-rendered sequence or a successful `CutList` compile. Forward playback
 includes sound; reverse is picture-only. Preview is for judging authored
 timing, picture, and sound, not verifying the downstream render. For the
 current compiler callback contract, see
-[`onCutListResult` and `result.ok`](../../README.md#L105).
+[`onCutListResult` and `result.ok`](../../README.md#sequenceeditorpage).
 
 For sources with video or an undeclared media kind, the host supplies a
 `previewHlsUrl` separate from the render `s3Location`. It points to a finite,

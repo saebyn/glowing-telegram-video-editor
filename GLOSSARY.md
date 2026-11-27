@@ -125,10 +125,16 @@ A transition from the preceding picture or sound at a placement’s leading edge
 A transition from a placement’s picture or sound toward what follows at its trailing edge.
 
 **Host application**:
-The application that uses the library and owns the persistent clips and sequences.
+The application that uses the library. It owns the clips, sources, and saved sequences and decides when to save.
+
+**Editing session**:
+One period of working on a sequence in the editor. It owns the working sequence and its Undo/Redo history, independently of saving.
+
+**Working sequence**:
+The sequence as it currently stands in the editing session. It can differ from the last saved sequence.
 
 **Editor UI state**:
-Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the clip and placement state owned by the host.
+Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the authored edit in the working sequence.
 
 **Sequence frame**:
 Zero-based position in the sequence, measured at the **project frame rate**.

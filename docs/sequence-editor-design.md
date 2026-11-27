@@ -9,8 +9,13 @@ compiler. Saving projects and final rendering are outside its scope.
 This document describes the intended behavior, not a checklist of what the
 current Storybook stories already support.
 
+**Agreed, not implemented:** The session-owned sequence described below replaces
+the current controlled `sequence` prop and exact-object acknowledgement. See
+[ADR 0002](adr/0002-own-the-working-sequence-in-the-editor.md) for the decision
+and the [README](../README.md#sequenceeditorpage) for today's interface.
+
 See [Sequence editor data flow](sequence-editor-data-flow.md) for the
-relationships between host inputs, edit proposals, Preview, and compilation.
+relationships between host inputs, committed edits, Preview, and compilation.
 
 ## Component tree
 
@@ -38,10 +43,10 @@ pane or visibility toggle for that slot. A wrapper can add UI around a default
 component and forward the props it received, without wiring editing behavior
 again.
 
-One call to `useSequenceEditor` provides one editing session. It takes the
-host-owned sequence, clip and source inputs, and the host callbacks. It reads
-the project frame rate from `ProjectProvider` and passes the resolved rate to
-components that need it. The hook returns `toolbarProps`, `clipPoolProps`,
+One call to `useSequenceEditor` provides one editing session. The hook and
+`SequenceEditorPage` both take `initialSequence`, clip and source inputs, and
+optional callbacks. The hook reads the project frame rate from `ProjectProvider`
+and passes it to components that need it. It returns `toolbarProps`, `clipPoolProps`,
 `previewProps`, `inspectorProps`, and `timelineProps`, plus notices and an opt-in
 root keyboard handler. The default page renders notices independently of the
 Toolbar and binds shortcuts to its root, including Escape to dismiss Split or
@@ -51,9 +56,9 @@ placement paste drop mode. A host-built page can do the same in its own layout.
 | --- | --- |
 | Toolbar | Transport state and actions; availability and actions for Split at playhead, Split mode, Undo/Redo, deleting the selection, and adding or renaming tracks. Optional timeline navigation actions are available when the Timeline supports them. The default page supplies pane toggles separately. |
 | Clip Pool | Clips and their presentation data, plus callbacks to begin and end a drag for a clip ID. `SequenceClipPool` adapts `ProjectClipPool` without changing its separate uses. |
-| Preview | Transport snapshot and latest sequence, clip, and source inputs. The default `SequencePreview` registers readiness while mounted; the session still owns the clock and play intent. |
+| Preview | Transport snapshot, the working sequence, and current clip and source inputs. The default `SequencePreview` registers readiness while mounted; the session still owns the clock and play intent. |
 | Inspector | A discriminated `inspection` value: empty, placement (selection summary and chooser, effective ranges, trim bounds and action, one action per edge), or transition (authored `PlacementTransition`, owner, edge, resolved details, duration bounds by kind, and actions to apply type and duration together or remove the transition). The Inspector owns labels, drafts, and form rendering. |
-| Timeline | Ordered tracks and placements, derived sequence duration, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. The Timeline can register viewport navigation actions with the session. Gesture evaluators report fitted positions or blocked reasons without proposing an edit. For either transition kind, `previewTransitionResize` and `resizeTransition` take `{ transitionId, durationFrames }`; release revalidates the duration against the current transition and cannot create, remove, or change its kind. |
+| Timeline | Ordered tracks and placements, derived sequence duration, clip and source presentation, transport and seek, selection and Split mode, and named actions to edit placements, transitions, and tracks. The Timeline can register viewport navigation actions with the session. Gesture evaluators report fitted positions or blocked reasons without committing an edit. For either transition kind, `previewTransitionResize` and `resizeTransition` take `{ transitionId, durationFrames }`; release revalidates the duration against the current transition and cannot create, remove, or change its kind. |
 
 Export the library-owned UI components and their props from the package root,
 including `SequenceWorkspace`, pane toggles, and individual controls. Exports
@@ -142,9 +147,10 @@ rows are not editor state or compiler input.
   its own identity, references a clip, and has a track, a sequence position,
   and signed source-frame trim offsets from the clip's in and out points.
   Two placements can be trimmed independently, including extending beyond
-  the clip's range within the same source. Re-trimming a clip adjusts existing
-  placements' offsets to preserve their effective source ranges. New
-  placements start at the new clip bounds.
+  the clip's range within the same source. If the host re-trims a clip, it
+  prepares a new initial sequence with adjusted offsets to preserve existing
+  effective source ranges before reopening. New placements start at the new
+  clip bounds.
 - **Track management:** Add an empty track at the top. Remove only empty
   tracks, and do not offer Remove track for the last track. The host may
   supply a sequence with no tracks; show a track empty state with a prompt
@@ -153,17 +159,17 @@ rows are not editor state or compiler input.
   Drag to reorder tracks, changing priority without moving or trimming
   placements. Preserve the authored reorder and transitions even if the
   resulting output cannot be compiled.
-- **Track locks:** Store the lock on the track in the host-owned
-  sequence. Lock and Unlock use the existing sequence edit flow and
-  each take one Undo step when accepted. A lock
-  prevents placement edits, including moves into or out of the track,
-  clip-pool drops, trims, splits, deletes, and transition edits.
+- **Track locks:** Store the lock on the track in the sequence. The Timeline
+  calls `setTrackLocked(trackId, locked)` with the requested state, not a toggle.
+  Each actual change takes one Undo step. A lock prevents placement edits,
+  including moves into or out of the track, clip-pool drops, trims, splits,
+  deletes, and transition edits.
   A blocked explicit group edit makes no changes. Split at the playhead
   skips locked tracks; Split mode cannot cut a locked placement.
   Selection, inspection, and playback still work. Renaming, reordering,
   and removing an empty track still follow the usual rules. Undo and Redo
-  restore accepted states, including their locks, without being blocked
-  by the current locks. If Undo restores a removed locked track, it comes
+  restore sequence snapshots, including their locks, without being blocked by
+  the current locks. If Undo restores a removed locked track, it comes
   back locked. Another track can still cover a locked placement; toggling
   a lock does not change the `CutList` result.
 - **Sequence duration:** Frame zero is fixed. Duration is the latest exclusive
@@ -261,56 +267,86 @@ rows are not editor state or compiler input.
   source grid, inclusive in and exclusive out. Sequence positions use the
   project frame rate. Keep both distinct from physical-media timestamps. See
   the [glossary](../GLOSSARY.md) for terminology.
-- **Host vs. session:** The host supplies the editable sequence and media
-  metadata, and decides what to persist. The library manages transient UI
-  state such as the playhead, selection, zoom, viewport position, and drag
-  drafts. Monitoring is also session-only, unlike authored output audio
-  adjustments.
 
-```text
-Host sequence + media → useSequenceEditor → slot props
-Slot action → validate edit intent → proposed sequence
-                                            ├─→ host
-                                            └─→ CutList compiler → host
-```
+### Session lifetime and live inputs
 
-The top-level callbacks are `onSequenceChange(nextSequence)` and
-`onCutListResult(result: CutListResult)`. Each committed edit emits one next
-sequence and one compilation result when those callbacks are supplied. The host
-feeds the next sequence back as a prop. The compiler is independent of React and
-takes that same next sequence, not the widget data. `ok: true` includes a `CutList`;
-`ok: false` has no `CutList` and includes at least one issue. Either branch can
-carry issues; no issues implies success. An edit still reaches the host when
-compilation fails. Selection, playhead changes, drag previews, and
-blocked, cancelled, or unchanged drops emit neither callback. Loading or
-replacing the sequence through props does not emit `onCutListResult`.
+The editor session owns the working sequence and its Undo/Redo history. It
+initializes from `initialSequence` on mount. Rerendering the same session does
+not reopen it, even if `initialSequence` changes. To switch sequences, reload,
+or discard local work, the host changes the React `key` and supplies the
+snapshot to open. This remount resets history, selection, clipboard, transport,
+and UI state inside the editor, including open dialogs and drafts. For a custom
+layout, key the component that calls `useSequenceEditor`, not an individual slot.
+Monitoring is session-only, unlike authored output audio adjustments.
+
+The host still owns clips and sources. It can add clips and refresh metadata
+for the same media (such as thumbnails or an aligned Preview URL) during a
+session. Equivalent clip arrays should not cancel a gesture. Removing or
+re-trimming an existing clip, changing the media it refers to, or changing the
+project frame rate requires reopening with a suitable `initialSequence`.
+The session does not rebase the working sequence or history on those changes.
+
+Treat `initialSequence` and emitted snapshots as immutable. The editor may
+share unchanged data and does not promise to clone or freeze it. The host can
+store or serialize a snapshot; it makes a copy before modifying one.
+
+### Committing and observing edits
+
+A successful edit, Undo, or Redo advances the working sequence and history
+before notifying listeners. Each action that changes the sequence emits once
+in commit order, even if React batches the renders. If supplied,
+`onSequenceChange(nextSequence)` receives only the resulting snapshot, followed
+by the separate `onCutListResult(result: CutListResult)` for the same snapshot
+when that listener is supplied. Either callback can be used on its own.
+Mounting or reopening, selection, playhead changes, drag previews, and blocked,
+cancelled, or unchanged actions emit neither callback.
+
+There is no read-only mode. Editing and history work the same without either
+listener. The host decides when to save, how to retry or order saves, and how
+to report errors. The editor does not await save results or require the host
+to echo a snapshot back. Save results do not affect editing or notifications.
+
+The compiler is independent of React and takes the committed sequence, not
+widget data. `ok: true` includes a `CutList`; `ok: false` has no `CutList` and
+includes at least one issue. Either branch can carry issues; no issues implies
+success. An export failure never rejects a valid edit or history step. Hosts
+can also call the compiler directly.
 
 The page and editing hook expose a separate typed `onSequenceInputError`
-callback for invalid host inputs, including a missing referenced clip, invalid
+callback for invalid inputs, including a missing referenced clip, invalid
 placement start or effective source range, an unusable frame rate, an unsafe
 end frame, or same-track overlap. Notify on initial invalid input or when its
 diagnostics change, not on each render. Show the diagnostic and block editing
 and playback while invalid, without throwing, inferring a partial duration,
-discarding placements, or emitting a sequence change. Valid inputs restore
-the session without a recovery callback. A valid mixed-rate edit, a sequence
-gap, or missing render media may make export unavailable without invalidating
-the input. `onCutListResult` retains its edit-proposal-only contract.
+discarding placements, or emitting a sequence change. Correcting live inputs
+restores the session without a recovery callback. To replace an invalid
+initial sequence, reopen. A valid mixed-rate edit, a sequence gap, or missing
+render media may make export unavailable without invalidating the input.
 
-Toolbar controls, drag gestures, and shortcuts call the same editor action
-for the same operation. Supply derived state such as edit availability and
-trim bounds in the slot props rather than making each component reproduce
-editing rules. Actions take named, frame-based edit intents, not a modified
-`Sequence`. Revalidate an intent against current state when applying it, even
-if a gesture preview was valid earlier. A generic public command interface and
-configurable keybindings are out of scope.
+### Action intent and history
 
-Undo and Redo step through host-accepted sequences. Feeding back the exact
-proposed sequence object acknowledges the edit. Replacing it with a
-different sequence object clears local history; no history entry is added
-for a rejected proposal or a session-only action.
+Built-in and host-provided UI own interaction state, such as a gesture draft
+or a rename dialog's text and the track ID captured when it opened. Toolbar
+controls, gestures, and shortcuts use the same editor action for the same
+operation. Actions take named intents with IDs and whole frames where
+applicable, not a modified `Sequence`. Slot props provide derived information
+such as edit availability and trim bounds, but the session validates each
+action against the current working sequence and inputs before applying it.
 
-Expose the compiler as a utility, but do not require hosts to call it as part
-of normal editor integration. The editor handles compilation for its edits.
+For example, `renameTrack(trackId, label)` looks up that ID when submitted, not
+the current selection or a track object held by the dialog. It preserves
+intervening edits. If Undo restored the track, its ID still identifies it;
+if the ID is absent or the label is unchanged, there is no edit. Likewise,
+a retained **Lock track** action does not unlock an already locked track.
+A generic public command interface and configurable keybindings are out of scope.
+
+Each committed edit is one Undo step; a new edit after Undo clears Redo.
+Undo and Redo restore sequence snapshots, not the host's clip pool or source
+metadata. If the next snapshot in either direction is invalid against the
+current inputs (for example, it references a clip the host removed without
+reopening), refuse that step without consuming or skipping it, changing the
+working sequence, or notifying either edit listener. A valid snapshot with
+an export issue is still eligible. Session-only actions do not enter history.
 
 ## Selection and atomic moves
 
@@ -327,8 +363,8 @@ of normal editor integration. The editor handles compilation for its edits.
   copy placement selection, Ctrl/⌘+D to duplicate it, or Ctrl/⌘+V to paste the
   copy. Copy snapshots relative sequence positions and track spacing, effective
   source ranges, and authored transitions. The clipboard belongs to the session,
-  survives accepted edits, and clears when the host replaces the sequence. It
-  does not use the system clipboard or copy across editors.
+  survives committed edits, and clears when a new session opens. It does not
+  use the system clipboard or copy across editors.
 - Duplicate puts the earliest new placement at the latest selected exclusive
   end and keeps the original tracks. Paste maps the earliest copied sequence
   frame and topmost copied track to the pointer's frame and track respectively,
@@ -340,9 +376,9 @@ of normal editor integration. The editor handles compilation for its edits.
   Timeline renders it and reports the clicked target for revalidation.
 - Duplicate and Paste reuse clips and assign new placement and transition IDs.
   Same-track overlap and missing or locked destination tracks block the whole
-  edit. Touching edges are allowed. The group insertion is one host-accepted
-  Undo step; duration is derived from the resulting placements. Copy, preview,
-  and cancel emit nothing; an accepted edit need not produce a successful
+  edit. Touching edges are allowed. The group insertion is one Undo step;
+  duration is derived from the resulting placements. Copy, preview,
+  and cancel emit nothing; a committed edit need not produce a successful
   `CutList`.
 - Placement Properties shows the source and sequence ranges and applicable trim
   controls for one selected placement. For multiple selected placements,
@@ -352,15 +388,14 @@ of normal editor integration. The editor handles compilation for its edits.
   edits still use the whole selection. Each occupied edge offers **Inspect
   transition**, equivalent to selecting its timeline indicator: highlight the
   transition, clear the entire placement selection, and show Transition
-  Properties instead of Placement Properties without proposing an edit.
-- Each editable empty edge offers **Add transition**, which proposes one entry
+  Properties instead of Placement Properties without committing an edit.
+- Each editable empty edge offers **Add transition**, which adds one entry
   or reveal fade. Use half a second rounded to whole sequence frames, at least
   one frame and capped at the placement's duration. A conflict leaves the
   selection intact and explains why the edit is blocked; do not shorten the
-  default to fit. Select the new transition only when the host accepts the
-  proposed sequence, making Add one Undo step.
+  default to fit. Select the new transition on commit. Add is one Undo step.
 - Transition Properties identifies the owner, edge, and authored kind, and
-  shows resolved details such as dissolve contributions. **Apply** proposes
+  shows resolved details such as dissolve contributions. **Apply** commits
   the draft type and duration together, retaining the transition's ID and
   edge. Changing the type does not change the draft duration. Both kinds
   require positive whole sequence frames; a fade cannot be longer than the
@@ -368,20 +403,20 @@ of normal editor integration. The editor handles compilation for its edits.
   use the same evaluator and reject competition at the same cut or over
   visible frames.
 - **Remove transition** clears the owned edge without moving or trimming its
-  placement. When accepted, it selects just the owning placement; Undo
+  placement. On commit, it selects just the owning placement; Undo
   restores the transition without changing that selection. Zero duration is
-  not removal. Read-only and locked tracks allow inspection, but not
-  transition edits. Timeline placement edges still trim, and separate resize
-  grips adjust authored fades and dissolves. A dissolve resize changes both
-  sides about the same cut and clips the displayed window at sequence bounds
+  not removal. Locked tracks allow inspection, but not transition edits.
+  Timeline placement edges still trim; separate resize grips adjust authored
+  fades and dissolves. A dissolve resize changes both sides about the same cut
+  and clips the displayed window at sequence bounds
   without limiting the authored duration. Canceling the drag leaves the
   transition unchanged. Empty edges have no transition grips; creation starts
   only in Placement Properties. Short or obscured transitions can still be
   inspected from their owning edges.
-- A move proposes the IDs of the placements being moved and the grabbed placement's
-  destination track and sequence frame. Every placement gets the same signed
-  sequence-frame offset and the same shift in track order. Source ranges and
-  entry and reveal transitions stay unchanged.
+- A move intent specifies the IDs of the placements being moved and the
+  grabbed placement's destination track and sequence frame. Every placement
+  gets the same signed sequence-frame offset and the same shift in track
+  order. Source ranges and entry and reveal transitions stay unchanged.
 - Check the final layout with all moving placements' old positions vacated.
   Block the whole move if any placement would start before sequence frame
   zero, land outside the existing tracks, or overlap a stationary placement
@@ -407,7 +442,7 @@ destination track ID, and sequence frame.
 
 For example, if a group move would extend a 160-frame sequence to 190 frames
 but would also cause a same-track collision, neither the placements nor the
-duration change. Once the collision clears, an accepted drop makes the
+duration change. Once the collision clears, a valid drop makes the
 sequence 190 frames. Undo restores the placements and therefore the original
 duration in one action.
 
@@ -453,7 +488,7 @@ and zoom remain available. An empty-track click does nothing.
 
 ## Sequence preview target
 
-The default `SequencePreview` simulates the latest host-supplied Sequence at the current
+The default `SequencePreview` simulates the working sequence at the current
 playhead, without a custom slot, pre-rendered sequence, or successful
 `CutList` compile. Match the authored timing and picture and sound
 contributions, not the downstream render's pixels or audio samples.
@@ -575,9 +610,9 @@ Compilation collects independent issues, including the inclusive start and
 exclusive end of each sequence gap and IDs for affected placements or
 transitions. If a missing clip prevents the compiler from resolving the layout,
 it does not infer gaps from the placements it could resolve. The default editor
-explains issues from the current host inputs without emitting callbacks. It can
-seek to the first reported gap or select an affected placement for inspection,
-including on locked tracks. Neither action modifies the sequence or its history.
+explains issues for the working sequence without emitting edit callbacks.
+It can seek to the first reported gap or select an affected placement for
+inspection, including on locked tracks. Neither changes the sequence or history.
 
 ## Storybook editing setups
 
@@ -590,8 +625,8 @@ including playhead controls.
 | **Assemble a rough cut** | Fill a gap on a single track, extend the sequence with a clip-pool drop or trailing trim, then shorten the last placement without leaving a trailing gap. Adjust trims and entry/reveal transitions from both the timeline and the Inspector. |
 | **Rearrange a layered edit** | Select placements across tracks, preserve their spacing, see an invalid drop, then move the group past the current sequence end. Pan before zero and beyond the edit, and return with Fit to view. |
 
-The stories act as the host: they feed accepted sequences back to the editor
-and expose the callbacks in Storybook’s Actions panel. Check that a proposed
+The stories supply an initial snapshot and can expose notifications in
+Storybook’s Actions panel without feeding snapshots back. Check that a proposed
 move previews the final destination without emitting edits, a blocked drop
 changes nothing, and a valid extending drop emits one sequence change and one
 `CutList` result. Verify that panning doesn't seek, that a placement cannot be
@@ -604,10 +639,17 @@ Keep a composition example that wraps a default slot component and
 replaces the Timeline on `SequenceEditorPage`, and one that calls
 `useSequenceEditor` directly and rearranges public components without the
 default page. Across those examples, verify through the public interfaces
-that seeking emits no edit, a valid edit uses the same host callbacks and
-acceptance/Undo flow as the defaults, and blocked or cancelled edits emit
-nothing. A custom Preview slot can display the transport snapshot to verify
-that it receives the same sequence playhead as the Timeline without a player.
+that seeking emits no edit, a valid edit uses the same commit and Undo flow as
+the defaults, and blocked or cancelled edits emit nothing. Also exercise local
+edit, Undo, and Redo without a listener, a host rerender with a different
+`initialSequence` under the same key, and a new key reopening that snapshot
+with empty history. Verify that two actions before a rerender build on each
+other and deliver both notification pairs in order, without save feedback.
+In a retained-action example, change another track while the rename draft is
+open and check that submitting preserves that edit and still targets the
+original track. A custom Preview slot can display the transport snapshot
+to verify that it receives the same sequence playhead as the Timeline
+without a player.
 **Resize a transition** uses a replacement Timeline to preview and resize both
 Fade and Dissolve by ID without depending on the default pointer adapter.
 
@@ -615,5 +657,4 @@ The source review and range export workflow stays separate. These editing
 stories verify authoring and callback output. The separate Preview stories
 exercise browser playback without validating downstream rendered media.
 
-Follow-up design can settle mixed-rate cuts and the remaining details of
-split and undo.
+Follow-up design can settle mixed-rate cuts.

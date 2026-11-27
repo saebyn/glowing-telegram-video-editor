@@ -1,28 +1,32 @@
 # Sequence editor data flow
 
-This guide shows which inputs each part of the editor owns and where the
-[review follow-ups](../.scratch/sequence-editor/TRIAGE.md#branch-review-follow-ups)
-would change the current flow. See the [sequence editor design](sequence-editor-design.md)
-for the behavior contract.
+The first two diagrams describe the agreed session ownership design, which
+replaces the current controlled sequence flow when implemented. See the
+[sequence editor design](sequence-editor-design.md) for the contract and
+[branch review follow-ups](../.scratch/sequence-editor/TRIAGE.md#branch-review-follow-ups)
+for outstanding work.
 
 ## What flows where
 
 ```mermaid
 flowchart LR
-    Host["Host: accepted sequence, clips, project frame rate"]
+    Host["Host: initial snapshot and persistence"]
+    Clips["Host: clips and project frame rate"]
     Sources["Host: sources keyed by source ID"]
     Geometry["Placement geometry: effective source ranges, track positions, duration"]
-    Session["Editor session: selection, playhead, history"]
-    Timeline["Timeline: viewport, pointer gestures, drafts"]
+    Session["Editor session: working sequence, history, selection, playhead"]
+    UI["Built-in or host-provided UI: gestures and drafts"]
     Presentation["Presentation: source times and visible picture / sound"]
     Decoder["Preview reader: playlist, decode, readiness"]
     Compiler["CutList compiler: flattened output and export issues"]
 
-    Host --> Geometry
+    Host -->|Initial sequence at mount| Session
+    Clips --> Geometry
+    Session -->|Working sequence| Geometry
     Geometry --> Session
-    Session -->|Slot props| Timeline
-    Timeline -->|Frame-based intent| Session
-    Session -->|Edit proposal| Host
+    Session -->|Slot props| UI
+    UI -->|Named edit intent| Session
+    Session -->|Optional committed snapshot| Host
     Session -->|Playhead and play intent| Presentation
     Geometry --> Presentation
     Sources -->|Media kind| Presentation
@@ -31,7 +35,7 @@ flowchart LR
     Decoder -->|Readiness for current frame| Session
     Geometry --> Compiler
     Sources -->|Opaque render source reference| Compiler
-    Compiler -->|Result for the proposed sequence| Host
+    Compiler -->|Optional result for the committed snapshot| Host
 ```
 
 The arrows describe responsibilities, not required shared functions. The
@@ -50,46 +54,50 @@ the source ID or the Preview URL. The
 [render reference ticket](../.scratch/sequence-editor/issues/91-require-a-render-source-reference.md)
 tracks the missing-value case without renaming the field.
 
-## From a gesture to a host-accepted edit
+## From UI intent to a committed edit
 
 ```mermaid
 sequenceDiagram
     participant Host
     participant Session as Editor session
-    participant Timeline
-    Host->>Session: Supply sequence A and current clip/source inputs
-    Session->>Timeline: Supply actions and data for A
-    Note over Timeline: Gesture starts and retains a callback from A
-    Host->>Session: Supply sequence B (for example, lock the destination)
-    alt Current stale callback path
-        Timeline->>Session: Release through callback captured at A
-        Session-->>Host: Propose A plus the edit, losing the lock in B if accepted
-    else Intended path, already used by Move and Trim
-        Timeline->>Session: Release or click with IDs and frame positions
-        Session->>Session: Check the action against B and current inputs
-        alt Invalid or cancelled
-            Note over Session: No proposal or compilation callback
-        else Valid proposal C, based on B
-            Session-->>Host: onSequenceChange(C) and onCutListResult for C
-            opt Host accepts C
-                Host->>Session: Feed back the exact C object
-                Note over Session: Acknowledge C and update history
-            end
+    participant UI as Toolbar or custom UI
+    Host->>Session: Mount with initialSequence
+    Session->>UI: Supply data and actions
+    Note over UI: Open rename dialog for track A
+    Note over Session: Another edit commits while the dialog is open
+    UI->>Session: renameTrack(A, label)
+    Session->>Session: Look up A in the current working sequence
+    alt Missing track or unchanged label
+        Note over Session: No history step or edit notification
+    else Valid change
+        Session->>Session: Commit next sequence and update history
+        opt Sequence listener supplied
+            Session-->>Host: onSequenceChange(nextSequence)
+        end
+        opt Compiler listener supplied
+            Session-->>Host: onCutListResult for nextSequence
         end
     end
 ```
 
-- A callback or drag draft is not a copy of the host's persistent state. See
-  [retained Timeline actions](../.scratch/sequence-editor/issues/83-revalidate-remaining-timeline-actions.md).
-- Invalid authored inputs are reported to the host. An invalid **candidate**
-  (for example, a pool drop beyond the source end) should be rejected before an
-  edit proposal. A valid edit with an export issue still produces both callbacks.
-- Undo and Redo currently store accepted **sequence** snapshots, not clip or
-  source snapshots. If the host removes a clip, a history target that references
-  it may no longer be valid. The
-  [history ticket](../.scratch/sequence-editor/issues/87-define-history-after-clip-changes.md)
-  leaves the history policy open; it should not silently restore a dangling
-  placement or take ownership of changing the host's clip pool.
+- The host can save a snapshot immediately, later, or not at all. The session
+  keeps editing without save feedback. A rerender is not a reload; changing
+  the React key mounts a new session and clears editor state.
+- Release revalidates a gesture against current state, even if its preview
+  was valid. Invalid inputs to the current sequence have a separate diagnostic
+  callback. An invalid action or history target produces no edit notification.
+  A valid edit with an export issue still notifies both listeners if supplied.
+- Undo and Redo restore sequence snapshots, not clips or sources. Refuse an
+  invalid history target without consuming it. See the
+  [history policy](sequence-editor-design.md#action-intent-and-history).
+
+### From a gesture to a host-accepted edit
+
+In the current controlled implementation, actions propose a new sequence and
+the host echoes the exact object to advance history. The closed
+[retained Timeline actions ticket](../.scratch/sequence-editor/issues/83-revalidate-remaining-timeline-actions.md)
+describes revalidation when a host replacement lands during a gesture.
+In the agreed design, an intervening local edit exercises the same rule.
 
 ## From the playhead to decoded media
 

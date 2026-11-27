@@ -87,6 +87,10 @@ Pass positions and durations as whole frames. Positions are zero-based. Source r
 
 ### SequenceEditorPage
 
+This section describes the current controlled editor. The
+[session-owned editor design](docs/sequence-editor-design.md#session-lifetime-and-live-inputs)
+is agreed but not yet implemented.
+
 The host supplies `sequence`, `clips`, and `sources: SourcesById<SequenceSource>`,
 a readonly, sparse record keyed by `VideoClip.sourceId`. The key is the source ID;
 metadata values have no `id` field. Several clips can reference the same entry.
