@@ -86,20 +86,20 @@ test("converting an audio transition to a competing dissolve under video is bloc
     "sources.harbor-recording.mediaKind:video-only",
     "sources.lighthouse-recording.mediaKind:audio-only",
     // Harbor covers [0, 240) in picture. The two Lighthouse placements meet at 120 in sound.
-    "sequence.tracks[0].placements[0].clipId:harbor",
-    "sequence.tracks[0].placements[0].sourceOutOffsetFrames:120",
-    "sequence.tracks[1].placements[0].clipId:lighthouse",
-    "sequence.tracks[1].placements[0].sourceOutOffsetFrames:0",
-    "sequence.tracks[2].placements[0].sourceInOffsetFrames:0",
-    "sequence.tracks[2].placements[0].sourceOutOffsetFrames:0",
+    "initialSequence.tracks[0].placements[0].clipId:harbor",
+    "initialSequence.tracks[0].placements[0].sourceOutOffsetFrames:120",
+    "initialSequence.tracks[1].placements[0].clipId:lighthouse",
+    "initialSequence.tracks[1].placements[0].sourceOutOffsetFrames:0",
+    "initialSequence.tracks[2].placements[0].sourceInOffsetFrames:0",
+    "initialSequence.tracks[2].placements[0].sourceOutOffsetFrames:0",
     // Load an authored pair (as can result from a move). The Inspector can edit, but not add,
     // a dissolve directly.
-    "sequence.tracks[1].placements[0].transitionOut.id:outgoing-reveal",
-    "sequence.tracks[1].placements[0].transitionOut.kind:fade",
-    "sequence.tracks[1].placements[0].transitionOut.durationFrames:12",
-    "sequence.tracks[2].placements[0].transitionIn.id:incoming-fade",
-    "sequence.tracks[2].placements[0].transitionIn.kind:fade",
-    "sequence.tracks[2].placements[0].transitionIn.durationFrames:12",
+    "initialSequence.tracks[1].placements[0].transitionOut.id:outgoing-reveal",
+    "initialSequence.tracks[1].placements[0].transitionOut.kind:fade",
+    "initialSequence.tracks[1].placements[0].transitionOut.durationFrames:12",
+    "initialSequence.tracks[2].placements[0].transitionIn.id:incoming-fade",
+    "initialSequence.tracks[2].placements[0].transitionIn.kind:fade",
+    "initialSequence.tracks[2].placements[0].transitionIn.durationFrames:12",
   ]);
 
   const timeline = page.getByRole("region", { name: "Sequence timeline" });

@@ -156,7 +156,7 @@ test("tabbing in both directions keeps the zoomed ruler aligned with the sequenc
 }) => {
   await page.setViewportSize({ width: 1_280, height: 1_100 });
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, { reviewEdits: "true" });
+  await openWorkflow(page, roughCutStoryId);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const ruler = timeline.locator(".timeline-editor-time-area-interact");
   const readout = page.getByLabel("Sequence playhead position");
@@ -170,7 +170,6 @@ test("tabbing in both directions keeps the zoomed ruler aligned with the sequenc
     await expect(readout).toHaveText(`Sequence frame ${frame}`);
     await expect(opening).toHaveAttribute("aria-pressed", "false");
     await expect(closing).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: "Accept proposed edit" })).toBeHidden();
     expect(await emissions()).toEqual(noEdits);
   }
 

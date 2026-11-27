@@ -1,8 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
 import { sequenceStoryMedia } from "@/fixtures/sequenceEditor";
 import { withSampleProject } from "@/fixtures/video";
-import { SequenceEditorPage, type Sequence } from "@/index";
+import {
+  SequenceEditorPage,
+  SequenceTimeline,
+  type Sequence,
+  type SequenceTimelineProps,
+} from "@/index";
 
 const meta = {
   title: "Testing/Sequence split reorder",
@@ -42,46 +46,38 @@ const initial: Sequence = {
 };
 
 function ReorderingHost() {
-  const [sequence, setSequence] = useState(initial);
+  return (
+    <SequenceEditorPage
+      {...sequenceStoryMedia}
+      initialSequence={initial}
+      slots={{ clipPool: null, preview: null, inspector: null, timeline: ReorderingTimeline }}
+      onSequenceChange={(next) => {
+        window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
+      }}
+      onCutListResult={(result) =>
+        window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-result", { detail: result }))
+      }
+    />
+  );
+}
 
+function ReorderingTimeline(props: SequenceTimelineProps) {
   return (
     <>
-      <section aria-label="Host controls" className="space-x-2 p-3">
+      <section aria-label="Track order controls" className="space-x-2 p-3">
         <p>In Split mode, hover over the top placement and use the keyboard to reorder tracks.</p>
         {initial.tracks.map((track) => (
           <button
             key={track.id}
             type="button"
             className="rounded border px-3 py-1"
-            onClick={() =>
-              setSequence((current) => {
-                const index = current.tracks.findIndex(({ id }) => id === track.id);
-                const tracks = [...current.tracks];
-                tracks.unshift(...tracks.splice(index, 1));
-                return { ...current, tracks };
-              })
-            }
+            onClick={() => props.reorderTrack?.(track.id, props.tracks[0].id)}
           >
             Bring {track.label} to top
           </button>
         ))}
       </section>
-      <SequenceEditorPage
-        {...sequenceStoryMedia}
-        sequence={sequence}
-        slots={{ clipPool: null, preview: null, inspector: null }}
-        onSequenceChange={(next) => {
-          window.dispatchEvent(
-            new CustomEvent("sequence-editor:sequence-change", { detail: next }),
-          );
-          setSequence(next);
-        }}
-        onCutListResult={(result) =>
-          window.dispatchEvent(
-            new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
-          )
-        }
-      />
+      <SequenceTimeline {...props} />
     </>
   );
 }

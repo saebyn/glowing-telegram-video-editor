@@ -9,9 +9,8 @@ type SequenceArgs = Record<
   `sequence.${string}` | `projectRate.${string}`,
   string | number | undefined
 > & {
-  acceptEdits?: string;
-  readOnly?: string;
-  reviewEdits?: string;
+  omitSequenceListener?: string;
+  omitCutListListener?: string;
   startWithoutTracks?: string;
   omitPreview?: string;
 };
@@ -19,7 +18,7 @@ type SequenceArgs = Record<
 export async function openWorkflow(page: Page, story: Workflow, sequenceArgs: SequenceArgs = {}) {
   const query = new URLSearchParams({ id: story, viewMode: "story" });
   const args = Object.entries(sequenceArgs).map(
-    ([key, value]) => `${key}:${value ?? "!undefined"}`,
+    ([key, value]) => `${key.replace(/^sequence\./, "initialSequence.")}:${value ?? "!undefined"}`,
   );
   if (args.length) query.set("args", args.join(";"));
   await page.goto(`/iframe.html?${query}`);

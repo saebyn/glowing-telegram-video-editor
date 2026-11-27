@@ -249,7 +249,9 @@ test("forward and reverse transport stop at the authored sequence boundaries", a
   expect(await edits()).toEqual(trimEdits);
 });
 
-test("a shorter host sequence leaves the playhead parked, even after growth", async ({ page }) => {
+test("a shorter working sequence leaves the playhead parked, even after growth", async ({
+  page,
+}) => {
   await page.goto(`/?path=/story/${roughCutStoryId}`);
   const story = page.frameLocator("#storybook-preview-iframe");
   const timeline = story.getByRole("region", { name: "Sequence timeline" });
@@ -261,27 +263,12 @@ test("a shorter host sequence leaves the playhead parked, even after growth", as
   const frameReadout = story.getByLabel("Sequence playhead position");
   await expect(frameReadout).toHaveText("Sequence frame 270");
 
-  await page.getByRole("tab", { name: /Controls/ }).click();
-  await page.getByRole("switch", { name: "Edit sequence as JSON" }).click();
-  const sequenceControl = page.getByRole("textbox", { name: "Edit sequence as JSON" });
-  const original = await sequenceControl.inputValue();
-  await sequenceControl.fill(
-    JSON.stringify({
-      tracks: [
-        {
-          id: "main",
-          label: "Main",
-          placements: [{ id: "harbor-open", clipId: "harbor", sequenceStartFrame: 0 }],
-        },
-      ],
-    }),
-  );
-  await sequenceControl.blur();
+  await timeline.getByRole("button", { name: "Harbor", exact: true }).last().click();
+  await story.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(timeline).toContainText("Duration: 00:02");
   await expect(frameReadout).toHaveText("Sequence frame 270");
 
-  await sequenceControl.fill(original);
-  await sequenceControl.blur();
+  await story.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(timeline).toContainText("Duration: 00:06");
   await expect(frameReadout).toHaveText("Sequence frame 270", { timeout: 2_000 });
 });

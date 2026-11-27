@@ -63,6 +63,7 @@ import {
   getTrailingTrimBounds,
   getTrimmableSourceRange,
 } from "@/utils/trimPlacement";
+import { resolveSequencePlacements } from "@/utils/visibleSequence";
 import type { SequenceInspectorProps } from "./SequenceInspector";
 import type { SequenceClipPoolProps } from "./SequenceClipPool";
 import type {
@@ -78,16 +79,17 @@ import { useSequenceHistory } from "./useSequenceHistory";
 import { useSequenceTransport } from "./useSequenceTransport";
 
 export interface UseSequenceEditorOptions {
-  sequence: Sequence;
+  /** Snapshot to open on mount. Change the React key to open another snapshot. */
+  initialSequence: Sequence;
   clips: VideoClip[];
   sources: SourcesById<SequenceSource>;
   thumbnails?: Record<string, string>;
   titles?: Record<string, string>;
-  /** The host owns the sequence and feeds accepted edits back as props. Omit for read-only. */
+  /** Optional notification of a committed, immutable working sequence snapshot. */
   onSequenceChange?: (sequence: Sequence) => void;
-  /** Compilation result for the same proposed sequence sent to onSequenceChange. */
+  /** Optional compilation result for the same committed snapshot. */
   onCutListResult?: (result: CutListResult) => void;
-  /** Report initial or changed invalid host inputs, independently of edit proposals. */
+  /** Report initial or changed invalid host inputs, independently of edit notifications. */
   onSequenceInputError?: (issues: readonly [SequenceInputIssue, ...SequenceInputIssue[]]) => void;
 }
 
@@ -106,16 +108,23 @@ const transitionOutputMessages: Partial<Record<CutListIssue["code"], string>> = 
 type PasteDropToken = { retired: boolean };
 
 export function useSequenceEditor({
-  sequence,
+  initialSequence,
   clips,
   sources,
   thumbnails = emptyThumbnails,
   titles = emptyThumbnails,
-  onSequenceChange: proposeSequence,
+  onSequenceChange,
   onCutListResult,
   onSequenceInputError,
 }: UseSequenceEditorOptions) {
   const frameRate = useProjectFrameRate();
+  const canEditLatest = useRef(false);
+  const { sequence, getWorkingSequence, commitEdit, undo, redo } = useSequenceHistory(
+    initialSequence,
+    emitEdit,
+    canEditLatest,
+    (target) => !!resolveSequencePlacements(target, clips, sources, frameRate, true).geometry,
+  );
   const analysis = useMemo(
     () => analyzeSequence(sequence, clips, sources, frameRate),
     [sequence, clips, sources, frameRate],
@@ -145,14 +154,12 @@ export function useSequenceEditor({
       setNavigation((current) => (current === guarded ? undefined : current));
     };
   }, []);
-  const onSequenceChange = hasValidInput ? proposeSequence : undefined;
-  const canEditLatest = useRef(false);
   useLayoutEffect(() => {
-    canEditLatest.current = !!onSequenceChange;
+    canEditLatest.current = hasValidInput;
     return () => {
       canEditLatest.current = false;
     };
-  }, [onSequenceChange]);
+  }, [hasValidInput]);
   const transport = useSequenceTransport(durationFrames, frameRate, hasValidInput);
   const snapshot: SequenceTransportSnapshot = {
     playheadFrame: transport.playheadFrame,
@@ -189,16 +196,7 @@ export function useSequenceEditor({
   const [blockedTrackEdit, setBlockedTrackEdit] = useState<Sequence>();
   const [transitionConflict, setTransitionConflict] = useState(false);
   const [transitionProblem, setTransitionProblem] = useState<TransitionEditProblem>();
-  const splitEnabled = !!onSequenceChange && splitMode;
-  const { commitEdit, undo, redo } = useSequenceHistory(
-    sequence,
-    emitEdit,
-    () => {
-      setClipboard(null);
-      setPasteDrop(undefined);
-    },
-    canEditLatest,
-  );
+  const splitEnabled = hasValidInput && splitMode;
   if (!hasValidInput) {
     if (activeClipId !== undefined) setActiveClipId(undefined);
     if (pasteDrop) setPasteDrop(undefined);
@@ -210,7 +208,7 @@ export function useSequenceEditor({
 
   function commitPaste(target: PlacementPasteTarget | null) {
     if (!canEditLatest.current || !clipboard || !target) return false;
-    const next = pastePlacements(sequence, clips, frameRate, clipboard, target);
+    const next = pastePlacements(getWorkingSequence(), clips, frameRate, clipboard, target);
     if (!next) return false;
     cancelPasteDrop();
     commitEdit(next);
@@ -218,7 +216,7 @@ export function useSequenceEditor({
   }
 
   function retirePasteConfirmation() {
-    // A synchronous host acknowledgement can commit before the drop state update.
+    // Retire immediately, even before React publishes the drop state update.
     if (pasteConfirmation.current) pasteConfirmation.current.token.retired = true;
     pasteConfirmation.current = undefined;
   }
@@ -269,7 +267,7 @@ export function useSequenceEditor({
   const selectedIds = selectedPlacements.map(({ placement }) => placement.id);
   const splitTargets = sequence.tracks.flatMap(({ placements }) => placements.map(({ id }) => id));
   const splitArgs = [sequence, clips, frameRate, splitTargets, transport.playheadFrame] as const;
-  const canSplit = !!onSequenceChange && canSplitPlacementsAtPlayhead(...splitArgs);
+  const canSplit = hasValidInput && canSplitPlacementsAtPlayhead(...splitArgs);
   const inspectorTarget =
     selectedPlacements.find(({ placement }) => placement.id === inspectorPlacementId) ??
     selectedPlacements[0];
@@ -313,7 +311,7 @@ export function useSequenceEditor({
         )
       : 0;
   const trimBounds =
-    onSequenceChange && inspectorTarget && inspectedClip
+    hasValidInput && inspectorTarget && inspectedClip
       ? getTrailingTrimBounds(
           inspectorTarget.placement,
           inspectorTarget.track,
@@ -363,11 +361,21 @@ export function useSequenceEditor({
 
   function splitAtPlayhead() {
     if (!canEditLatest.current) return;
-    const next = splitPlacementsAtPlayhead(...splitArgs, () => crypto.randomUUID());
+    const working = getWorkingSequence();
+    const targets = working.tracks.flatMap(({ placements }) => placements.map(({ id }) => id));
+    const next = splitPlacementsAtPlayhead(
+      working,
+      clips,
+      frameRate,
+      targets,
+      transport.playheadFrame,
+      () => crypto.randomUUID(),
+    );
     if (next) commitEdit(next);
   }
 
   function splitAtPointer(placementId: string, frame: number) {
+    const sequence = getWorkingSequence();
     if (findPlacementTrack(sequence, placementId)?.locked) {
       setBlockedTrackEdit(sequence);
       return;
@@ -380,7 +388,12 @@ export function useSequenceEditor({
 
   function deleteSelection() {
     if (!canEditLatest.current) return;
-    if (selectedTracks.some(({ track }) => track.locked)) {
+    const sequence = getWorkingSequence();
+    const tracksToEdit = sequence.tracks.filter(({ placements }) =>
+      placements.some(({ id }) => selectedIds.includes(id)),
+    );
+    if (!tracksToEdit.length) return;
+    if (tracksToEdit.some(({ locked }) => locked)) {
       setBlockedTrackEdit(sequence);
       return;
     }
@@ -398,11 +411,19 @@ export function useSequenceEditor({
   }
 
   function placeClip({ clipId, trackId, sequenceFrame }: PlaceClipIntent) {
-    const next = placeClipInGap(sequence, clips, frameRate, clipId, trackId, sequenceFrame);
+    const next = placeClipInGap(
+      getWorkingSequence(),
+      clips,
+      frameRate,
+      clipId,
+      trackId,
+      sequenceFrame,
+    );
     if (next) commitEdit(next);
   }
 
   function proposePlacementMove(
+    sequence: Sequence,
     placementId: string,
     destinationTrack: string | number | null,
     sequenceFrame: number,
@@ -437,6 +458,7 @@ export function useSequenceEditor({
           : sequence.tracks.length - 1 + outsideTrackOffset
         : null);
     const result = proposePlacementMove(
+      sequence,
       placementId,
       destination,
       sequenceFrame,
@@ -461,7 +483,14 @@ export function useSequenceEditor({
     sequenceFrame,
     placementIds,
   }: PlacementMoveIntent) {
-    const result = proposePlacementMove(placementId, trackId, sequenceFrame, placementIds);
+    const sequence = getWorkingSequence();
+    const result = proposePlacementMove(
+      sequence,
+      placementId,
+      trackId,
+      sequenceFrame,
+      placementIds,
+    );
     if (result.kind === "move") commitEdit(result.sequence);
     if (result.kind === "blocked" && result.reason === "locked-track")
       setBlockedTrackEdit(sequence);
@@ -477,7 +506,7 @@ export function useSequenceEditor({
     sources,
     titles,
     thumbnails,
-    beginClipDrag: onSequenceChange
+    beginClipDrag: hasValidInput
       ? (id) => {
           if (!canEditLatest.current) return;
           const clip = clips.find((clip) => clip.id === id);
@@ -542,10 +571,11 @@ export function useSequenceEditor({
   useLayoutEffect(() => {
     timelineActions.current = {
       activatePlacement: hasValidInput ? activatePlacement : undefined,
-      ...(onSequenceChange && {
+      ...(hasValidInput && {
         placeClip,
         movePlacement,
         reorderTrack: (trackId, destinationTrackId) => {
+          const sequence = getWorkingSequence();
           const next = reorderSequenceTrack(
             sequence,
             trackId,
@@ -554,7 +584,7 @@ export function useSequenceEditor({
           if (next) commitEdit(next);
         },
         trimPlacement: ({ placementId, edge, sourceFrame }) => {
-          const next = proposeTrim(placementId, edge, sourceFrame);
+          const next = proposeTrim(getWorkingSequence(), placementId, edge, sourceFrame);
           if (next) commitEdit(next);
         },
       }),
@@ -568,8 +598,14 @@ export function useSequenceEditor({
   const releaseTransitionResize = useRef<(intent: TransitionResizeIntent) => void>(() => {});
   useLayoutEffect(() => {
     releaseTransitionResize.current = (intent) => {
-      if (!onSequenceChange || splitEnabled) return;
-      const result = evaluateTransitionResize(sequence, clips, sources, frameRate, intent);
+      if (!hasValidInput || splitEnabled) return;
+      const result = evaluateTransitionResize(
+        getWorkingSequence(),
+        clips,
+        sources,
+        frameRate,
+        intent,
+      );
       if (result.kind === "edit") commitEdit(result.sequence);
     };
     return () => {
@@ -587,50 +623,49 @@ export function useSequenceEditor({
     sources,
     clips,
     titles,
-    activeClipId: onSequenceChange ? activeClipId : undefined,
+    activeClipId: hasValidInput ? activeClipId : undefined,
     endClipDrag,
-    previewClipPlacement: onSequenceChange ? previewClipPlacement : undefined,
-    placeClip: onSequenceChange
-      ? (intent) => timelineActions.current.placeClip?.(intent)
-      : undefined,
+    previewClipPlacement: hasValidInput ? previewClipPlacement : undefined,
+    placeClip: hasValidInput ? (intent) => timelineActions.current.placeClip?.(intent) : undefined,
     snapEnabled,
-    previewPlacementMove: onSequenceChange ? previewPlacementMove : undefined,
-    movePlacement: onSequenceChange
+    previewPlacementMove: hasValidInput ? previewPlacementMove : undefined,
+    movePlacement: hasValidInput
       ? (intent) => timelineActions.current.movePlacement?.(intent)
       : undefined,
-    reorderTrack: onSequenceChange
+    reorderTrack: hasValidInput
       ? (trackId, destinationTrackId) =>
           timelineActions.current.reorderTrack?.(trackId, destinationTrackId)
       : undefined,
-    removeTrack: onSequenceChange
+    removeTrack: hasValidInput
       ? (trackId) => {
           if (!canEditLatest.current) return;
-          const next = removeSequenceTrack(sequence, trackId);
+          const next = removeSequenceTrack(getWorkingSequence(), trackId);
           if (next) commitEdit(next);
         }
       : undefined,
     removableTrackIds,
-    toggleTrackLock: onSequenceChange
+    toggleTrackLock: hasValidInput
       ? (trackId) => {
           if (!canEditLatest.current) return;
-          const next = toggleSequenceTrackLock(sequence, trackId);
+          const next = toggleSequenceTrackLock(getWorkingSequence(), trackId);
           if (next) commitEdit(next);
         }
       : undefined,
-    previewTransitionResize: onSequenceChange ? previewTransitionResize : undefined,
-    resizeTransition: onSequenceChange
+    previewTransitionResize: hasValidInput ? previewTransitionResize : undefined,
+    resizeTransition: hasValidInput
       ? (intent) => releaseTransitionResize.current(intent)
       : undefined,
-    previewTrim: onSequenceChange
-      ? ({ placementId, edge, sourceFrame }) => !!proposeTrim(placementId, edge, sourceFrame)
+    previewTrim: hasValidInput
+      ? ({ placementId, edge, sourceFrame }) =>
+          !!proposeTrim(sequence, placementId, edge, sourceFrame)
       : undefined,
-    trimPlacement: onSequenceChange
+    trimPlacement: hasValidInput
       ? (intent) => timelineActions.current.trimPlacement?.(intent)
       : undefined,
     trimRanges,
     fadePlacementIds,
     selectedPlacementIds: selectedIds,
-    placementPaste: onSequenceChange
+    placementPaste: hasValidInput
       ? {
           onTargetChange: setPasteTarget,
           drop:
@@ -660,12 +695,14 @@ export function useSequenceEditor({
   };
 
   function nudgeSelection(offset: number) {
-    const anchor = selectedTracks[0];
-    if (!onSequenceChange || !anchor) return;
-    const placement = anchor.placements[0];
+    const anchor = getWorkingSequence().tracks.find(({ placements }) =>
+      placements.some(({ id }) => selectedIds.includes(id)),
+    );
+    if (!hasValidInput || !anchor) return;
+    const placement = anchor.placements.find(({ id }) => selectedIds.includes(id))!;
     movePlacement({
       placementId: placement.id,
-      trackId: anchor.track.id,
+      trackId: anchor.id,
       sequenceFrame: placement.sequenceStartFrame + offset,
       placementIds: selectedIds,
     });
@@ -693,11 +730,11 @@ export function useSequenceEditor({
       if (shortcut === "d" && selectedIds.length) {
         event.preventDefault();
         if (event.repeat) return;
-        const next = duplicatePlacements(sequence, clips, frameRate, selectedIds);
+        const next = duplicatePlacements(getWorkingSequence(), clips, frameRate, selectedIds);
         if (next) commitEdit(next);
       } else if (shortcut === "c" && selectedIds.length) {
         event.preventDefault();
-        setClipboard(copyPlacements(sequence, clips, frameRate, selectedIds));
+        setClipboard(copyPlacements(getWorkingSequence(), clips, frameRate, selectedIds));
       } else if (shortcut === "v" && clipboard) {
         event.preventDefault();
         if (event.repeat) return;
@@ -738,21 +775,27 @@ export function useSequenceEditor({
   }
 
   function proposeTransitionEdit(intent: TransitionEditIntent) {
-    return evaluateTransitionEdit(sequence, clips, sources, frameRate, intent);
+    return evaluateTransitionEdit(getWorkingSequence(), clips, sources, frameRate, intent);
   }
 
-  function proposeTrim(placementId: string, edge: PlacementEdge, sourceFrame: number) {
+  function proposeTrim(
+    sequence: Sequence,
+    placementId: string,
+    edge: PlacementEdge,
+    sourceFrame: number,
+  ) {
     const applyTrim = edge === "leading" ? applyLeadingTrim : applyTrailingTrim;
     return applyTrim(sequence, clips, frameRate, placementId, sourceFrame);
   }
 
   function trimPlacement(sourceOutFrame: number) {
     if (!canEditLatest.current || !inspectedPlacement) return;
-    if (inspectorTarget?.track.locked) {
+    const sequence = getWorkingSequence();
+    if (findPlacementTrack(sequence, inspectedPlacement.id)?.locked) {
       setBlockedTrackEdit(sequence);
       return;
     }
-    const next = proposeTrim(inspectedPlacement.id, "trailing", sourceOutFrame);
+    const next = proposeTrim(sequence, inspectedPlacement.id, "trailing", sourceOutFrame);
     if (next) commitEdit(next);
   }
 
@@ -772,12 +815,15 @@ export function useSequenceEditor({
   function removeTransition() {
     if (!canEditLatest.current || !selectedTransition) return;
     const { placement, edge } = selectedTransition;
-    const next = removePlacementTransition(sequence, placement.id, edge);
+    const working = getWorkingSequence();
+    if (findTransition(working, selectedTransition.transition.id) === undefined) return;
+    const next = removePlacementTransition(working, placement.id, edge);
     if (next) commitEdit(next, () => selectPlacement(placement.id, false));
   }
 
   function renameTrack(trackId: string, label: string) {
     if (!canEditLatest.current) return;
+    const sequence = getWorkingSequence();
     const track = sequence.tracks.find(({ id }) => id === trackId);
     if (!track || track.label === label) return;
     commitEdit({
@@ -799,7 +845,7 @@ export function useSequenceEditor({
     },
     splitAtPlayhead: canSplit ? splitAtPlayhead : undefined,
     splitMode,
-    toggleSplitMode: onSequenceChange
+    toggleSplitMode: hasValidInput
       ? () => {
           if (!canEditLatest.current) return;
           cancelPasteDrop();
@@ -807,18 +853,18 @@ export function useSequenceEditor({
         }
       : undefined,
     snapEnabled,
-    toggleSnap: onSequenceChange
+    toggleSnap: hasValidInput
       ? () => {
           if (canEditLatest.current) setSnapEnabled((active) => !active);
         }
       : undefined,
-    undo: onSequenceChange ? undo : undefined,
-    redo: onSequenceChange ? redo : undefined,
-    deleteSelection: onSequenceChange && selectedIds.length > 0 ? deleteSelection : undefined,
-    addTrack: onSequenceChange
-      ? () => commitEdit(addSequenceTrack(sequence, crypto.randomUUID()))
+    undo: hasValidInput ? undo : undefined,
+    redo: hasValidInput ? redo : undefined,
+    deleteSelection: hasValidInput && selectedIds.length > 0 ? deleteSelection : undefined,
+    addTrack: hasValidInput
+      ? () => commitEdit(addSequenceTrack(getWorkingSequence(), crypto.randomUUID()))
       : undefined,
-    renameTrack: onSequenceChange
+    renameTrack: hasValidInput
       ? { tracks: sequence.tracks.map(({ id, label }) => ({ id, label })), onRename: renameTrack }
       : undefined,
   };
@@ -830,14 +876,14 @@ export function useSequenceEditor({
   function getEdgeAction(placement: ClipPlacement, edge: PlacementEdge, locked?: boolean) {
     const transition = placement[transitionFields[edge]];
     if (transition) return { inspectTransition: () => selectTransition(transition.id) };
-    if (!onSequenceChange || locked || !inspectedFrameCount) return {};
+    if (!hasValidInput || locked || !inspectedFrameCount) return {};
     const duration = Math.min(inspectedFrameCount, Math.max(1, secondsToFrame(0.5, frameRate)));
     return { addTransition: () => addTransition(placement.id, edge, duration) };
   }
 
   function addTransition(placementId: string, edge: PlacementEdge, durationFrames: number) {
     if (!canEditLatest.current) return;
-    const owner = findPlacementTrack(sequence, placementId)?.placements.find(
+    const owner = findPlacementTrack(getWorkingSequence(), placementId)?.placements.find(
       ({ id }) => id === placementId,
     );
     if (!owner || owner[transitionFields[edge]]) return;
@@ -863,7 +909,7 @@ export function useSequenceEditor({
             sourceExtension: fadeSourceExtension,
             dissolve: dissolveDetails,
             edit:
-              onSequenceChange && !selectedTransition.track.locked
+              hasValidInput && !selectedTransition.track.locked
                 ? {
                     bounds: (kind) => getTransitionDurationBounds(kind, transitionPlacementFrames),
                     applyTransition,
@@ -929,7 +975,7 @@ export function useSequenceEditor({
               setTransitionConflict(false);
             },
           }
-        : { kind: "empty", canEdit: !!onSequenceChange },
+        : { kind: "empty", canEdit: hasValidInput },
   };
 
   const notices = [...transitionNotices];

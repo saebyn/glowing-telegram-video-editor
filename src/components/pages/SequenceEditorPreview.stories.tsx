@@ -60,7 +60,7 @@ function PreviewHost({
   gapBeforeSecond,
   firstSourceRateNumerator,
 }: PreviewHostArgs) {
-  const [edit, accept] = useState(() => {
+  const [edit] = useState(() => {
     if (!interrupted && !gapBeforeSecond) return sequence;
     const [main] = sequence.tracks;
     const [first, second] = main.placements;
@@ -131,13 +131,10 @@ function PreviewHost({
         </button>
       </div>
       <SequenceEditorPage
-        sequence={edit}
+        initialSequence={edit}
         clips={editorClips}
         sources={sources}
-        onSequenceChange={(next) => {
-          onSequenceChange(next);
-          accept(next);
-        }}
+        onSequenceChange={onSequenceChange}
         onCutListResult={onCutListResult}
       />
     </ProjectProvider>

@@ -227,21 +227,19 @@ test("Paste drop mode retargets a stationary preview on pan and does not paste o
     .toBe(400);
 });
 
-test("Copy, Duplicate, and Paste do not edit a read-only editor", async ({ page }) => {
+test("Duplicate edits with only the sequence listener", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, { ...straightCutArgs, readOnly: "!true" });
+  await openWorkflow(page, roughCutStoryId, { ...straightCutArgs, omitCutListListener: "!true" });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   await lighthouse.click();
   await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
-  await page.keyboard.press("Control+c");
   await page.keyboard.press("Control+d");
-  await page.keyboard.press("Control+v");
-
-  await expect(lighthouse).toHaveCount(1);
-  await expect(timeline).not.toContainText("Paste: click to place");
-  expect(await emissions()).toEqual(noEdits);
+  await expect(lighthouse).toHaveCount(2);
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.cutListResults).toEqual([]);
 });
 
 test("the clipboard survives an accepted edit but not a host sequence replacement", async ({

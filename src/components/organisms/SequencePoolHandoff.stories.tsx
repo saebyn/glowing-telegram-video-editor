@@ -44,19 +44,16 @@ const moveIntent = {
 };
 
 function HandoffHost({ testMove = false }: { testMove?: boolean }) {
-  const [sequence, setSequence] = useState<Sequence>(
-    testMove
-      ? { ...original, tracks: [{ ...original.tracks[0], placements: [movingPlacement] }] }
-      : original,
-  );
+  const initialSequence = testMove
+    ? { ...original, tracks: [{ ...original.tracks[0], placements: [movingPlacement] }] }
+    : original;
   const [movePreview, setMovePreview] = useState<string>();
   const { toolbarProps, clipPoolProps, timelineProps } = useSequenceEditor({
-    sequence,
+    initialSequence,
     clips,
     sources,
     titles,
     onSequenceChange(next) {
-      setSequence(next);
       window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
     },
     onCutListResult(result) {
@@ -108,10 +105,10 @@ function HandoffHost({ testMove = false }: { testMove?: boolean }) {
           <button
             type="button"
             onClick={() => {
-              setSequence({ ...sequence, tracks: [{ ...sequence.tracks[0], locked: true }] });
+              timelineProps.toggleTrackLock?.(original.tracks[0].id);
             }}
           >
-            Host locks destination
+            Lock destination
           </button>
           <button type="button" onClick={() => timelineProps.movePlacement?.(moveIntent)}>
             Release placement move

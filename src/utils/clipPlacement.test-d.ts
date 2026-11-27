@@ -7,7 +7,8 @@ import type {
   SequenceTimelineProps,
 } from "@/index";
 
-type EditorInput = SequenceEditorPageProps["sequence"]["tracks"][number]["placements"][number];
+type EditorInput =
+  SequenceEditorPageProps["initialSequence"]["tracks"][number]["placements"][number];
 type EditorOutputSequence = Parameters<NonNullable<SequenceEditorPageProps["onSequenceChange"]>>[0];
 type EditorOutput = EditorOutputSequence["tracks"][number]["placements"][number];
 type CompilerInput = Parameters<typeof compileCutList>[0]["tracks"][number]["placements"][number];

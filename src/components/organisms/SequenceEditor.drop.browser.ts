@@ -113,7 +113,7 @@ test("a replacement pool can preview and release a native drag without a JSON pa
   expect(undone.cutListResults).toEqual([blockedOutput, blockedOutput]);
 });
 
-test("frame-based actions place without a drag and reject a move invalidated by the host", async ({
+test("frame-based actions place without a drag and reject a move invalidated by a lock", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -125,11 +125,15 @@ test("frame-based actions place without a drag and reject a move invalidated by 
   await page.getByRole("button", { name: "Preview placement move" }).click();
   await expect(page.getByLabel("Move preview")).toHaveText("Move to 60");
   expect(await emissions()).toEqual(noEdits);
-  await page.getByRole("button", { name: "Host locks destination" }).click();
+  await page.getByRole("button", { name: "Lock destination" }).click();
+  const locked = await emissions();
+  expect(locked.sequences).toHaveLength(1);
+  expect(locked.sequences[0].tracks[0].locked).toBe(true);
+  expect(locked.cutListResults).toHaveLength(1);
   await page.getByRole("button", { name: "Release placement move" }).click();
   await expect(timeline.getByText("Duration: 00:02")).toBeVisible();
-  expect(await emissions()).toEqual(noEdits);
-  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(locked);
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeEnabled();
 
   await page.reload();
   await page.getByRole("button", { name: "Place clip without dragging" }).click();

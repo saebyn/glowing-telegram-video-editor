@@ -150,7 +150,7 @@ function StandaloneHlsPreview({
 }: SequencePreviewMedia & { showTimeline?: boolean }) {
   const editorClips = useMemo(() => [...clips], [clips]);
   const { previewProps, toolbarProps, timelineProps } = useSequenceEditor({
-    sequence,
+    initialSequence: sequence,
     clips: editorClips,
     sources,
     titles: showTimeline ? muxTitles : undefined,
@@ -161,7 +161,15 @@ function StandaloneHlsPreview({
       <SequenceTransportControls {...toolbarProps.transport} />
       {showTimeline && (
         <div className="mt-4 w-full max-w-4xl text-left">
-          <SequenceTimeline {...timelineProps} />
+          <SequenceTimeline
+            {...timelineProps}
+            movePlacement={undefined}
+            trimPlacement={undefined}
+            resizeTransition={undefined}
+            reorderTrack={undefined}
+            removeTrack={undefined}
+            toggleTrackLock={undefined}
+          />
         </div>
       )}
     </>
@@ -185,7 +193,11 @@ export const PublicHlsSmoke: Story = {
   },
   render: ({ media = muxMedia, frameRate }) => (
     <ProjectProvider frameRate={frameRate}>
-      <StandaloneHlsPreview {...media} showTimeline />
+      <StandaloneHlsPreview
+        key={JSON.stringify([media.sequence, frameRate])}
+        {...media}
+        showTimeline
+      />
     </ProjectProvider>
   ),
 };

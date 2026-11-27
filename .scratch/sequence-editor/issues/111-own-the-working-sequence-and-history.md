@@ -1,6 +1,6 @@
 # 111 — Own the working sequence and history in the editor
 
-Status: ready-for-agent
+Resolution: The page and hook own the working sequence and history; reopen by React key.
 Review priority: P1
 Depends on: None
 Design: [ADR 0002](../../../docs/adr/0002-own-the-working-sequence-in-the-editor.md)
@@ -53,3 +53,19 @@ hook-built layouts together.
 Named-intent revalidation and the lock slot change are tracked in
 [#112](112-apply-edit-intents-to-the-current-sequence.md). Public usage docs
 ship with [#113](113-document-the-session-owned-editor.md).
+
+## Comments
+
+- Browser red → green covered edits without listeners, two commits before a
+  rerender, notification order when a listener starts another edit, keyed
+  reopening, and retrying invalid Undo/Redo after restoring the missing clip.
+  Migrated the existing pointer regressions to use the working sequence.
+- Full Playwright suite passed (231); the subsequent focused history and
+  composition run passed all 30 tests after adding the reentrant case.
+  Vitest (299), typecheck, lint (existing captions warning only), formatting,
+  library build, packed CSS, and `git diff --check` passed.
+- Five targeted mutations were caught: batched edits from stale state,
+  missing history validation, export gated on a sequence listener, Redo not
+  cleared by a new edit, and interleaved notification pairs. Logs:
+  `/tmp/opencode/gtve-111-mutations.yQVySr/` and
+  `/tmp/opencode/gtve-notifications-mutation.NWAhLI/out.log`.

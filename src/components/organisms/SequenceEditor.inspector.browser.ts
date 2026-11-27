@@ -181,13 +181,11 @@ test("the occupied edge and timeline both inspect a transition without editing o
   }
 });
 
-test("a read-only sequence allows occupied-edge inspection but no transition edits", async ({
-  page,
-}) => {
+test("a locked track allows occupied-edge inspection but no transition edits", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    readOnly: "true",
+    "sequence.tracks[0].locked": "true",
     "sequence.tracks[0].placements[1].transitionIn.id": "incoming-fade",
     "sequence.tracks[0].placements[1].transitionIn.kind": "fade",
     "sequence.tracks[0].placements[1].transitionIn.durationFrames": 30,
@@ -255,11 +253,9 @@ test("inspecting an occupied edge in Split mode highlights the fade without enab
   expect(await emissions()).toStrictEqual(noEdits);
 });
 
-test("a pending or rejected Add proposal leaves Placement Properties and history unchanged", async ({
-  page,
-}) => {
+test("Add commits and selects the new transition immediately", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, { ...straightCutArgs, reviewEdits: "true" });
+  await openWorkflow(page, roughCutStoryId, straightCutArgs);
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   const fade = timeline.getByRole("button", { name: "Select entry fade: Lighthouse" });
@@ -268,39 +264,14 @@ test("a pending or rejected Add proposal leaves Placement Properties and history
     .getByRole("group", { name: "Start edge" })
     .getByRole("button", { name: "Add transition" });
   const undo = page.getByRole("button", { name: "Undo", exact: true });
-  async function expectPlacementProperties() {
-    await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
-    await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toHaveCount(0);
-    await expect(lighthouse).toHaveAttribute("aria-pressed", "true");
-    await expect(undo).toBeDisabled();
-    await expect(fade).toHaveCount(0);
-  }
-
   await lighthouse.click();
   await add.click();
-  const reject = page.getByRole("button", { name: "Reject proposed edit" });
-  await expect(reject).toBeVisible();
-  await expectPlacementProperties();
-  const first = await emissions();
-  expect(first.sequences).toHaveLength(1);
-  expect(first.cutListResults).toHaveLength(1);
-  await reject.click();
-  await expect(reject).toHaveCount(0);
-  await expectPlacementProperties();
-  expect(await emissions()).toStrictEqual(first);
-
-  await add.click();
-  const accept = page.getByRole("button", { name: "Accept proposed edit" });
-  await expect(accept).toBeVisible();
-  await expectPlacementProperties();
-  const second = await emissions();
-  expect(second.sequences).toHaveLength(2);
-  expect(second.cutListResults).toHaveLength(2);
-  await accept.click();
   await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
   await expect(fade).toHaveAttribute("aria-pressed", "true");
   await expect(undo).toBeEnabled();
-  expect(await emissions()).toStrictEqual(second);
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.cutListResults).toHaveLength(1);
 });
 
 test("a conflicting Add does not shorten the default to fit or clear the selection", async ({

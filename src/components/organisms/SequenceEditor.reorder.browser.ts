@@ -136,26 +136,6 @@ test("a track drag previews its destination and commits the new top-first priori
   });
 });
 
-test("without host acceptance a reorder proposes both outputs but does not replace the sequence", async ({
-  page,
-}) => {
-  const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, layeredEditStoryId, { acceptEdits: "!false" });
-  const timeline = page.getByRole("region", { name: "Sequence timeline" });
-  await dragTrack(page, timeline, "Main", "Cutaways");
-  await expect(timeline.getByRole("status")).toHaveText("Position 1 of 3");
-  await page.mouse.up();
-  await expect(timeline.getByRole("status")).toHaveCount(0);
-  expect(await emissions()).toStrictEqual({
-    sequences: [{ ...original, tracks: [main, cutaways, alternate] }],
-    cutListResults: [compiled(mainFirst)],
-  });
-  await expect(
-    timeline.getByRole("button", { name: /^Reorder track:/ }).first(),
-  ).toHaveAccessibleName("Reorder track: Cutaways");
-  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
-});
-
 test("Escape, a return to the starting position, and a drop outside the track list do not edit", async ({
   page,
 }) => {

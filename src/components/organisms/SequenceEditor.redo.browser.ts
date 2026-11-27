@@ -207,9 +207,7 @@ test("Redo reapplies successive undone edits one at a time, oldest first", async
   });
 });
 
-test("a declined proposal preserves Redo, but a newly accepted edit clears it", async ({
-  page,
-}) => {
+test("an unchanged action preserves Redo, but a new edit clears it", async ({ page }) => {
   test.setTimeout(45_000);
   await page.goto(`/?path=/story/${roughCutStoryId}`);
   const story = page.frameLocator("#storybook-preview-iframe");
@@ -226,40 +224,24 @@ test("a declined proposal preserves Redo, but a newly accepted edit clears it", 
   await trim.click();
   await expect(timeline).toContainText("Duration: 00:07");
 
-  await page.getByRole("tab", { name: /Controls/ }).click();
-  const acceptEdits = page.getByRole("row", { name: /^Accept edits\b/ }).getByRole("switch");
-  await acceptEdits.press("Space");
-  await expect(acceptEdits).not.toBeChecked();
-  await undo.click();
-  await expect(timeline).toContainText("Duration: 00:07");
-  await expect(redo).toBeDisabled();
-  await acceptEdits.press("Space");
-  await expect(acceptEdits).toBeChecked();
   await undo.click();
   await expect(timeline).toContainText("Duration: 00:06.5");
   await undo.click();
   await expect(timeline).toContainText("Duration: 00:06");
   await expect(redo).toBeEnabled();
 
-  await acceptEdits.press("Space");
-  await expect(acceptEdits).not.toBeChecked();
-  await redo.click();
-  await expect(timeline).toContainText("Duration: 00:06");
-  await expect(redo).toBeEnabled();
-  await sourceOut.fill("330");
   await trim.click();
   await expect(timeline).toContainText("Duration: 00:06");
   await expect(redo).toBeEnabled();
 
-  await acceptEdits.press("Space");
-  await expect(acceptEdits).toBeChecked();
+  await sourceOut.fill("330");
   await trim.click();
   await expect(timeline).toContainText("Duration: 00:07.5");
   await expect(redo).toBeDisabled();
   await expect(undo).toBeEnabled();
 });
 
-test("an independent sequence replacement clears the redo path without emitting callbacks", async ({
+test("opening another snapshot clears the redo path without emitting callbacks", async ({
   page,
 }) => {
   test.setTimeout(45_000);
@@ -277,8 +259,8 @@ test("an independent sequence replacement clears the redo path without emitting 
   await expect(redo).toBeEnabled();
 
   await page.getByRole("tab", { name: /Controls/ }).click();
-  await page.getByRole("switch", { name: "Edit sequence as JSON" }).click();
-  const sequenceControl = page.getByRole("textbox", { name: "Edit sequence as JSON" });
+  await page.getByRole("switch", { name: "Edit initialSequence as JSON" }).click();
+  const sequenceControl = page.getByRole("textbox", { name: "Edit initialSequence as JSON" });
   await sequenceControl.fill(
     JSON.stringify({
       tracks: [
@@ -291,6 +273,11 @@ test("an independent sequence replacement clears the redo path without emitting 
     }),
   );
   await sequenceControl.blur();
+  await expect(redo).toBeEnabled();
+  await page
+    .getByRole("row", { name: /^Reopen initial snapshot\b/ })
+    .getByRole("switch")
+    .press("Space");
   await expect(timeline.getByText("Replacement", { exact: true })).toBeVisible();
   await expect(timeline).toContainText("Duration: 00:02");
   await expect(redo).toBeDisabled();

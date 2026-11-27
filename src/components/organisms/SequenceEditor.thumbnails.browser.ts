@@ -68,9 +68,9 @@ test("a trailing trim changes thumbnail eligibility only for the trimmed placeme
     [119, 237],
     [
       // Leave room after the closing Harbor to exercise its trim away from the scroll edge.
-      "sequence.tracks[0].placements[2].id:departure-tail",
-      "sequence.tracks[0].placements[2].clipId:departure",
-      "sequence.tracks[0].placements[2].sequenceStartFrame:420",
+      "initialSequence.tracks[0].placements[2].id:departure-tail",
+      "initialSequence.tracks[0].placements[2].clipId:departure",
+      "initialSequence.tracks[0].placements[2].sequenceStartFrame:420",
     ],
   );
   const opening = harbors.first();

@@ -57,7 +57,7 @@ function DissolveHost({ mixedRateOutgoing, missingRenderMetadata, ...callbacks }
             ? { ...sequenceStoryMedia.sources, "harbor-audio": undefined }
             : sequenceStoryMedia.sources
         }
-        sequence={sequence}
+        initialSequence={sequence}
         slots={{ clipPool: null, preview: null }}
       />
     </>

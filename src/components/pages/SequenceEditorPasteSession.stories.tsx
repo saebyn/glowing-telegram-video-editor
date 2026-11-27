@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { startTransition, useState } from "react";
-import { flushSync } from "react-dom";
+import { startTransition } from "react";
 import { expect, fn } from "storybook/test";
 import { sampleFrameRate, withSampleProject } from "@/fixtures/video";
 import {
@@ -58,16 +57,12 @@ function SynchronousPasteHost({
   onSequenceChange,
   onCutListResult,
 }: Pick<SequenceEditorPageProps, "onSequenceChange" | "onCutListResult">) {
-  const [sequence, setSequence] = useState(original);
   return (
     <SequenceEditorPage
-      sequence={sequence}
+      initialSequence={original}
       clips={clips}
       sources={sources}
-      onSequenceChange={(next) => {
-        onSequenceChange?.(next);
-        flushSync(() => setSequence(next));
-      }}
+      onSequenceChange={onSequenceChange}
       onCutListResult={onCutListResult}
       slots={{
         timeline: RetainedPasteTimeline,
@@ -90,7 +85,7 @@ const meta = {
 
 export default meta;
 
-export const ConsumeOnceWithSynchronousAcceptance: StoryObj<typeof meta> = {
+export const ConsumeOnceBeforeRerender: StoryObj<typeof meta> = {
   play: async ({ args, canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("button", { name: "Select Opening" }));
     await userEvent.keyboard("{Control>}c{/Control}{Control>}v{/Control}");

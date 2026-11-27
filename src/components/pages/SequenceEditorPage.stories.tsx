@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useArgs, useState } from "storybook/preview-api";
 import { fn } from "storybook/test";
 import SequencePreview, { type SequencePreviewProps } from "@/components/molecules/SequencePreview";
 import { ProjectProvider } from "@/context/ProjectContext";
@@ -39,12 +38,12 @@ const lighthouseSource: SequenceSource = {
 };
 
 type EditingHostArgs = SequenceEditorPageProps & {
-  acceptEdits?: boolean;
-  readOnly?: boolean;
-  reviewEdits?: boolean;
+  omitSequenceListener?: boolean;
+  omitCutListListener?: boolean;
   projectRate?: FrameRate;
   startWithoutTracks?: boolean;
   omitPreview?: boolean;
+  reopen?: boolean;
 };
 
 const meta = {
@@ -60,18 +59,18 @@ const meta = {
   parameters: { layout: "fullscreen" },
   argTypes: {
     // Accept nested fixture URL args as well as edits in the Controls panel.
-    sequence: { control: "object", type: { name: "object", value: {} } },
+    initialSequence: { control: "object", type: { name: "object", value: {} } },
     clips: { control: "object", type: { name: "array", value: { name: "object", value: {} } } },
     sources: { control: "object", type: { name: "object", value: {} } },
-    acceptEdits: { control: "boolean", name: "Accept edits" },
-    readOnly: { control: "boolean", name: "Read-only" },
-    reviewEdits: { control: "boolean", name: "Review proposals before applying" },
+    omitSequenceListener: { control: "boolean" },
+    omitCutListListener: { control: "boolean" },
     projectRate: { control: "object", type: { name: "object", value: {} } },
     startWithoutTracks: { control: "boolean", name: "Start without tracks" },
     omitPreview: { control: "boolean", name: "Omit Preview" },
+    reopen: { control: "boolean", name: "Reopen initial snapshot" },
   },
   args: {
-    acceptEdits: true,
+    reopen: false,
     projectRate: sampleFrameRate,
     clips: [harbor, lighthouse],
     sources: { "harbor-recording": harborSource, "lighthouse-recording": lighthouseSource },
@@ -126,7 +125,7 @@ export const AssembleARoughCut: Story = {
     },
     titles: { harbor: "Harbor", lighthouse: "Lighthouse", departure: "Departure" },
     // [120, 240) is uncovered. The Lighthouse clip has exactly 120 source frames.
-    sequence: { tracks: [mainTrack] },
+    initialSequence: { tracks: [mainTrack] },
     onSequenceChange: fn(),
     onCutListResult: fn(),
   },
@@ -144,7 +143,7 @@ export const RearrangeALayeredEdit: Story = {
     },
   },
   args: {
-    sequence: {
+    initialSequence: {
       tracks: [
         {
           id: "cutaways",
@@ -198,66 +197,44 @@ function TransportOnlyPreview({ media: _media, ...transport }: SequencePreviewPr
 const emptySequence: Sequence = { tracks: [] };
 
 function renderEditingHost({
-  acceptEdits = true,
-  readOnly = false,
-  reviewEdits = false,
+  omitSequenceListener = false,
+  omitCutListListener = false,
   projectRate: _projectRate,
   startWithoutTracks = false,
   omitPreview = false,
+  reopen = false,
   ...args
 }: EditingHostArgs) {
-  const [, updateArgs] = useArgs<EditingHostArgs>();
-  const [proposal, setProposal] = useState<Sequence | undefined>(undefined);
-
-  function accept(next: Sequence) {
-    updateArgs({ sequence: next, startWithoutTracks: false });
-  }
-
   return (
-    <>
-      {reviewEdits && proposal && (
-        <div className="flex gap-2 p-2">
-          <button
-            type="button"
-            onClick={() => {
-              setProposal(undefined);
-              accept(proposal);
-            }}
-          >
-            Accept proposed edit
-          </button>
-          <button type="button" onClick={() => setProposal(undefined)}>
-            Reject proposed edit
-          </button>
-        </div>
-      )}
-      <SequenceEditorPage
-        {...args}
-        slots={{ ...args.slots, preview: omitPreview ? null : TransportOnlyPreview }}
-        sequence={startWithoutTracks ? emptySequence : args.sequence}
-        onSequenceChange={
-          readOnly
-            ? undefined
-            : (next) => {
-                args.onSequenceChange?.(next);
-                if (reviewEdits) setProposal(next);
-                else if (acceptEdits) accept(next);
-                window.dispatchEvent(
-                  new CustomEvent("sequence-editor:sequence-change", { detail: next }),
-                );
-              }
-        }
-        onCutListResult={(result) => {
-          args.onCutListResult?.(result);
-          window.dispatchEvent(
-            new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
-          );
-        }}
-        onSequenceInputError={(issues) => {
-          args.onSequenceInputError?.(issues);
-          window.dispatchEvent(new CustomEvent("sequence-editor:input-error", { detail: issues }));
-        }}
-      />
-    </>
+    <SequenceEditorPage
+      {...args}
+      key={`${reopen}:${startWithoutTracks}`}
+      slots={{ ...args.slots, preview: omitPreview ? null : TransportOnlyPreview }}
+      initialSequence={startWithoutTracks ? emptySequence : args.initialSequence}
+      onSequenceChange={
+        omitSequenceListener
+          ? undefined
+          : (next) => {
+              args.onSequenceChange?.(next);
+              window.dispatchEvent(
+                new CustomEvent("sequence-editor:sequence-change", { detail: next }),
+              );
+            }
+      }
+      onCutListResult={
+        omitCutListListener
+          ? undefined
+          : (result) => {
+              args.onCutListResult?.(result);
+              window.dispatchEvent(
+                new CustomEvent("sequence-editor:cut-list-result", { detail: result }),
+              );
+            }
+      }
+      onSequenceInputError={(issues) => {
+        args.onSequenceInputError?.(issues);
+        window.dispatchEvent(new CustomEvent("sequence-editor:input-error", { detail: issues }));
+      }}
+    />
   );
 }

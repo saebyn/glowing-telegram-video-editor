@@ -21,12 +21,7 @@ export const TwoEditors: StoryObj = {
         <button type="button">Outside both editors</button>
         {["First editor", "Second editor"].map((label) => (
           <section key={label} aria-label={label}>
-            <SequenceEditorPage
-              sequence={sequence}
-              clips={[]}
-              sources={{}}
-              onSequenceChange={() => {}}
-            />
+            <SequenceEditorPage initialSequence={sequence} clips={[]} sources={{}} />
           </section>
         ))}
       </>
@@ -50,16 +45,16 @@ const clipboardSequence: Sequence = {
 };
 
 function ClipboardEditingHost() {
-  const [sequence, setSequence] = useState(clipboardSequence);
+  const [opened, setOpened] = useState(0);
   return (
     <>
-      <button type="button" onClick={() => setSequence({ ...clipboardSequence })}>
+      <button type="button" onClick={() => setOpened(opened + 1)}>
         Replace sequence
       </button>
       <SequenceEditorPage
         {...sequenceStoryMedia}
-        sequence={sequence}
-        onSequenceChange={setSequence}
+        key={opened}
+        initialSequence={clipboardSequence}
         slots={{ preview: null }}
       />
     </>

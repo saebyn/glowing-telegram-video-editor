@@ -109,6 +109,7 @@ function FrameBasedTimeline({
   placeClip,
   previewTransitionResize,
   resizeTransition,
+  toggleTrackLock,
 }: SequenceTimelineProps) {
   const [showPreview, setShowPreview] = useState(false);
   const track = tracks[0];
@@ -172,11 +173,16 @@ function FrameBasedTimeline({
         </output>
       )}
       {!!transitions?.length && (
-        <TransitionResizeControls
-          transitions={transitions}
-          previewTransitionResize={previewTransitionResize}
-          resizeTransition={resizeTransition}
-        />
+        <>
+          <TransitionResizeControls
+            transitions={transitions}
+            previewTransitionResize={previewTransitionResize}
+            resizeTransition={resizeTransition}
+          />
+          <button type="button" onClick={() => track && toggleTrackLock?.(track.id)}>
+            {track?.locked ? "Unlock Main" : "Lock Main"}
+          </button>
+        </>
       )}
     </section>
   );
@@ -269,63 +275,26 @@ const slots = {
   timeline: FrameBasedTimeline,
 } satisfies SequenceEditorSlots;
 
-function useControlledStory(manualFirstEdit = false, initialSequence = original) {
-  const [sequence, setSequence] = useState(initialSequence);
-  const [pool, setPool] = useState(clips);
-  const [pending, setPending] = useState<Sequence>();
-  const [autoAccept, setAutoAccept] = useState(!manualFirstEdit);
-  const options: SequenceEditorPageProps = {
-    sequence,
-    clips: pool,
-    sources,
-    titles,
-    onSequenceChange(next) {
-      if (autoAccept) setSequence(next);
-      else setPending(next);
-      window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
-    },
-    onCutListResult(result) {
-      window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-result", { detail: result }));
-    },
-  };
-  return {
-    options,
-    pending,
-    setSequence,
-    setPool,
-    lockTopTrack() {
-      setSequence((current) => ({
-        ...current,
-        tracks: current.tracks.map((track, index) =>
-          index === 0 ? { ...track, locked: true } : track,
-        ),
-      }));
-    },
-    acceptProposal() {
-      if (!pending) return;
-      setSequence(pending);
-      setPending(undefined);
-      setAutoAccept(true);
-    },
-  };
-}
+const options: SequenceEditorPageProps = {
+  initialSequence: original,
+  clips,
+  sources,
+  titles,
+  onSequenceChange(next) {
+    window.dispatchEvent(new CustomEvent("sequence-editor:sequence-change", { detail: next }));
+  },
+  onCutListResult(result) {
+    window.dispatchEvent(new CustomEvent("sequence-editor:cut-list-result", { detail: result }));
+  },
+};
 
 function PageSlotExample() {
-  const { options, pending, acceptProposal } = useControlledStory(true);
   return (
     <>
       <p className="p-3">
-        Seek to frame 60. Preview and place Bridge, then accept the proposal to enable Undo. This
+        Seek to frame 60, then preview and place Bridge. The edit immediately enables Undo. This
         replacement Timeline does not register viewport navigation.
       </p>
-      <button
-        className="mx-3 rounded border px-3 py-1"
-        type="button"
-        disabled={!pending}
-        onClick={acceptProposal}
-      >
-        Accept proposal
-      </button>
       <SequenceEditorPage {...options} slots={slots} />
     </>
   );
@@ -344,8 +313,8 @@ function FitOnlyTimeline({ registerNavigation }: SequenceTimelineProps) {
   );
 }
 
-function HookExample() {
-  const { options, setPool } = useControlledStory();
+function HookExample({ initialSequence }: { initialSequence: Sequence }) {
+  const [pool, setPool] = useState(clips);
   const [showTimeline, setShowTimeline] = useState(true);
   const [fitOnly, setFitOnly] = useState(false);
   const {
@@ -358,8 +327,9 @@ function HookExample() {
     handleEditorKeyDown,
   } = useSequenceEditor({
     ...options,
+    initialSequence,
     // Hosts may derive a new array from their library on every render.
-    clips: options.clips.filter(({ sourceId }) => Object.hasOwn(sources, sourceId)),
+    clips: pool.filter(({ sourceId }) => Object.hasOwn(sources, sourceId)),
   });
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
@@ -371,6 +341,20 @@ function HookExample() {
       onKeyDown={handleEditorKeyDown}
     >
       <SequenceToolbar {...toolbarProps} />
+      <button type="button" onClick={() => setPool(pool.filter(({ id }) => id !== "bridge"))}>
+        Remove Bridge from pool
+      </button>
+      <button type="button" onClick={() => setPool(clips)}>
+        Restore Bridge to pool
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          timelineProps.placeClip?.({ clipId: "bridge", trackId: "main", sequenceFrame: 60 })
+        }
+      >
+        Place Bridge in gap
+      </button>
       <p>Try the default navigation buttons, then switch to a Timeline that only supports Fit.</p>
       <button type="button" onClick={() => setFitOnly((current) => !current)}>
         {fitOnly ? "Use the default timeline" : "Use a fit-only timeline"}
@@ -421,8 +405,24 @@ export const ReplacePageSlots: StoryObj = {
 
 export const AssembleWithTheHook: StoryObj = {
   name: "Assemble with the hook",
-  render: () => <HookExample />,
+  render: () => <HookHost />,
 };
+
+function HookHost() {
+  const [initial, setInitial] = useState(original);
+  const [opened, setOpened] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={() => setInitial({ tracks: [] })}>
+        Receive another saved snapshot
+      </button>
+      <button type="button" onClick={() => setOpened(opened + 1)}>
+        Open saved snapshot
+      </button>
+      <HookExample key={opened} initialSequence={initial} />
+    </>
+  );
+}
 
 function InputReplacementExample() {
   const [replacement, setReplacement] = useState(0);
@@ -446,7 +446,6 @@ function InputReplacementExample() {
 }
 
 function InputReplacementEditor() {
-  const { options } = useControlledStory();
   const { toolbarProps, timelineProps, previewProps, cutListIssues } = useSequenceEditor({
     ...options,
     onSequenceInputError(issues) {
@@ -507,15 +506,7 @@ const transitionsExample: Sequence = {
 };
 
 function ResizeTransitionsExample() {
-  const { options, lockTopTrack } = useControlledStory(false, transitionsExample);
-  return (
-    <>
-      <button type="button" onClick={lockTopTrack}>
-        Host: lock Main
-      </button>
-      <SequenceEditorPage {...options} slots={slots} />
-    </>
-  );
+  return <SequenceEditorPage {...options} initialSequence={transitionsExample} slots={slots} />;
 }
 
 export const ResizeATransition: StoryObj = {
@@ -560,6 +551,7 @@ function RetainedPlacementTimeline({
   tracks,
   placementPaste,
   toggleTrackLock,
+  removeTrack,
 }: SequenceTimelineProps) {
   const [release, setRelease] = useState<() => void>();
   const drop = { clipId: "bridge", trackId: "main", sequenceFrame: 60 };
@@ -625,6 +617,26 @@ function RetainedPlacementTimeline({
       )}
       <button
         type="button"
+        onClick={() => placeClip?.({ ...drop, trackId: "reserve", sequenceFrame: 180 })}
+      >
+        Place Bridge in Reserve
+      </button>
+      <button type="button" onClick={() => placeClip?.({ ...drop, trackId: "bridge-track" })}>
+        Place Bridge in Bridge track
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          trimPlacement?.({ placementId: "closing", edge: "trailing", sourceFrame: 222 })
+        }
+      >
+        Trim Closing to source frame 222
+      </button>
+      <button type="button" onClick={() => removeTrack?.("reserve")}>
+        Remove Reserve
+      </button>
+      <button
+        type="button"
         disabled={!release}
         onClick={() => {
           release?.();
@@ -638,87 +650,26 @@ function RetainedPlacementTimeline({
 }
 
 function RetainedPlacementActionsExample() {
-  const { options, lockTopTrack, setSequence, setPool } = useControlledStory();
-
-  function addReserveTrack() {
-    setSequence((current) => ({
-      ...current,
-      tracks: [
-        ...current.tracks,
-        {
-          id: "reserve",
-          label: "Reserve",
-          placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
-        },
-      ],
-    }));
-  }
-
-  function trimHarborClip() {
-    setPool((current) =>
-      current.map((clip) => (clip.id === "harbor" ? { ...clip, sourceOutFrame: 148 } : clip)),
-    );
-    setSequence((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) => ({
-        ...track,
-        // Shortening the pool clip by 12 source frames keeps existing placements' out points.
-        placements: track.placements.map((placement) =>
-          placement.clipId === "harbor"
-            ? { ...placement, sourceOutOffsetFrames: (placement.sourceOutOffsetFrames ?? 0) + 12 }
-            : placement,
-        ),
-      })),
-    }));
-  }
-
+  const [opened, setOpened] = useState(0);
   return (
     <>
       <p>
-        Capture an action or hold down a Timeline button, change the host inputs, then release the
+        Capture an action or hold down a Timeline button, make another edit, then release the
         original callback.
       </p>
-      <button type="button" onClick={lockTopTrack}>
-        Host: lock Main
-      </button>
-      <button
-        type="button"
-        disabled={options.sequence.tracks.some(({ id }) => id === "reserve")}
-        onClick={addReserveTrack}
-      >
-        Host: add Reserve track
-      </button>
-      <button
-        type="button"
-        disabled={options.sequence.tracks.some(({ id }) => id === "bridge-track")}
-        onClick={() =>
-          setSequence((current) => ({
-            ...current,
-            tracks: [
-              ...current.tracks,
-              {
-                id: "bridge-track",
-                label: "Bridge",
-                placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
-              },
-            ],
-          }))
-        }
-      >
-        Host: add Bridge track
-      </button>
-      <button type="button" onClick={() => setSequence({ ...original })}>
-        Host: replace sequence
-      </button>
-      <button
-        type="button"
-        disabled={options.clips.find(({ id }) => id === "harbor")?.sourceOutFrame === 148}
-        onClick={trimHarborClip}
-      >
-        Host: trim Harbor pool clip
+      <button type="button" onClick={() => setOpened(opened + 1)}>
+        Reopen sequence
       </button>
       <SequenceEditorPage
+        key={opened}
         {...options}
+        initialSequence={{
+          tracks: [
+            ...original.tracks,
+            { id: "reserve", label: "Reserve", placements: [] },
+            { id: "bridge-track", label: "Bridge", placements: [] },
+          ],
+        }}
         slots={{ timeline: RetainedPlacementTimeline, preview: PreviewSnapshot }}
       />
     </>

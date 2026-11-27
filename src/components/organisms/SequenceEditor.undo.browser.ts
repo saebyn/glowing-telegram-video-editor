@@ -128,9 +128,7 @@ test("one Undo restores both placements and the old duration after an extending 
   await expect(undo).toBeDisabled();
 });
 
-test("an independent host replacement clears Undo without emitting either callback", async ({
-  page,
-}) => {
+test("a new initial snapshot is ignored until the page reopens", async ({ page }) => {
   await page.goto(`/?path=/story/${roughCutStoryId}`);
   const story = page.frameLocator("#storybook-preview-iframe");
   const timeline = story.getByRole("region", { name: "Sequence timeline" });
@@ -142,8 +140,8 @@ test("an independent host replacement clears Undo without emitting either callba
   await expect(undo).toBeEnabled();
 
   await page.getByRole("tab", { name: /Controls/ }).click();
-  await page.getByRole("switch", { name: "Edit sequence as JSON" }).click();
-  const sequenceControl = page.getByRole("textbox", { name: "Edit sequence as JSON" });
+  await page.getByRole("switch", { name: "Edit initialSequence as JSON" }).click();
+  const sequenceControl = page.getByRole("textbox", { name: "Edit initialSequence as JSON" });
   await sequenceControl.fill(
     JSON.stringify({
       tracks: [
@@ -156,6 +154,13 @@ test("an independent host replacement clears Undo without emitting either callba
     }),
   );
   await sequenceControl.blur();
+  await expect(timeline).toContainText("Duration: 00:06.5");
+  await expect(undo).toBeEnabled();
+  await expect(story.getByLabel("Source out (exclusive frame)")).toHaveValue("270");
+  await page
+    .getByRole("row", { name: /^Reopen initial snapshot\b/ })
+    .getByRole("switch")
+    .press("Space");
   await expect(timeline).toContainText("Duration: 00:02");
   await expect(timeline.getByText("Replacement", { exact: true })).toBeVisible();
   await expect(undo).toBeDisabled();
@@ -205,41 +210,68 @@ test("Undo restores successive accepted edits newest first without recording the
   expect(cutListResults).toEqual([gap, gap, gap, gap]);
 });
 
-test("a host that declines a proposal does not add or consume an Undo entry", async ({ page }) => {
+test("the page edits and restores history without either listener", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
-  await openWorkflow(page, roughCutStoryId, { reviewEdits: "true" });
+  await openWorkflow(page, roughCutStoryId, {
+    omitSequenceListener: "true",
+    omitCutListListener: "true",
+  });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
   const undo = page.getByRole("button", { name: "Undo", exact: true });
+  const redo = page.getByRole("button", { name: "Redo", exact: true });
   const trim = page.getByRole("button", { name: "Trim placement", exact: true });
-  const accept = page.getByRole("button", { name: "Accept proposed edit" });
-  const reject = page.getByRole("button", { name: "Reject proposed edit" });
   const originalDuration = timeline.getByText("Duration: 00:06", { exact: true });
   const extendedDuration = timeline.getByText("Duration: 00:06.5", { exact: true });
 
   await timeline.getByRole("button", { name: "Harbor", exact: true }).last().click();
+  await expect(trim).toBeEnabled();
   await page.getByLabel("Source out (exclusive frame)").fill("270");
   await trim.click();
-  await reject.click();
-  await expect(undo).toBeDisabled();
-  await expect(originalDuration).toBeVisible();
-
-  await trim.click();
-  await accept.click();
   await expect(extendedDuration).toBeVisible();
-  await expect(undo).toBeEnabled();
-
   await undo.click();
-  await reject.click();
-  await expect(extendedDuration).toBeVisible();
-  await expect(undo).toBeEnabled();
-
-  await undo.click();
-  await accept.click();
   await expect(originalDuration).toBeVisible();
   await expect(undo).toBeDisabled();
-  const { sequences, cutListResults } = await emissions();
-  expect(sequences.map(({ tracks }) => tracks[0].placements[1].sourceOutOffsetFrames)).toEqual([
-    36, 36, 6, 6,
-  ]);
-  expect(cutListResults).toHaveLength(4);
+  await redo.click();
+  await expect(extendedDuration).toBeVisible();
+  expect(await emissions()).toStrictEqual(noEdits);
+});
+
+test("edits batched in one event notify in order and a late save cannot replace them", async ({
+  page,
+}) => {
+  await page.goto(
+    "/iframe.html?id=examples-sequence-editor-history--edit-while-saving&viewMode=story",
+  );
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  const notifications = page.getByLabel("Edit notifications");
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Add two tracks" }).click();
+  await expect(notifications).toHaveText(
+    "sequence: 2 tracks → export: empty-sequence → sequence: 3 tracks → export: empty-sequence",
+  );
+  await page.getByRole("button", { name: "Receive first save response" }).click();
+  await expect(timeline.getByText("Track 2", { exact: true })).toBeVisible();
+  await undo.click();
+  await expect(timeline.getByText("Track 2", { exact: true })).toHaveCount(0);
+  await undo.click();
+  await expect(timeline.getByText("Track 1", { exact: true })).toHaveCount(0);
+  const beforeReopen = await notifications.textContent();
+  await page.getByRole("button", { name: "Reopen saved snapshot" }).click();
+  await expect(timeline.getByText("Track 1", { exact: true })).toBeVisible();
+  await expect(undo).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Redo", exact: true })).toBeDisabled();
+  expect(await notifications.textContent()).toBe(beforeReopen);
+});
+
+test("a listener-triggered edit notifies after both notifications for the triggering edit", async ({
+  page,
+}) => {
+  await page.goto(
+    "/iframe.html?id=examples-sequence-editor-history--notify-in-commit-order&viewMode=story",
+  );
+  await page.getByRole("button", { name: "Add track", exact: true }).click({ timeout: 20_000 });
+  await expect(page.getByLabel("Edit notifications")).toHaveText(
+    "track → empty-sequence → placement → CutList",
+  );
 });

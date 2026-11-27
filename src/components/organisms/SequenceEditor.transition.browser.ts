@@ -103,14 +103,11 @@ test("one Apply converts type and duration together, without replacing the trans
   await expect(inspector.getByText("Dissolve window: 17 inclusive – 32 exclusive")).toBeVisible();
 });
 
-test("Remove waits for acceptance, then selects only the owner; Undo restores the same transition", async ({
-  page,
-}) => {
+test("Remove selects only the owner; Undo restores the same transition", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   const reveal = { id: "harbor-reveal", kind: "dissolve", durationFrames: 20 };
   await openWorkflow(page, roughCutStoryId, {
     ...straightCutArgs,
-    reviewEdits: "true",
     "sequence.tracks[0].placements[0].transitionIn.id": "harbor-entry",
     "sequence.tracks[0].placements[0].transitionIn.kind": "fade",
     "sequence.tracks[0].placements[0].transitionIn.durationFrames": 16,
@@ -124,8 +121,6 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   const lighthouse = timeline.getByRole("button", { name: "Lighthouse", exact: true });
   const dissolve = timeline.getByRole("button", { name: "Select dissolve: Harbor" });
   const remove = inspector.getByRole("button", { name: "Remove transition" });
-  const accept = page.getByRole("button", { name: "Accept proposed edit" });
-  const reject = page.getByRole("button", { name: "Reject proposed edit" });
   const undo = page.getByRole("button", { name: "Undo", exact: true });
   const duration = inspector.getByRole("spinbutton", { name: "Duration (sequence frames)" });
   await dissolve.click();
@@ -136,15 +131,6 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   expect(await emissions()).toStrictEqual(noEdits);
 
   await remove.click({ timeout: 5_000 });
-  await expect(accept).toBeVisible();
-  await expect(dissolve).toHaveAttribute("aria-pressed", "true");
-  await expect(undo).toBeDisabled();
-  await reject.click();
-  await expect(inspector.getByRole("heading", { name: "Transition Properties" })).toBeVisible();
-  await expect(dissolve).toHaveAttribute("aria-pressed", "true");
-  await expect(undo).toBeDisabled();
-  await remove.click();
-  await accept.click();
   await expect(inspector.getByRole("heading", { name: "Placement Properties" })).toBeVisible();
   const end = inspector.getByRole("group", { name: "End edge" });
   await expect(end.getByRole("button", { name: "Add transition" })).toBeEnabled();
@@ -186,11 +172,10 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
     ],
   });
   await expect.poll(emissions).toStrictEqual({
-    sequences: [removed, removed],
-    cutListResults: [output, output],
+    sequences: [removed],
+    cutListResults: [output],
   });
   await undo.click();
-  await accept.click();
   await expect(undo).toBeDisabled();
   await expect(harbor).toHaveAttribute("aria-pressed", "true");
   await expect(dissolve).toHaveAttribute("aria-pressed", "false");
@@ -198,9 +183,8 @@ test("Remove waits for acceptance, then selects only the owner; Undo restores th
   const restored = structuredClone(removed);
   Object.assign(restored.tracks[0].placements[0], { transitionOut: reveal });
   await expect.poll(emissions).toStrictEqual({
-    sequences: [removed, removed, restored],
+    sequences: [removed, restored],
     cutListResults: [
-      output,
       output,
       { ok: false, issues: [{ code: "unsupported-dissolve", transitionId: reveal.id }] },
     ],

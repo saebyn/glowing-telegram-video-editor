@@ -46,7 +46,7 @@ test("a missing source can point to its placement even on a locked track", async
   const query = new URLSearchParams({
     id: layeredEditStoryId,
     viewMode: "story",
-    args: "sources.harbor-recording:!undefined;sequence.tracks[1].locked:true",
+    args: "sources.harbor-recording:!undefined;initialSequence.tracks[1].locked:true",
   });
   await page.goto(`/iframe.html?${query}`);
   const issues = page.getByRole("region", { name: "CutList issues" });
@@ -86,7 +86,7 @@ test("a source rate mismatch is identified separately and opens the hidden Inspe
   const query = new URLSearchParams({
     id: layeredEditStoryId,
     viewMode: "story",
-    args: "clips[0].sourceFrameRate.numerator:30;readOnly:true",
+    args: "clips[0].sourceFrameRate.numerator:30",
   });
   await page.goto(`/iframe.html?${query}`);
   const editor = page.getByRole("region", { name: "Sequence editor", exact: true });
@@ -166,91 +166,82 @@ async function replaceHarborRate(page: Page, numerator: number) {
   await json.blur();
 }
 
-for (const readOnly of [false, true]) {
-  test(`a zero source rate can be corrected live in the ${readOnly ? "read-only" : "editable"} editor`, async ({
-    page,
-  }) => {
-    const emissions = await recordManagedStoryEmissions(page);
-    const query = new URLSearchParams({
-      path: `/story/${layeredEditStoryId}`,
-      args: `clips[0].sourceFrameRate.numerator:0${readOnly ? ";readOnly:true" : ""}`,
-    });
-    await page.goto(`/?${query}`);
-    const story = page.frameLocator("#storybook-preview-iframe");
-    const issues = story.getByRole("region", { name: "CutList issues" });
-    const timeline = story.getByRole("region", { name: "Sequence timeline" });
-    const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
-    await expect(issues).toContainText("Placement harbor-bed has an invalid source frame rate.", {
-      timeout: 20_000,
-    });
-    await expect(harbor).toHaveCount(0);
-    await expect(timeline).toContainText("Timeline unavailable");
-
-    await replaceHarborRate(page, 60);
-    await expect(harbor).toBeVisible();
-    await expect(issues).toHaveCount(0);
-    await expect(story.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
-    expect(await emissions()).toEqual(noEdits);
+test("a zero source rate can be corrected live", async ({ page }) => {
+  const emissions = await recordManagedStoryEmissions(page);
+  const query = new URLSearchParams({
+    path: `/story/${layeredEditStoryId}`,
+    args: "clips[0].sourceFrameRate.numerator:0",
   });
-
-  test(`a fractional source rate blocks the ${readOnly ? "read-only" : "editable"} session until recovery`, async ({
-    page,
-  }) => {
-    const emissions = await recordManagedStoryEmissions(page);
-    const inputErrors = await recordInputErrors(page);
-    await page.goto(`/?path=/story/${layeredEditStoryId}${readOnly ? "&args=readOnly:true" : ""}`);
-    const story = page.frameLocator("#storybook-preview-iframe");
-    const issues = story.getByRole("region", { name: "CutList issues" });
-    const timeline = story.getByRole("region", { name: "Sequence timeline" });
-    const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
-    const inspector = story.getByRole("region", { name: "Inspector", exact: true });
-    const sourceOut = inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" });
-    await harbor.click({ timeout: 20_000 });
-    const harborRange = inspector.getByText(
-      "Sequence start/end (sequence frames): 0 inclusive – 240 exclusive",
-    );
-    await expect(harborRange).toBeVisible();
-    if (readOnly) await expect(sourceOut).toHaveCount(0);
-    else await expect(sourceOut).toBeVisible();
-
-    // Use JSON Controls because dots in URL args can be sanitized.
-    await replaceHarborRate(page, 29.97);
-    await expect(issues).toContainText("Placement harbor-bed has an invalid source frame rate.");
-    await expect(harbor).toHaveCount(0);
-    await expect(harborRange).toHaveCount(0);
-    await expect(sourceOut).toHaveCount(0);
-    expect(await emissions()).toEqual(noEdits);
-    const fractional = {
-      code: "invalid-source-frame-rate",
-      placementId: "harbor-bed",
-      sourceFrameRate: { numerator: 29.97, denominator: 1 },
-    };
-    await expect.poll(inputErrors).toEqual([[fractional]]);
-
-    await expect(timeline).toContainText("Timeline unavailable");
-    await expect(sourceOut).toHaveCount(0);
-    await expect(story.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
-    await story.getByRole("region", { name: "Sequence editor", exact: true }).press("Control+d");
-    expect(await emissions()).toEqual(noEdits);
-    expect(await inputErrors()).toEqual([[fractional]]);
-
-    await replaceHarborRate(page, 60);
-    await expect(harbor).toBeVisible();
-    await expect(issues).toHaveCount(0);
-    expect(await emissions()).toEqual(noEdits);
-    if (!readOnly) {
-      await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
-      await sourceOut.fill("571");
-      await inspector.getByRole("button", { name: "Trim placement", exact: true }).click();
-      await expect(
-        inspector.getByText("Sequence start/end (sequence frames): 0 inclusive – 70 exclusive"),
-      ).toBeVisible();
-      const result = await emissions();
-      expect(result.sequences).toHaveLength(1);
-      expect(result.cutListResults).toEqual([expect.objectContaining({ ok: true })]);
-    }
+  await page.goto(`/?${query}`);
+  const story = page.frameLocator("#storybook-preview-iframe");
+  const issues = story.getByRole("region", { name: "CutList issues" });
+  const timeline = story.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  await expect(issues).toContainText("Placement harbor-bed has an invalid source frame rate.", {
+    timeout: 20_000,
   });
-}
+  await expect(harbor).toHaveCount(0);
+  await expect(timeline).toContainText("Timeline unavailable");
+
+  await replaceHarborRate(page, 60);
+  await expect(harbor).toBeVisible();
+  await expect(issues).toHaveCount(0);
+  await expect(story.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(noEdits);
+});
+
+test("a fractional source rate blocks the session until recovery", async ({ page }) => {
+  const emissions = await recordManagedStoryEmissions(page);
+  const inputErrors = await recordInputErrors(page);
+  await page.goto(`/?path=/story/${layeredEditStoryId}`);
+  const story = page.frameLocator("#storybook-preview-iframe");
+  const issues = story.getByRole("region", { name: "CutList issues" });
+  const timeline = story.getByRole("region", { name: "Sequence timeline" });
+  const harbor = timeline.getByRole("button", { name: "Harbor", exact: true });
+  const inspector = story.getByRole("region", { name: "Inspector", exact: true });
+  const sourceOut = inspector.getByRole("spinbutton", { name: "Source out (exclusive frame)" });
+  await harbor.click({ timeout: 20_000 });
+  const harborRange = inspector.getByText(
+    "Sequence start/end (sequence frames): 0 inclusive – 240 exclusive",
+  );
+  await expect(harborRange).toBeVisible();
+  await expect(sourceOut).toBeVisible();
+
+  // Use JSON Controls because dots in URL args can be sanitized.
+  await replaceHarborRate(page, 29.97);
+  await expect(issues).toContainText("Placement harbor-bed has an invalid source frame rate.");
+  await expect(harbor).toHaveCount(0);
+  await expect(harborRange).toHaveCount(0);
+  await expect(sourceOut).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+  const fractional = {
+    code: "invalid-source-frame-rate",
+    placementId: "harbor-bed",
+    sourceFrameRate: { numerator: 29.97, denominator: 1 },
+  };
+  await expect.poll(inputErrors).toEqual([[fractional]]);
+
+  await expect(timeline).toContainText("Timeline unavailable");
+  await expect(sourceOut).toHaveCount(0);
+  await expect(story.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
+  await story.getByRole("region", { name: "Sequence editor", exact: true }).press("Control+d");
+  expect(await emissions()).toEqual(noEdits);
+  expect(await inputErrors()).toEqual([[fractional]]);
+
+  await replaceHarborRate(page, 60);
+  await expect(harbor).toBeVisible();
+  await expect(issues).toHaveCount(0);
+  expect(await emissions()).toEqual(noEdits);
+  await timeline.getByRole("button", { name: "Lighthouse", exact: true }).first().click();
+  await sourceOut.fill("571");
+  await inspector.getByRole("button", { name: "Trim placement", exact: true }).click();
+  await expect(
+    inspector.getByText("Sequence start/end (sequence frames): 0 inclusive – 70 exclusive"),
+  ).toBeVisible();
+  const result = await emissions();
+  expect(result.sequences).toHaveLength(1);
+  expect(result.cutListResults).toEqual([expect.objectContaining({ ok: true })]);
+});
 
 test("a host-built layout stops playback and rejects retained actions until inputs recover", async ({
   page,

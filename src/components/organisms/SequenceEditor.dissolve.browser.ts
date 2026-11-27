@@ -154,7 +154,7 @@ test("Escape cancels a dissolve resize at the sequence boundary", async ({ page 
   expect(await emissions()).toEqual(noEdits);
 });
 
-test("Dissolve remains visible without a resize handle in Split mode, on a locked track, and read-only", async ({
+test("Dissolve remains visible without a resize handle in Split mode and on a locked track", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -168,14 +168,15 @@ test("Dissolve remains visible without a resize handle in Split mode, on a locke
   await expect(handle).toHaveCount(0);
   expect(await emissions()).toEqual(noEdits);
 
-  for (const args of [{ "sequence.tracks[0].locked": "true" }, { readOnly: "true" }]) {
-    await openWorkflow(page, roughCutStoryId, { ...incomingDissolveArgs, ...args });
-    await expect(indicator).toBeVisible();
-    await expect(handle).toHaveCount(0);
-    await timeline.getByRole("button", { name: "Select dissolve: Lighthouse" }).click();
-    await expect(page.getByText("7 sequence frames", { exact: true })).toBeVisible();
-    expect(await emissions()).toEqual(noEdits);
-  }
+  await openWorkflow(page, roughCutStoryId, {
+    ...incomingDissolveArgs,
+    "sequence.tracks[0].locked": "true",
+  });
+  await expect(indicator).toBeVisible();
+  await expect(handle).toHaveCount(0);
+  await timeline.getByRole("button", { name: "Select dissolve: Lighthouse" }).click();
+  await expect(page.getByText("7 sequence frames", { exact: true })).toBeVisible();
+  expect(await emissions()).toEqual(noEdits);
 });
 
 test("Transition Properties resolves an authored odd dissolve and can resize it without changing the cut or trims", async ({

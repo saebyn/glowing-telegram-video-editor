@@ -21,9 +21,7 @@ test("Storybook lists both composition examples separately from the default work
   expect(entries[hookStory]).toMatchObject({ type: "story", name: "Assemble with the hook" });
 });
 
-test("replacement slots share a playhead and a proposal becomes undoable only on acceptance", async ({
-  page,
-}) => {
+test("replacement slots share a playhead and edits are immediately undoable", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await page.goto(`/iframe.html?id=${pageStory}&viewMode=story`);
   const timeline = page.getByRole("region", { name: "Frame-based timeline" });
@@ -44,8 +42,8 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
   expect(await emissions()).toEqual(noEdits);
   await timeline.getByRole("button", { name: "Place clip" }).click();
   const undo = page.getByRole("button", { name: "Undo", exact: true });
-  await expect(undo).toBeDisabled();
-  await expect(timeline.getByLabel("Placement count")).toHaveText("2");
+  await expect(undo).toBeEnabled();
+  await expect(timeline.getByLabel("Placement count")).toHaveText("3");
   await expect.poll(emissions).toEqual({
     sequences: [
       {
@@ -91,9 +89,6 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
       }),
     ],
   });
-  await page.getByRole("button", { name: "Accept proposal" }).click();
-  await expect(undo).toBeEnabled();
-  await expect(timeline.getByLabel("Placement count")).toHaveText("3");
   await undo.click();
   const undone = await emissions();
   expect(undone.sequences).toHaveLength(2);
@@ -103,6 +98,83 @@ test("replacement slots share a playhead and a proposal becomes undoable only on
   ]);
   expect(undone.cutListResults[1]).toEqual(blockedOutput);
 });
+
+test("the hook preserves working state until its caller opens a different key", async ({
+  page,
+}) => {
+  const emissions = await recordEditorEmissions(page);
+  await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+  const timeline = page.getByRole("region", { name: "Sequence timeline" });
+  await timeline
+    .getByRole("button", { name: "Harbor", exact: true })
+    .last()
+    .click({ timeout: 20_000 });
+  await timeline.getByRole("slider", { name: "Sequence playhead" }).press("End");
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  const frame = page.getByLabel("Sequence playhead position");
+  await expect(frame).toHaveText("Sequence frame 240");
+  await page.getByRole("button", { name: "Receive another saved snapshot" }).click();
+  await expect(frame).toHaveText("Sequence frame 240");
+  await expect(timeline.getByRole("button", { name: "Harbor", exact: true })).toHaveCount(1);
+  await undo.click();
+  await expect(timeline.getByRole("button", { name: "Harbor", exact: true })).toHaveCount(2);
+  const beforeOpen = await emissions();
+  await page.getByRole("button", { name: "Open saved snapshot" }).click();
+  await expect(frame).toHaveText("Sequence frame 0");
+  await expect(timeline.getByRole("button", { name: "Harbor", exact: true })).toHaveCount(0);
+  await expect(undo).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Redo", exact: true })).toBeDisabled();
+  expect(await emissions()).toEqual(beforeOpen);
+});
+
+for (const direction of ["Undo", "Redo"] as const) {
+  test(`${direction} refuses a target with a missing clip without consuming it`, async ({
+    page,
+  }) => {
+    const emissions = await recordEditorEmissions(page);
+    await page.goto(`/iframe.html?id=${hookStory}&viewMode=story`);
+    const timeline = page.getByRole("region", { name: "Sequence timeline" });
+    await expect(timeline).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Place Bridge in gap" }).click();
+    const bridge = timeline.getByRole("button", { name: "Bridge", exact: true });
+    await expect(bridge).toBeVisible();
+    const target = await emissions();
+    const undo = page.getByRole("button", { name: "Undo", exact: true });
+    const redo = page.getByRole("button", { name: "Redo", exact: true });
+    const addTrack = page.getByRole("button", { name: "Add track", exact: true });
+    if (direction === "Undo") {
+      await bridge.click();
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await addTrack.click();
+      await undo.click();
+    } else {
+      await bridge.click();
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await undo.click();
+      await undo.click();
+    }
+    const step = direction === "Undo" ? undo : redo;
+    await expect(bridge).toHaveCount(0);
+    const before = await emissions();
+    await page.getByRole("button", { name: "Remove Bridge from pool" }).click();
+    await step.click();
+    await expect(bridge).toHaveCount(0);
+    expect(await emissions()).toEqual(before);
+    if (direction === "Undo") await expect(redo).toBeEnabled();
+    await page.getByRole("button", { name: "Restore Bridge to pool" }).click();
+    await step.click();
+    await expect(bridge).toBeVisible();
+    expect(await emissions()).toEqual({
+      sequences: [...before.sequences, ...target.sequences],
+      cutListResults: [...before.cutListResults, ...target.cutListResults],
+    });
+    if (direction === "Redo") {
+      await redo.click();
+      await expect(bridge).toHaveCount(0);
+    }
+  });
+}
 
 test("a host-built toolbar exposes only actions from the mounted Timeline", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
@@ -390,7 +462,7 @@ test("a replacement Timeline previews and resizes either transition kind by ID",
   ]);
 });
 
-test("a replacement Timeline release honors a lock added by the host after pointerdown", async ({
+test("a replacement Timeline release honors a lock committed after pointerdown", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -405,17 +477,21 @@ test("a replacement Timeline release honors a lock added by the host after point
   const resize = timeline.getByRole("button", { name: "Resize transition" });
   await resize.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: lock Main" }).press("Space");
+  await page.getByRole("button", { name: "Lock Main", exact: true }).press("Space");
+  const locked = await emissions();
+  expect(locked.sequences).toHaveLength(1);
+  expect(locked.sequences[0].tracks[0].locked).toBe(true);
+  expect(locked.cutListResults).toHaveLength(1);
   await page.mouse.up();
 
   // Disappearance confirms that the custom Timeline ran its release action.
   await expect(preview).toHaveCount(0);
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(locked);
   await timeline.getByRole("button", { name: "Preview resize" }).click();
   await expect(preview).toHaveText("blocked");
 });
 
-test("a retained pool drop honors a destination track lock added by the host", async ({ page }) => {
+test("a retained pool drop honors an intervening destination track lock", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
   const timeline = page.getByRole("region", { name: "Retained placement actions" });
@@ -425,16 +501,18 @@ test("a retained pool drop honors a destination track lock added by the host", a
   await capture.click();
   await expect(release).toBeEnabled();
 
-  await page.getByRole("button", { name: "Host: lock Main" }).click();
+  await page.getByRole("button", { name: "Lock Main", exact: true }).click();
   await expect(capture).toBeDisabled();
-  expect(await emissions()).toEqual(noEdits);
+  const locked = await emissions();
+  expect(locked.sequences).toHaveLength(1);
+  expect(locked.cutListResults).toHaveLength(1);
 
   await release.click();
   await expect(release).toBeDisabled();
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(locked);
 });
 
-test("a retained placement move preserves a host-added track and compiles the proposed sequence", async ({
+test("a retained placement move preserves an intervening placement and compiles the edit", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -442,12 +520,15 @@ test("a retained placement move preserves a host-added track and compiles the pr
   const timeline = page.getByRole("region", { name: "Retained placement actions" });
   await expect(timeline).toBeVisible({ timeout: 20_000 });
   await timeline.getByRole("button", { name: "Capture placement move" }).click();
-  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Place Bridge in Reserve" }).click();
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(1);
+  expect(before.cutListResults).toHaveLength(1);
 
   await timeline.getByRole("button", { name: "Release retained action" }).click();
   expect(await emissions()).toEqual({
     sequences: [
+      ...before.sequences,
       {
         tracks: [
           {
@@ -466,12 +547,14 @@ test("a retained placement move preserves a host-added track and compiles the pr
           {
             id: "reserve",
             label: "Reserve",
-            placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
+            placements: [{ id: expect.any(String), clipId: "bridge", sequenceStartFrame: 180 }],
           },
+          { id: "bridge-track", label: "Bridge", placements: [] },
         ],
       },
     ],
     cutListResults: [
+      ...before.cutListResults,
       compiled({
         version: "1.0.0",
         inputMedia: [
@@ -497,7 +580,7 @@ test("a retained placement move preserves a host-added track and compiles the pr
   });
 });
 
-test("a retained placement trim uses the current pool clip and preserves the other placement", async ({
+test("a retained placement trim preserves an intervening trim on the other placement", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -505,12 +588,15 @@ test("a retained placement trim uses the current pool clip and preserves the oth
   const timeline = page.getByRole("region", { name: "Retained placement actions" });
   await expect(timeline).toBeVisible({ timeout: 20_000 });
   await timeline.getByRole("button", { name: "Capture placement trim" }).click();
-  await page.getByRole("button", { name: "Host: trim Harbor pool clip" }).click();
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Trim Closing to source frame 222" }).click();
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(1);
+  expect(before.cutListResults).toHaveLength(1);
 
   await timeline.getByRole("button", { name: "Release retained action" }).click();
   expect(await emissions()).toEqual({
     sequences: [
+      ...before.sequences,
       {
         tracks: [
           {
@@ -521,20 +607,23 @@ test("a retained placement trim uses the current pool clip and preserves the oth
                 id: "opening",
                 clipId: "harbor",
                 sequenceStartFrame: 0,
-                sourceOutOffsetFrames: 72,
+                sourceOutOffsetFrames: 60,
               },
               {
                 id: "closing",
                 clipId: "harbor",
                 sequenceStartFrame: 120,
-                sourceOutOffsetFrames: 72,
+                sourceOutOffsetFrames: 62,
               },
             ],
           },
+          { id: "reserve", label: "Reserve", placements: [] },
+          { id: "bridge-track", label: "Bridge", placements: [] },
         ],
       },
     ],
     cutListResults: [
+      ...before.cutListResults,
       compiled({
         version: "1.0.0",
         inputMedia: [
@@ -542,7 +631,7 @@ test("a retained placement trim uses the current pool clip and preserves the oth
             s3Location: "s3://sequence-fixtures/harbor.mp4",
             sections: [
               { startFrame: 100, endFrame: 220 },
-              { startFrame: 100, endFrame: 220 },
+              { startFrame: 100, endFrame: 222 },
             ],
           },
         ],
@@ -565,11 +654,13 @@ test("a retained Split activation honors a track lock added after pointerdown", 
   await page.getByRole("button", { name: "Split mode" }).click();
   await activate.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: lock Main" }).press("Space");
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Lock Main", exact: true }).press("Space");
+  const locked = await emissions();
+  expect(locked.sequences).toHaveLength(1);
+  expect(locked.cutListResults).toHaveLength(1);
 
   await page.mouse.up();
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(locked);
   await expect(page.getByText("Blocked: the track is locked.")).toBeVisible();
 });
 
@@ -590,7 +681,7 @@ test("a retained Split activation selects after Split mode is turned off", async
   expect(await emissions()).toEqual(noEdits);
 });
 
-test("a retained Split preserves a host-added track and compiles the proposal", async ({
+test("a retained Split preserves an intervening placement and compiles the edit", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -600,12 +691,15 @@ test("a retained Split preserves a host-added track and compiles the proposal", 
   await page.getByRole("button", { name: "Split mode" }).click();
   await activate.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: add Bridge track" }).press("Space");
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Place Bridge in Bridge track" }).press("Space");
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(1);
+  expect(before.cutListResults).toHaveLength(1);
 
   await page.mouse.up();
   expect(await emissions()).toEqual({
     sequences: [
+      ...before.sequences,
       {
         tracks: [
           {
@@ -632,15 +726,17 @@ test("a retained Split preserves a host-added track and compiles the proposal", 
               },
             ],
           },
+          { id: "reserve", label: "Reserve", placements: [] },
           {
             id: "bridge-track",
             label: "Bridge",
-            placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
+            placements: [{ id: expect.any(String), clipId: "bridge", sequenceStartFrame: 60 }],
           },
         ],
       },
     ],
     cutListResults: [
+      ...before.cutListResults,
       compiled({
         version: "1.0.0",
         inputMedia: [
@@ -668,29 +764,32 @@ test("a retained Split preserves a host-added track and compiles the proposal", 
   });
 });
 
-test("a retained Reorder moves a locked track and preserves and compiles a host-added track", async ({
+test("a retained Reorder moves a locked track, preserving an intervening placement", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
   await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
   const reorder = page.getByRole("button", { name: "Reorder Main to Reserve" });
   await expect(reorder).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
-  await page.getByRole("button", { name: "Host: lock Main" }).click();
+  await page.getByRole("button", { name: "Place Bridge in Reserve" }).click();
+  await page.getByRole("button", { name: "Lock Main", exact: true }).click();
   await reorder.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: add Bridge track" }).press("Space");
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Place Bridge in Bridge track" }).press("Space");
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(3);
+  expect(before.cutListResults).toHaveLength(3);
 
   await page.mouse.up();
   expect(await emissions()).toEqual({
     sequences: [
+      ...before.sequences,
       {
         tracks: [
           {
             id: "reserve",
             label: "Reserve",
-            placements: [{ id: "tail", clipId: "bridge", sequenceStartFrame: 180 }],
+            placements: [{ id: expect.any(String), clipId: "bridge", sequenceStartFrame: 180 }],
           },
           {
             id: "main",
@@ -709,12 +808,13 @@ test("a retained Reorder moves a locked track and preserves and compiles a host-
           {
             id: "bridge-track",
             label: "Bridge",
-            placements: [{ id: "middle", clipId: "bridge", sequenceStartFrame: 60 }],
+            placements: [{ id: expect.any(String), clipId: "bridge", sequenceStartFrame: 60 }],
           },
         ],
       },
     ],
     cutListResults: [
+      ...before.cutListResults,
       compiled({
         version: "1.0.0",
         inputMedia: [
@@ -744,21 +844,22 @@ test("a retained Reorder moves a locked track and preserves and compiles a host-
   });
 });
 
-test("a retained Reorder cannot restore a destination track removed by the host", async ({
+test("a retained Reorder cannot restore a destination track removed by another edit", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
   await page.goto(`/iframe.html?id=${retainedStory}&viewMode=story`);
-  await page.getByRole("button", { name: "Host: add Reserve track" }).click();
   const reorder = page.getByRole("button", { name: "Reorder Main to Reserve" });
   await reorder.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: replace sequence" }).press("Space");
-  expect(await emissions()).toEqual(noEdits);
+  await page.getByRole("button", { name: "Remove Reserve" }).press("Space");
+  const before = await emissions();
+  expect(before.sequences).toHaveLength(1);
+  expect(before.cutListResults).toHaveLength(1);
 
   await page.mouse.up();
   await expect(reorder).toBeDisabled();
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(before);
 });
 
 async function openPasteDrop(page: Page) {
@@ -821,7 +922,7 @@ test("a retained Paste confirmation cannot revive the clipboard after a host rep
   const { drop, confirm } = await openPasteDrop(page);
   await confirm.hover();
   await page.mouse.down();
-  await page.getByRole("button", { name: "Host: replace sequence" }).press("Space");
+  await page.getByRole("button", { name: "Reopen sequence" }).press("Space");
   await expect(drop).toHaveCount(0);
 
   await page.mouse.up();

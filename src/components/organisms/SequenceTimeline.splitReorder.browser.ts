@@ -23,12 +23,12 @@ async function hoverTopPlacementInSplitMode(page: Page) {
 }
 
 async function clickWithoutMovingPointer(page: Page) {
-  // No mouse move after the host replacement, not even one from mouse.click(x, y).
+  // No mouse move after the reorder, not even one from mouse.click(x, y).
   await page.mouse.down();
   await page.mouse.up();
 }
 
-test("Split cuts the placement brought under the stationary pointer by a host reorder", async ({
+test("Split cuts the placement brought under the stationary pointer by a reorder", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -37,26 +37,28 @@ test("Split cuts the placement brought under the stationary pointer by a host re
   await expect(timeline.getByRole("group", { name: /^Track:/ }).first()).toHaveAccessibleName(
     "Track: Lighthouse angle",
   );
-  expect(await emissions()).toEqual(noEdits);
+  const reordered = await emissions();
+  expect(reordered.sequences).toHaveLength(1);
+  expect(reordered.cutListResults).toHaveLength(1);
 
   await clickWithoutMovingPointer(page);
   const { sequences, cutListResults } = await emissions();
-  expect(sequences).toHaveLength(1);
-  expect(sequences[0].tracks.map(({ id, placements }) => [id, placements.length])).toEqual([
+  expect(sequences).toHaveLength(2);
+  expect(sequences[1].tracks.map(({ id, placements }) => [id, placements.length])).toEqual([
     ["lighthouse", 2],
     ["harbor", 1],
     ["empty", 0],
     ["locked", 1],
   ]);
-  expect(sequences[0].tracks[0].placements[1]).toMatchObject({
+  expect(sequences[1].tracks[0].placements[1]).toMatchObject({
     clipId: "lighthouse",
     sequenceStartFrame: 90,
     sourceInOffsetFrames: 60,
   });
-  expect(cutListResults).toHaveLength(1);
+  expect(cutListResults).toHaveLength(2);
 });
 
-test("Split ignores empty space brought under the stationary pointer by a host reorder", async ({
+test("Split ignores empty space brought under the stationary pointer by a reorder", async ({
   page,
 }) => {
   const emissions = await recordEditorEmissions(page);
@@ -66,8 +68,11 @@ test("Split ignores empty space brought under the stationary pointer by a host r
     "Track: Empty",
   );
 
+  const reordered = await emissions();
+  expect(reordered.sequences).toHaveLength(1);
+  expect(reordered.cutListResults).toHaveLength(1);
   await clickWithoutMovingPointer(page);
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(reordered);
   await expect(timeline.getByText(splitFrameLabel, { exact: true })).toHaveCount(0);
 });
 
@@ -81,9 +86,12 @@ test("Split still reports a locked placement brought under the stationary pointe
     "Track: Locked sound",
   );
 
+  const reordered = await emissions();
+  expect(reordered.sequences).toHaveLength(1);
+  expect(reordered.cutListResults).toHaveLength(1);
   await clickWithoutMovingPointer(page);
   await expect(page.getByText("Blocked: the track is locked.", { exact: true })).toBeVisible();
-  expect(await emissions()).toEqual(noEdits);
+  expect(await emissions()).toEqual(reordered);
   await expect(timeline.getByText(splitFrameLabel, { exact: true })).toHaveCount(0);
 });
 

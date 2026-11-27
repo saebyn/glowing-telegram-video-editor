@@ -36,19 +36,21 @@ test("a host-supplied zero-track sequence can start with one Add track click", a
   });
 });
 
-test("a read-only zero-track sequence displays the empty state without offering an edit", async ({
-  page,
-}) => {
+test("a zero-track sequence can be edited with only the export listener", async ({ page }) => {
   const emissions = await recordEditorEmissions(page);
   await openWorkflow(page, roughCutStoryId, {
     ...emptyTrackArgs,
-    readOnly: "true",
+    omitSequenceListener: "true",
   });
   const timeline = page.getByRole("region", { name: "Sequence timeline" });
 
   await expect(timeline.getByText("Add your first track to begin", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add track", exact: true })).toHaveCount(0);
-  expect(await emissions()).toStrictEqual(noEdits);
+  await page.getByRole("button", { name: "Add track", exact: true }).click();
+  await expect(timeline.getByText("Track 1", { exact: true })).toBeVisible();
+  expect(await emissions()).toStrictEqual({
+    sequences: [],
+    cutListResults: [{ ok: false, issues: [{ code: "empty-sequence" }] }],
+  });
 });
 
 test("add inserts above a selected placement's track and only the empty track can be removed", async ({
