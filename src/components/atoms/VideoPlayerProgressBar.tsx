@@ -15,68 +15,30 @@ export default function VideoPlayerProgressBar({
   durationFrames,
   frameRate,
 }: ProgressBarProps) {
-  const [isDragging, setIsDragging] = useState(false);
   const [hoverFrame, setHoverFrame] = useState<number | null>(null);
-  const progress = durationFrames > 0 ? (playheadFrame / durationFrames) * 100 : 0;
+  const visibleFrame = snapFrame(playheadFrame, durationFrames);
+  const progress = durationFrames > 0 ? (visibleFrame / durationFrames) * 100 : 0;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    handleMouseMove(e);
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    setIsDragging(false);
-
-    // seek to the current position
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
-    if (width > 0 && durationFrames > 0) {
-      onSeek(snapFrame((x / width) * durationFrames, durationFrames));
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
-    if (width <= 0 || durationFrames <= 0) return;
-    const frame = snapFrame((x / width) * durationFrames, durationFrames);
-    if (isDragging) {
-      onSeek(frame);
-    } else {
-      // show hover effect
-      // check if the mouse is inside the progress bar
-      if (x < 0 || x > width) {
-        return;
-      }
-
-      setHoverFrame(frame);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-    setHoverFrame(null);
+  const handleMouseMove = (event: React.MouseEvent<HTMLInputElement>) => {
+    if (event.buttons !== 0) return;
+    const { left, width } = event.currentTarget.getBoundingClientRect();
+    if (width > 0)
+      setHoverFrame(snapFrame(((event.clientX - left) / width) * durationFrames, durationFrames));
   };
 
   return (
-    <div
-      className="relative ml-4 mt-3 h-4 flex-1 cursor-pointer rounded-full bg-gray-800 dark:bg-gray-200"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className="relative ml-4 mt-3 h-4 flex-1 rounded-full bg-gray-800 dark:bg-gray-200 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-500">
       {/* Progress */}
       <div
-        className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-200 dark:bg-gray-800"
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 h-full w-4 rounded-full bg-gray-200 dark:bg-gray-800"
         style={{ left: `calc(${progress}% - 8px)` }}
       />
       {/* Hover */}
-      {hoverFrame !== null && durationFrames > 0 && !isDragging && (
+      {hoverFrame !== null && durationFrames > 0 && (
         <div
-          className="absolute top-0 h-full w-4 cursor-pointer rounded-full bg-gray-400 dark:bg-gray-600"
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 h-full w-4 rounded-full bg-gray-400 dark:bg-gray-600"
           style={{ left: `calc(${(hoverFrame / durationFrames) * 100}% - 8px)` }}
         >
           <div className="absolute top-0 -mt-8 rounded-sm bg-black/50 px-2 py-1 text-xs text-white">
@@ -84,6 +46,22 @@ export default function VideoPlayerProgressBar({
           </div>
         </div>
       )}
+      <input
+        type="range"
+        dir="ltr"
+        min={0}
+        max={durationFrames}
+        step={1}
+        value={visibleFrame}
+        disabled={durationFrames <= 0}
+        aria-label="Video playback position"
+        aria-valuetext={formatFrames(visibleFrame, frameRate)}
+        className="gtve-seek-input absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+        onChange={(event) => onSeek(event.currentTarget.valueAsNumber)}
+        onPointerDown={() => setHoverFrame(null)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoverFrame(null)}
+      />
     </div>
   );
 }

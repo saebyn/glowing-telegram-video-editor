@@ -1,6 +1,15 @@
 import type { FrameRate, SequenceLayout, SourceRange, VideoClip } from "@/types";
 import { formatSeconds, NANOSECONDS_PER_SECOND } from "./duration";
 
+export function isValidFrameRate({ numerator, denominator }: FrameRate): boolean {
+  return (
+    Number.isSafeInteger(numerator) &&
+    numerator > 0 &&
+    Number.isSafeInteger(denominator) &&
+    denominator > 0
+  );
+}
+
 export function framesToSeconds(frames: number, rate: FrameRate): number {
   return (frames * rate.denominator) / rate.numerator;
 }
@@ -31,6 +40,20 @@ export function nanosecondsToFrame(nanoseconds: bigint, rate: FrameRate): number
 
 export function formatFrames(frames: number, rate: FrameRate): string {
   return formatSeconds(framesToSeconds(frames, rate));
+}
+
+/** Non-drop-frame timecode counts frames at the nominal project rate. */
+export function formatTimecode(frame: number, rate: FrameRate): string {
+  const nominalFps = Math.max(1, Math.round(rate.numerator / rate.denominator));
+  const seconds = Math.floor(frame / nominalFps);
+  return [
+    Math.floor(seconds / 3600),
+    Math.floor(seconds / 60) % 60,
+    seconds % 60,
+    frame % nominalFps,
+  ]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
 }
 
 /** Clamp to the timeline, including its exclusive endpoint for out points. */

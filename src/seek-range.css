@@ -1,0 +1,14 @@
+/* The playhead is drawn separately. Let the native slider span the same coordinates. */
+.gtve-seek-input {
+  appearance: none;
+}
+
+.gtve-seek-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 0;
+}
+
+.gtve-seek-input::-moz-range-thumb {
+  width: 0;
+  border: 0;
+}

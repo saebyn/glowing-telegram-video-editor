@@ -3,3 +3,4 @@
 @import "@keplar-404/react-timeline-editor/dist/react-timeline-editor.css";
 @import "./source-timeline.css";
 @import "./sequence-timeline.css";
+@import "./seek-range.css";

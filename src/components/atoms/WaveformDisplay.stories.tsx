@@ -1,12 +1,31 @@
+import type { Meta } from "@storybook/react-vite";
 import { action } from "storybook/actions";
+import { useArgs } from "storybook/preview-api";
 import type { WaveformData } from "@/types";
 import WaveformDisplay from "./WaveformDisplay";
 
-export default {
+const meta: Meta<typeof WaveformDisplay> = {
   title: "Atoms/WaveformDisplay",
   component: WaveformDisplay,
   tags: ["atoms"],
+  render: (args) => {
+    const [, updateArgs] = useArgs();
+    return (
+      <WaveformDisplay
+        {...args}
+        onSeek={
+          args.onSeek &&
+          ((playheadFrame) => {
+            updateArgs({ playheadFrame });
+            args.onSeek?.(playheadFrame);
+          })
+        }
+      />
+    );
+  },
 };
+
+export default meta;
 
 // Generate sample waveform data
 const generateWaveformData = (samples = 200): WaveformData => {

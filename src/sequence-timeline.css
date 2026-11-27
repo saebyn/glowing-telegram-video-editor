@@ -16,12 +16,101 @@
   background: transparent;
 }
 
-/* The playhead is controlled by the host and must not intercept editing gestures. */
-.gtve-sequence-timeline .timeline-editor-cursor,
-.gtve-sequence-timeline .timeline-editor-cursor-area {
-  pointer-events: none;
+.gtve-sequence-timeline .timeline-editor .ReactVirtualized__Grid {
+  overflow-x: hidden !important;
+  scrollbar-width: none;
 }
 
-.gtve-sequence-empty {
-  top: var(--gtve-ruler-height);
+/* Keep native drop targets stable while the virtualized grid is scrolling. */
+.gtve-sequence-timeline[data-pool-dragging] .timeline-editor-edit-row {
+  pointer-events: auto;
+}
+
+.gtve-sequence-playhead-grip {
+  position: absolute;
+  top: 0;
+  z-index: 20;
+  width: 16px;
+  height: 16px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.gtve-sequence-playhead-grip::before {
+  content: "";
+  position: absolute;
+  inset: 0 2px 2px;
+  background: #5297ff;
+  clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+}
+
+.gtve-sequence-transport {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #1e293b;
+}
+
+.gtve-sequence-transport .timeline-transport-bar {
+  height: auto;
+  padding: 0;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.gtve-sequence-transport .gtve-play-reverse {
+  flex: none;
+}
+
+.gtve-sequence-transport .gtve-play-reverse:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.gtve-sequence-transport .timeline-transport-btn {
+  color: #cbd5e1;
+}
+
+.gtve-sequence-transport .gtve-play-reverse[aria-pressed="true"] {
+  border-color: #7dd3fc;
+  background: #075985;
+  color: #f0f9ff;
+}
+
+.gtve-sequence-transport .timeline-transport-time {
+  align-self: center;
+  min-width: 0;
+}
+
+.gtve-sequence-transport .timeline-transport-time-value {
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.gtve-sequence-transport .timeline-transport-time-value::first-line {
+  font-size: 16px;
+}
+
+.gtve-sequence-transport .timeline-transport-btn:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+/* The timecode and frame count replace Keplar's "Time" heading. */
+.gtve-sequence-transport .timeline-transport-time-label,
+.gtve-sequence-transport .timeline-transport-rate {
+  display: none;
 }

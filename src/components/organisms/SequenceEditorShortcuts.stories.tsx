@@ -1,0 +1,64 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { withSampleProject } from "@/fixtures/video";
+import SequenceEditorPage from "@/components/pages/SequenceEditorPage";
+import { useState } from "react";
+import type { Sequence } from "@/types";
+import { sequenceStoryMedia } from "@/fixtures/sequenceEditor";
+
+const meta = {
+  title: "Testing/Sequence editor shortcuts",
+  decorators: [withSampleProject],
+  tags: ["!dev", "!autodocs"],
+} satisfies Meta;
+
+export default meta;
+
+export const TwoEditors: StoryObj = {
+  render() {
+    const sequence = { tracks: [] };
+    return (
+      <>
+        <button type="button">Outside both editors</button>
+        {["First editor", "Second editor"].map((label) => (
+          <section key={label} aria-label={label}>
+            <SequenceEditorPage initialSequence={sequence} clips={[]} sources={{}} />
+          </section>
+        ))}
+      </>
+    );
+  },
+};
+
+const clipboardSequence: Sequence = {
+  tracks: [
+    {
+      id: "main",
+      label: "Main",
+      placements: [{ id: "opening", clipId: "harbor", sequenceStartFrame: 0 }],
+    },
+    {
+      id: "reference",
+      label: "Reference",
+      placements: [{ id: "tail", clipId: "lighthouse", sequenceStartFrame: 240 }],
+    },
+  ],
+};
+
+function ClipboardEditingHost() {
+  const [opened, setOpened] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={() => setOpened(opened + 1)}>
+        Replace sequence
+      </button>
+      <SequenceEditorPage
+        {...sequenceStoryMedia}
+        key={opened}
+        initialSequence={clipboardSequence}
+        slots={{ preview: null }}
+      />
+    </>
+  );
+}
+
+export const ClipboardHost: StoryObj = { render: () => <ClipboardEditingHost /> };

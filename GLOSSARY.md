@@ -8,9 +8,26 @@
 Media used for review or editing. A source with video has a native **source frame rate**.
 _Avoid_: “Video” when it could also mean the preview or rendered output.
 
+**Source ID**:
+The host-assigned identifier for one source in the supplied source collection, distinct from its media URLs. Multiple clips can reference the same source ID.
+
+**Render source reference**:
+An opaque value supplied by the host that identifies source media to the renderer. It is distinct from the source ID and the playback rendition URL.
+
+**Playback rendition**:
+A version of a source used in a sequence preview, aligned to the source's elapsed time. It can differ in quality or frame cadence from the media used to render the sequence.
+
+**HLS multivariant playlist**:
+An HLS index that lists alternative streams and any associated renditions, such as separate audio tracks, for the same source.
+_Avoid_: “Master playlist,” the older HLS name.
+
 **Source frame**:
 Zero-based frame index within a specific video source.
 _Avoid_: Unqualified “frame” when both source and sequence positions are in play.
+
+**Frame thumbnail**:
+A still image representing a video source at a particular source frame. It need not come from a codec keyframe.
+_Avoid_: The legacy term “keyframe” for the still image; reserve “keyframe” for the codec concept in this context.
 
 **Source range**:
 The span within a source from the inclusive **in point** to the exclusive **out point**. Video in and out points are boundaries on the source frame grid.
@@ -27,19 +44,48 @@ _Avoid_: “Highlight” as a synonym. A highlight can suggest a clip, but it is
 The collection of clips available to place in a sequence.
 
 **Sequence**:
-An edit assembled from clip placements across one or more tracks.
+An edit that arranges clip placements on ordered tracks. An empty sequence may have no tracks.
 _Avoid_: “Timeline” for the edit itself.
 
+**Sequence preview**:
+A presentation of a sequence’s authored picture and sound that follows the sequence playhead. It is distinct from the rendered output.
+
+**Sequence start**:
+The fixed boundary at sequence frame zero, before which no placement can start.
+
+**Sequence duration**:
+The length of the edit from sequence frame zero to the latest exclusive end of any clip placement, including any uncovered frames. A sequence with no placements has zero duration.
+_Avoid_: “Timeline duration” for the length of the edit.
+
+**Sequence gap**:
+A span of sequence frames covered by no clip placement on any track. A sequence can contain gaps.
+
+**`CutList`**:
+A render description derived from a sequence. It is distinct from the editable sequence and the rendered media.
+
 **Track**:
-A part of a sequence on which clips can be placed. A track may be empty or contain placements that cover only part of the sequence. All tracks extend from the beginning to the end of the sequence timeline, and clips placed on two or more tracks so as to overlap at the same sequence frame can be described as playing simultaneously. Multiple clips cannot be placed to overlap each other on the same track.
+A layer of a sequence that spans its full duration and may be empty or contain non-overlapping clip placements.
 _Avoid_: “Audio channel” or “audio stream” for a sequence track.
 
+**Track lock**:
+Protection against editing the placements on a track, not a change to what the track contributes to output.
+
 **Clip placement**:
-One use of a clip on a specific track at a specific sequence position, with a source range that can be trimmed for that placement. The same clip can have multiple placements on the same track or on different tracks.
+One use of a clip on a specific track at a specific sequence position. Its effective source range can extend beyond the clip’s in or out point, within the same source.
 _Avoid_: Unqualified “clip” when referring to a particular placement rather than the reusable source selection.
 
+**Placement selection**:
+The clip placements currently selected in the editor, which may span tracks. It is not a saved group in the sequence.
+
+**Group move**:
+An edit that moves all placements in a selection together, preserving their relative sequence positions and track spacing. Either every selected placement moves or none does.
+
+**Track overlap**:
+Two or more placements on different tracks cover the same sequence frames. Overlap describes their positions, not whether they are combined in the output.
+_Avoid_: “Playing simultaneously” when only placement positions are known.
+
 **Clip trim** and **placement trim**:
-A clip trim changes the reusable clip’s source range; the host determines whether to update any existing placements. A placement trim changes only the source range used by that placement.
+A clip trim changes the reusable range for new placements without changing what existing placements play. A placement trim changes the effective source range of one placement without changing the reusable clip or other placements.
 
 **Timeline**:
 A time-based view of a source or sequence.
@@ -50,21 +96,55 @@ A view of the positions and ranges within one source for review and clip selecti
 **Sequence timeline**:
 A view of a sequence’s tracks showing each clip placement’s position and duration in sequence time.
 
+**Sequence timeline viewport**:
+The portion of the sequence timeline currently in view. It can show space before sequence frame zero or beyond the sequence end without changing the edit.
+
 **Transition**:
-A change from one presentation of picture or sound to another over a span of the sequence. A **transition indicator** marks it in the timeline; it is not the change itself.
+An authored change from one presentation of picture or sound to another over a span of sequence frames, anchored to one edge of a clip placement. A hard cut is not an authored transition.
+
+**Transition indicator**:
+The timeline representation of a transition, not the change in picture or sound itself.
+
+**Transition source extension**:
+Recorded material used by a transition before a placement’s in point or after its out point. It is not part of the placement trim.
+
+**Fade**:
+A transition that blends picture and sound over a window starting at a placement’s leading edge or ending at its trailing edge. Unlike a dissolve, its window is not centered on the cut.
+
+**Dissolve**:
+A transition that blends the outgoing and incoming picture and sound over a span centered on a cut. It can belong to either placement at the cut.
+_Avoid_: “Centered dissolve” as the transition name; a dissolve already spans the cut.
+
+**No media placeholder**:
+A visible stand-in for source media that failed to load, distinct from black picture contributed by a sequence gap or absent footage.
+
+**Entry transition**:
+A transition from the preceding picture or sound at a placement’s leading edge toward that placement’s contribution.
+
+**Reveal transition**:
+A transition from a placement’s picture or sound toward what follows at its trailing edge.
 
 **Host application**:
-The application that uses the library and owns the clips and placements.
+The application that uses the library. It owns the clips, sources, and saved sequences and decides when to save.
+
+**Editing session**:
+One period of working on a sequence in the editor. It owns the working sequence and its Undo/Redo history, independently of saving.
+
+**Working sequence**:
+The sequence as it currently stands in the editing session. It can differ from the last saved sequence.
 
 **Editor UI state**:
-Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the clip and placement state owned by the host.
+Transient state used to show or interact with the editor, such as a drag in progress. It is distinct from the authored edit in the working sequence.
 
 **Sequence frame**:
 Zero-based position in the sequence, measured at the **project frame rate**.
 _Avoid_: “Timeline frame”; a timeline can show either a source or a sequence.
 
 **Playhead**:
-The current position in a source or sequence. Qualify it as a **source playhead** or **sequence playhead** when both are in use.
+The current position used to review a source or sequence. A sequence playhead may be parked beyond the current sequence end after an edit. Qualify it as a **source playhead** or **sequence playhead** when both are in use.
+
+**Split mode**:
+A sequence timeline mode that splits only the clicked placement at the sequence frame under the pointer.
 
 **Frame count**:
 A duration in frames at a specified rate. A **frame offset** is a signed displacement, not a position.

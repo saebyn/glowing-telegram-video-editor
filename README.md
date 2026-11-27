@@ -18,7 +18,7 @@ This is part of the larger glowing-telegram tool: https://github.com/saebyn/glow
 - **Video Review and Clip Selection**: Browse AI-generated highlights, attentions, and transcription errors with synchronized video playback
 - **Interactive Timeline**: Color-coded markers for different event types with zoom/pan functionality
 - **Clip Management**: Select, reorder, and trim video clips with drag-and-drop interface
-- **Audio Mixing**: Multi-channel audio control with per-channel muting and level adjustment
+- **Standalone Audio Controls**: Inline audio channel renaming and waveform visualization with optional seeking
 - **Live Transcript**: Real-time transcript and chat history display synchronized with video playback
 - **Keyboard Shortcuts**: Efficient navigation with keyboard controls for playback and seeking
 - **HLS Video Support**: Built-in support for HLS streaming with HLS.js
@@ -75,16 +75,253 @@ The library exports the following components:
 
 - **`VideoSelectionPage`** - Main page component for video review and clip selection
 - **`ProjectProvider`** - Supplies the project frame rate to sequence components without taking ownership of the edit
-- **`VideoPreview`** - Preview component for rendering videos with audio mixing
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
-- **`ProjectClipTimeline`** - Interactive timeline for arranging and editing clips
+- **`SequenceEditorPage`** - Editor for arranging clip placements, with session-owned Undo/Redo and optional `CutList` output
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
 ## Component Usage
 
-Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `ProjectClipPool`, `ProjectClipTimeline`, `ProjectClipPreview`, and `VideoPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, and `ProjectClipPreview` in a `ProjectProvider` to supply the project frame rate.
+
+### SequenceEditorPage
+
+The host supplies `initialSequence`, `clips`, and `sources: SourcesById<SequenceSource>`,
+a readonly, sparse record keyed by `VideoClip.sourceId`. The key is the source ID;
+metadata values have no `id` field. Several clips can reference the same entry.
+Supply source metadata as own properties; inherited properties are ignored.
+Replace the record when updating metadata.
+
+Each source value includes `s3Location`, the host's opaque render source
+reference. The host decides what it means; it need not be a URL or a nonempty
+string. Before mounting the editor, supply
+`previewHlsUrl` for `video-only`, `audio-video`, and sources with no declared
+`mediaKind`. An explicitly `audio-only` source does not require a preview URL;
+its streaming contract is not defined yet. The HLS playback rendition must
+be seekable across the whole source and aligned to its elapsed time. It
+can use a different resolution, encoding, or frame cadence. The library
+does not derive the URL from `s3Location`. See the
+[sequence preview target](docs/sequence-editor-design.md#sequence-preview-target).
+
+The editing session opens `initialSequence` only on mount and owns the working
+sequence and its Undo/Redo history. Rerendering with a different `initialSequence`
+does not replace the edit. Change the React `key` when opening or reloading a
+snapshot to reset history, selection, playhead, and other editor UI state. Keep
+the key stable while editing; do not derive it from the latest edit or a save response.
+
+Editing works without listeners. After a valid edit, Undo, or Redo commits,
+`onSequenceChange` optionally receives the resulting sequence snapshot. Treat it
+and the initial snapshot as immutable; copy before modifying either. The host
+owns persistence, including when to save, retry, or report errors. Save results
+are not fed back into the running session.
+
+The separate optional `onCutListResult` listener receives the export result for
+the same commit, after `onSequenceChange` when both are supplied. Check `result.ok`
+before reading `result.cutList`. Both branches have `issues`; a failure has at least
+one issue and does not reject a valid edit. Mounting, reopening, and actions that
+do not change the working sequence emit neither edit notification.
+
+`Sequence` stores tracks and placements, not a duration. The latest exclusive
+placement end across all tracks determines the duration, or zero when there are
+no placements. The editing session supplies that frame count to the Timeline,
+Preview, and transport slots. Transitions do not extend it.
+The default editor explains why output is unavailable and lets you jump to the
+first reported gap or inspect a placement with a source issue, without editing
+the sequence.
+
+Use the optional `onSequenceInputError(issues)` callback on `SequenceEditorPage`
+or `useSequenceEditor` to receive a nonempty list of `SequenceInputIssue`
+diagnostics. It runs on invalid load or when those diagnostics change. Invalid
+inputs (such as a missing referenced clip) block editing and playback until
+corrected; recovery emits no callback. Reopen to replace an invalid initial snapshot.
+Valid gaps, mixed frame rates, and unavailable render media can prevent `CutList`
+export without blocking the editor.
+
+You can add clips and refresh metadata for the same media in a running session
+(for example, update thumbnails or switch to an aligned Preview rendition).
+Reopen if you remove or re-trim an existing clip, replace its media, or change
+the project frame rate. Supply a suitable snapshot at the new project rate or
+with placement trim offsets adjusted to the new clip bounds as needed. The editor
+does not rebase history or restore clip and source inputs on Undo/Redo.
+An invalid history target is refused without consuming it.
+
+Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
+with `SourcesById<CutListSource>` (values contain only `s3Location`). Full editor
+source records work too; preview metadata does not affect the `CutList`. A
+referenced ID without an entry yields a `missing-source` issue. The compiler
+describes the edit; final rendering is outside the library’s scope.
+
+Standalone `SequenceTimeline` uses the same source record as the page.
+Standalone `SequenceClipPool` only needs `mediaKind` and `frameThumbnails`
+in its optional source record, and `ProjectClipPool` only uses `mediaKind`.
+
+The page has five typed `slots`: `toolbar`, `clipPool`, `preview`, `inspector`, and
+`timeline`. Unspecified slots use the defaults; `null` omits a slot and its pane
+toggle. The default `SequencePreview` presents the current edit using the
+supplied HLS playback renditions, without requiring a successful `CutList`
+compile. Supply a direct, finite, seekable HLS media playlist aligned to source
+elapsed time; multivariant playlists are outside the target host contract.
+Playlist and segment requests must be accessible to the browser
+(including CORS for cross-origin media), and the browser must support decoding
+the rendition codecs through WebCodecs. Forward playback includes sound;
+reverse playback is picture-only. You can wrap any default by forwarding its
+props:
+
+```tsx
+import {
+  PlacementProperties,
+  ProjectProvider,
+  SequenceEditorPage,
+  SequenceInspector,
+  type FrameRate,
+  type Sequence,
+  type SequenceEditorPageProps,
+  type SequenceInspectorProps,
+} from "@saebyn/glowing-telegram-video-editor";
+
+function CustomInspector({ inspection }: SequenceInspectorProps) {
+  return (
+    <aside>
+      <p>Project notes</p>
+      {inspection.kind === "placement" && inspection.selection.length === 1
+        ? <PlacementProperties {...inspection.properties} />
+        : <SequenceInspector inspection={inspection} />}
+    </aside>
+  );
+}
+
+type OpenedSequence = {
+  // Assigned by the host when it opens a snapshot, not when a save finishes.
+  sessionKey: string;
+  snapshot: Sequence;
+  frameRate: FrameRate;
+};
+
+function EditSequence({
+  opened,
+  clips,
+  sources,
+}: Pick<SequenceEditorPageProps, "clips" | "sources"> & { opened: OpenedSequence }) {
+  return (
+    <ProjectProvider frameRate={opened.frameRate}>
+      <SequenceEditorPage
+        key={opened.sessionKey}
+        initialSequence={opened.snapshot}
+        clips={clips}
+        sources={sources}
+        slots={{ inspector: CustomInspector, preview: null }}
+      />
+    </ProjectProvider>
+  );
+}
+```
+
+For a custom layout, place the key on the component that calls
+`useSequenceEditor`, not on an individual slot. Call the hook once and give the exported
+components their corresponding props (`toolbarProps`, `clipPoolProps`,
+`previewProps`, `inspectorProps`, and `timelineProps`). `SequenceWorkspace`
+accepts rendered pane nodes. Render `notices` where appropriate and bind
+`handleEditorKeyDown` on a focusable editor root to opt in to shortcuts.
+For a replacement Timeline, `previewTransitionResize` and `resizeTransition`
+both take `{ transitionId, durationFrames }` for an existing Fade or Dissolve.
+Preview returns `"valid"`, `"blocked"`, or `"conflict"` without emitting an
+edit. `resizeTransition` checks the current transition again before committing
+a duration change. See **Resize a transition** in the Storybook composition examples.
+The default Timeline registers its viewport actions with the session. A replacement
+can call `timelineProps.registerNavigation?.({ panLeft, panRight, fitToView })`
+when mounted and return its cleanup function from the effect. Register only supported
+actions; `toolbarProps.navigation` exposes just those actions to the Toolbar.
+To expose zoom, register `zoomOut` or `zoomIn` as `{ run, disabled }` and update the
+registration when availability changes. A standalone `SequenceTimeline` does not
+render its own zoom buttons.
+
+**Migrating from the controlled editor:** Rename the `sequence` prop or hook
+option to `initialSequence`. Remove the acknowledgement loop; if you keep a
+listener, use it to observe commits or save snapshots. Omitting the listener
+no longer makes the editor read-only. A custom Timeline must replace
+`toggleTrackLock(trackId)` with `setTrackLocked(trackId, locked)`, passing `true`
+to lock or `false` to unlock. Repeating a request for the same state does nothing.
+
+Click a placement to select it, Shift-click to toggle it in the selection, or click empty
+track space to clear the selection. Drag a placement to preview its exact destination.
+Dragging a selected placement moves the selection together, or none of it if any
+destination is blocked. A valid move can grow or shrink the sequence.
+Use **Delete** to remove the selected placements in one edit. It does not close
+leading or internal gaps, remove tracks, or remove reusable clips from the pool.
+Use **Split** to divide all placements that strictly span the playhead when
+their source and project rates match. Use **Split mode** to cut only the placement
+under the pointer without seeking or changing the selection. Escape exits the mode.
+**Undo** and **Redo** navigate committed edits.
+**Rename track** edits a track’s display name without changing its placements or order.
+**Add track** creates an empty top track. Remove is offered only for an empty track
+when another track remains. A sequence can start with no tracks.
+Drag a track's reorder grip to change its output priority. **Lock** protects the
+track's placements from edits without changing their output or preventing inspection,
+renaming, or reordering.
+Drag a clip from the pool to preview where it would land. Drop it onto an existing track
+to fill a gap or extend the sequence.
+
+The **Inspector** shows one selected placement’s effective source in/out and
+sequence start/end in **Placement Properties**. With multiple placements selected,
+use **Inspect placement** to switch which placement the fields show and edit without
+changing the selection. At matching frame rates, drag
+either placement edge to trim it in place, or enter a precise trailing trim in the
+Inspector’s **Source out** field. Trim handles remain available after
+adding fades: fades stay attached to their edges at the same duration, even if the
+trim makes them overlap or leaves a placement shorter than its fade. A valid trailing
+trim can grow or shrink the sequence. In Placement Properties, use
+**Add transition** on an empty edge to add an entry or reveal fade of half a
+second (rounded to sequence frames and capped at the placement's duration).
+Use **Inspect transition** on an occupied edge or click its timeline indicator
+to see **Transition Properties**. Choose **Fade** or **Dissolve**
+and enter the duration in sequence frames; **Apply** submits both together.
+**Remove transition** clears that edge and returns to Placement Properties.
+On the timeline, transition indicators cover
+the top of the track at their actual time span. Click or drag the strip below
+to select or move the placement. Drag a separate grip to resize an authored
+fade or dissolve without moving its cut. An odd dissolve puts its extra
+frame after the cut. Empty edges have no transition grips. Use the owning
+edge in **Placement Properties** to inspect a short or obscured transition.
+Hosts store transitions on placements as
+`transitionIn` on the leading edge or `transitionOut` on the trailing edge,
+with `{ id, kind, durationFrames }`. The same names in a compiled `CutList`
+refer to output transitions, which have `{ type, duration }` instead.
+Split keeps each transition's ID and duration at its original edge, even if that split
+makes it unrepresentable in the `CutList`.
+The compiler gives the upper active placement precedence and omits fully covered fades.
+If an authored fade crosses a visible cut or overlaps another visible fade on
+its placement, the editor keeps the edit and explains why the `CutList` is unavailable.
+For a dissolve, the timeline shows its centered
+window and Transition Properties shows the contributing footage
+beyond each placement trim. An active dissolve is retained and reported as a
+compilation issue; the published format cannot carry its timing and contributions.
+
+Supply `frameThumbnails: [{ sourceFrame, url }]` on a source to show the same
+collection in clip pool hover previews and timeline strips. Use zero-based frames
+at the source’s native rate. The pool shows the frames in the reusable clip’s range,
+in source order, or keeps its static thumbnail when none qualify. The timeline uses
+the placement’s effective range, including trims beyond the reusable clip’s bounds.
+Both ranges include the in point and exclude the out point. Thumbnails do not
+affect compilation.
+Optional source `mediaKind` values (`video-only`, `audio-only`, `audio-video`) label
+clips in the pool and on the timeline. Omit `mediaKind` for a neutral appearance.
+
+Drag the workspace separators to resize panes. Use the toolbar toggles to hide or show
+the pool, Preview, Inspector, or timeline. These changes are session-only.
+
+Click the ruler or drag the playhead to seek. Forward, reverse, and pause work even while
+the media preview is disconnected. Transport and selection do not emit edits.
+Drag empty track space, scroll horizontally, or use Shift+wheel to pan before or
+beyond the edit. The toolbar’s **Pan left** and **Pan right** move by half the
+visible span. **Zoom out** and **Zoom in** change the scale, and **Fit to view**
+brings the whole edit into view from frame zero. These controls don't move the
+playhead or change the edit.
+With focus in the editor (outside text and number fields), Left and Right Arrow step the
+playhead one sequence frame. The `[` and `]` keys nudge selected placements earlier or later.
+
+In Storybook, try **Assemble a rough cut** for single-track edits and **Rearrange a layered edit**
+for cross-track moves and deletion.
 
 ### VideoSelectionPage
 
@@ -156,66 +393,6 @@ function App() {
 | `Shift+ArrowLeft` | Seek back about one second on the source grid |
 | `Shift+ArrowRight` | Seek forward about one second on the source grid |
 
-### VideoPreview
-
-Component for previewing a host-rendered HLS stream with an audio mixer and waveforms. The Selected Clips row shows ranges at their original source times.
-
-**Props:**
-
-```typescript
-interface VideoPreviewProps {
-  settings: PreviewSettings;           // Preview configuration
-  previewVideoUrl: string;             // HLS stream URL
-  playheadFrame?: number;              // Initial sequence playhead
-  durationFrames: number;              // Length of the rendered stream in project frames
-  onSettingsChange?: (settings: PreviewSettings) => void;
-  onRegenerate?: (settings: PreviewSettings) => void;
-  onSave?: (settings: PreviewSettings) => void;
-  regenerating?: boolean;
-  saving?: boolean;
-}
-```
-
-**Example:**
-
-```jsx
-import { useState } from 'react';
-import { ProjectProvider, VideoPreview } from '@saebyn/glowing-telegram-video-editor';
-
-const frameRate = { numerator: 30, denominator: 1 };
-const source = { sourceId: 'stream', sourceFrameRate: { numerator: 60, denominator: 1 } };
-
-function PreviewPage() {
-  const [settings, setSettings] = useState({
-    cutlist: [
-      { ...source, id: '1', sourceInFrame: 0, sourceOutFrame: 1800 },
-      { ...source, id: '2', sourceInFrame: 3600, sourceOutFrame: 7200 }
-    ],
-    audioChannels: [
-      { id: 'ch1', name: 'Game Audio', level: 0.8, muted: false },
-      { id: 'ch2', name: 'Microphone', level: 0.6, muted: false }
-    ],
-    waveformData: []
-  });
-
-  // The host's preview stream is three minutes long at 30 fps.
-  const durationFrames = 3 * 60 * 30;
-  return (
-    <ProjectProvider frameRate={frameRate}>
-      <VideoPreview
-        settings={settings}
-        previewVideoUrl="https://example.com/preview.m3u8"
-        durationFrames={durationFrames}
-        onSettingsChange={setSettings}
-        onRegenerate={(settings) => console.log('Regenerate with:', settings)}
-        onSave={(settings) => console.log('Save:', settings)}
-      />
-    </ProjectProvider>
-  );
-}
-```
-
-See [VideoPreview.md](VideoPreview.md) for the renderer handoff.
 ### ProjectClipPool
 
 A pool of available video clips that can be dragged to a timeline.
@@ -264,67 +441,6 @@ function ClipManager() {
         titles={{ 'clip1': 'Introduction', 'clip2': 'Highlights' }}
         showCheckboxes
         onClipSelect={(id, selected) => console.log(id, selected)}
-      />
-    </ProjectProvider>
-  );
-}
-```
-
-### ProjectClipTimeline
-
-Interactive timeline for arranging clips in sequence with drag-and-drop reordering and trimming.
-
-**Props:**
-
-```typescript
-interface ProjectClipTimelineProps {
-  clips: VideoClip[];                    // Clips on the timeline
-  thumbnails: Record<string, string>;
-  keyframes: Record<string, string[]>;
-  titles: Record<string, string>;
-  playheadFrame?: number;
-  height?: string;
-  onClipsReorder?: (clips: VideoClip[]) => void;
-  onClipRemove?: (clipId: string) => void;
-  onTitleUpdate?: (clipId: string, newTitle: string) => void;
-  onSeek?: (sequenceFrame: number) => void;
-  onClipsAdd?: (clipIds: string[], insertionIndex: number) => void;
-  onClipTrim?: (clipId: string, sourceInFrame: number, sourceOutFrame: number) => void;
-  renderTransition?: (leftClipId: string, rightClipId: string) => React.ReactNode;
-}
-```
-
-> `renderTransition` is called between each adjacent pair of clips and lets you render a custom transition indicator on the timeline.
-
-The duration is derived from the ordered `clips`; there is no separate duration prop. Supply a distinct `id` for each timeline entry. Arrow keys on a trim handle adjust the native cut by one source frame; mouse trims snap a sequence offset before converting it to a native source offset.
-
-**Example:**
-
-```jsx
-import { useState } from 'react';
-import { ProjectClipTimeline, ProjectProvider } from '@saebyn/glowing-telegram-video-editor';
-
-const frameRate = { numerator: 60, denominator: 1 };
-const source = { sourceId: 'stream', sourceFrameRate: frameRate };
-
-function Timeline() {
-  const [clips, setClips] = useState([
-    { ...source, id: 'clip1', sourceInFrame: 0, sourceOutFrame: 1800 },
-    { ...source, id: 'clip2', sourceInFrame: 1800, sourceOutFrame: 3600 }
-  ]);
-
-  return (
-    <ProjectProvider frameRate={frameRate}>
-      <ProjectClipTimeline
-        clips={clips}
-        thumbnails={{}}
-        keyframes={{}}
-        titles={{}}
-        onClipsReorder={setClips}
-        onClipRemove={(id) => setClips(current => current.filter(c => c.id !== id))}
-        onClipTrim={(id, sourceInFrame, sourceOutFrame) => {
-          setClips(current => current.map(c => c.id === id ? { ...c, sourceInFrame, sourceOutFrame } : c));
-        }}
       />
     </ProjectProvider>
   );
@@ -503,11 +619,15 @@ Use `parseContent(rawMetadata)` from the package to convert ISO durations to the
 
 When upgrading to 0.6.0, pass editor positions and durations as whole frames instead of milliseconds or seconds.
 
+- **Removed components (breaking):** `ProjectClipTimeline` and `VideoPreview` are no longer exported. Use `SequenceEditorPage` to edit explicit clip placements. `SequencePreview` does not play a host-rendered HLS stream; provide that playback UI in the host. `AudioChannelNameEditor` and `WaveformDisplay` remain available independently.
+
 - **Source review:** Supply `sourceId` and the native `frameRate` in the metadata. If you build `VideoMetadata` directly, replace `length` with `durationFrames` and parsed event timestamps with `sourceFrame` and, for ranges, `sourceOutFrame`. Raw ISO 8601 durations still work with `parseContent`.
 - **Clips:** Replace `start` and `end` with `sourceInFrame` and `sourceOutFrame`. Include `sourceId` and `sourceFrameRate`, and keep these bounds at the source rate even when the project uses a different rate.
-- **Sequence and preview:** Supply the project rate through `ProjectProvider`. Replace `playheadPosition` with `playheadFrame` and preview or waveform `duration` with `durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`. Remove the `duration` prop from `ProjectClipTimeline`; it derives the length from the clips.
+- **Sequence and waveforms:** Supply the project rate through `ProjectProvider` for the sequence editor. Replace waveform `playheadPosition` with `playheadFrame` and `waveformData.duration` with `waveformData.durationFrames`. `ProjectClipPreview` takes `durationFrames` instead of `durationSeconds`.
 
-To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`. For rendering, use [the sequence layout helper](VideoPreview.md#backend-integration) rather than converting clip in and out points to the project rate.
+To migrate a whole-millisecond value, use `millisecondsToFrame(milliseconds, frameRate)` with the rate for that field. It rounds to the nearest frame, with ties toward the higher frame, like `parseContent`. For exact timestamps with sub-millisecond precision, retain the original ISO 8601 duration when using `parseContent`.
+
+For an ordered, gapless edit, `layoutSequence(clips, frameRate)` returns the project rate, total `durationFrames`, and each placement's `sequenceStartFrame`, project `durationFrames`, and original clip. Preserve the original source in and out points rather than recalculating them from rounded project durations. For an explicit multi-track sequence, use `compileCutList` instead.
 
 ## Development
 
