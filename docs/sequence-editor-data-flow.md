@@ -1,7 +1,6 @@
 # Sequence editor data flow
 
-The first two diagrams describe the agreed session ownership design, which
-replaces the current controlled sequence flow when implemented. See the
+The editor owns the working sequence; the host owns persistence. See the
 [sequence editor design](sequence-editor-design.md) for the contract and
 [branch review follow-ups](../.scratch/sequence-editor/TRIAGE.md#branch-review-follow-ups)
 for outstanding work.
@@ -54,6 +53,8 @@ the source ID or the Preview URL. The
 [render reference ticket](../.scratch/sequence-editor/issues/91-require-a-render-source-reference.md)
 tracks the missing-value case without renaming the field.
 
+<a id="from-a-gesture-to-a-host-accepted-edit"></a>
+
 ## From UI intent to a committed edit
 
 ```mermaid
@@ -90,14 +91,6 @@ sequenceDiagram
 - Undo and Redo restore sequence snapshots, not clips or sources. Refuse an
   invalid history target without consuming it. See the
   [history policy](sequence-editor-design.md#action-intent-and-history).
-
-### From a gesture to a host-accepted edit
-
-In the current controlled implementation, actions propose a new sequence and
-the host echoes the exact object to advance history. The closed
-[retained Timeline actions ticket](../.scratch/sequence-editor/issues/83-revalidate-remaining-timeline-actions.md)
-describes revalidation when a host replacement lands during a gesture.
-In the agreed design, an intervening local edit exercises the same rule.
 
 ## From the playhead to decoded media
 

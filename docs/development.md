@@ -53,7 +53,7 @@ reverse. Reverse should be silent; seeking and stepping to the same frame
 should show the same picture. At the exclusive sequence end, Preview should
 hold the last picture without sound. To check an internal gap, move the second
 placement later and seek into the gap away from the dissolve; it should show
-black and play no sound. Try accepting a split or placement move while Preview
+black and play no sound. Try committing a split or placement move while Preview
 is active. Check in both light and dark mode.
 
 With the browser's network throttling enabled, play while Preview is loading.

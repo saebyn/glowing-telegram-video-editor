@@ -76,22 +76,18 @@ The library exports the following components:
 - **`VideoSelectionPage`** - Main page component for video review and clip selection
 - **`ProjectProvider`** - Supplies the project frame rate to sequence components without taking ownership of the edit
 - **`ProjectClipPool`** - Pool of available clips that can be added to a timeline
-- **`SequenceEditorPage`** - Controlled editor for explicit clip placements, with `CutList` output
+- **`SequenceEditorPage`** - Editor for arranging clip placements, with session-owned Undo/Redo and optional `CutList` output
 - **`ProjectClipPreview`** - Visual preview of individual video clips with thumbnails
 - **`AudioChannelNameEditor`** - Inline editor for audio channel names
 - **`WaveformDisplay`** - Canvas-based waveform visualization with seek support
 
 ## Component Usage
 
-Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, and `ProjectClipPreview` in a `ProjectProvider` to supply the project frame rate. If that rate changes, pass sequence positions and durations at the new rate.
+Pass positions and durations as whole frames. Positions are zero-based. Source review uses the source’s native frame rate. Wrap `SequenceEditorPage`, `useSequenceEditor` consumers, `ProjectClipPool`, and `ProjectClipPreview` in a `ProjectProvider` to supply the project frame rate.
 
 ### SequenceEditorPage
 
-This section describes the current controlled editor. The
-[session-owned editor design](docs/sequence-editor-design.md#session-lifetime-and-live-inputs)
-is agreed but not yet implemented.
-
-The host supplies `sequence`, `clips`, and `sources: SourcesById<SequenceSource>`,
+The host supplies `initialSequence`, `clips`, and `sources: SourcesById<SequenceSource>`,
 a readonly, sparse record keyed by `VideoClip.sourceId`. The key is the source ID;
 metadata values have no `id` field. Several clips can reference the same entry.
 Supply source metadata as own properties; inherited properties are ignored.
@@ -108,13 +104,24 @@ can use a different resolution, encoding, or frame cadence. The library
 does not derive the URL from `s3Location`. See the
 [sequence preview target](docs/sequence-editor-design.md#sequence-preview-target).
 
-On an edit, feed `onSequenceChange` back into `sequence`. `onCutListResult` receives the
-compilation result for that same edit. Check `result.ok` before reading `result.cutList`.
-Both branches have an `issues` list: it can be empty on success and is nonempty on failure.
-A compilation failure does not reject the edit. Loading a sequence does not emit a
-compilation result. To keep Undo history, feed the same sequence object
-received by `onSequenceChange` back into `sequence` when accepting an edit. Passing a
-different sequence object is an independent host replacement and clears history.
+The editing session opens `initialSequence` only on mount and owns the working
+sequence and its Undo/Redo history. Rerendering with a different `initialSequence`
+does not replace the edit. Change the React `key` when opening or reloading a
+snapshot to reset history, selection, playhead, and other editor UI state. Keep
+the key stable while editing; do not derive it from the latest edit or a save response.
+
+Editing works without listeners. After a valid edit, Undo, or Redo commits,
+`onSequenceChange` optionally receives the resulting sequence snapshot. Treat it
+and the initial snapshot as immutable; copy before modifying either. The host
+owns persistence, including when to save, retry, or report errors. Save results
+are not fed back into the running session.
+
+The separate optional `onCutListResult` listener receives the export result for
+the same commit, after `onSequenceChange` when both are supplied. Check `result.ok`
+before reading `result.cutList`. Both branches have `issues`; a failure has at least
+one issue and does not reject a valid edit. Mounting, reopening, and actions that
+do not change the working sequence emit neither edit notification.
+
 `Sequence` stores tracks and placements, not a duration. The latest exclusive
 placement end across all tracks determines the duration, or zero when there are
 no placements. The editing session supplies that frame count to the Timeline,
@@ -126,9 +133,18 @@ the sequence.
 Use the optional `onSequenceInputError(issues)` callback on `SequenceEditorPage`
 or `useSequenceEditor` to receive a nonempty list of `SequenceInputIssue`
 diagnostics. It runs on invalid load or when those diagnostics change. Invalid
-inputs block editing and playback until corrected; recovery emits no callback.
+inputs (such as a missing referenced clip) block editing and playback until
+corrected; recovery emits no callback. Reopen to replace an invalid initial snapshot.
 Valid gaps, mixed frame rates, and unavailable render media can prevent `CutList`
 export without blocking the editor.
+
+You can add clips and refresh metadata for the same media in a running session
+(for example, update thumbnails or switch to an aligned Preview rendition).
+Reopen if you remove or re-trim an existing clip, replace its media, or change
+the project frame rate. Supply a suitable snapshot at the new project rate or
+with placement trim offsets adjusted to the new clip bounds as needed. The editor
+does not rebase history or restore clip and source inputs on Undo/Redo.
+An invalid history target is refused without consuming it.
 
 Hosts can also call `compileCutList(sequence, clips, sources, frameRate)` directly
 with `SourcesById<CutListSource>` (values contain only `s3Location`). Full editor
@@ -155,8 +171,12 @@ props:
 ```tsx
 import {
   PlacementProperties,
+  ProjectProvider,
   SequenceEditorPage,
   SequenceInspector,
+  type FrameRate,
+  type Sequence,
+  type SequenceEditorPageProps,
   type SequenceInspectorProps,
 } from "@saebyn/glowing-telegram-video-editor";
 
@@ -171,16 +191,34 @@ function CustomInspector({ inspection }: SequenceInspectorProps) {
   );
 }
 
-<SequenceEditorPage
-  sequence={sequence}
-  clips={clips}
-  sources={sources}
-  onSequenceChange={setSequence}
-  slots={{ inspector: CustomInspector, preview: null }}
-/>;
+type OpenedSequence = {
+  // Assigned by the host when it opens a snapshot, not when a save finishes.
+  sessionKey: string;
+  snapshot: Sequence;
+  frameRate: FrameRate;
+};
+
+function EditSequence({
+  opened,
+  clips,
+  sources,
+}: Pick<SequenceEditorPageProps, "clips" | "sources"> & { opened: OpenedSequence }) {
+  return (
+    <ProjectProvider frameRate={opened.frameRate}>
+      <SequenceEditorPage
+        key={opened.sessionKey}
+        initialSequence={opened.snapshot}
+        clips={clips}
+        sources={sources}
+        slots={{ inspector: CustomInspector, preview: null }}
+      />
+    </ProjectProvider>
+  );
+}
 ```
 
-For a custom layout, call `useSequenceEditor` once and give the exported
+For a custom layout, place the key on the component that calls
+`useSequenceEditor`, not on an individual slot. Call the hook once and give the exported
 components their corresponding props (`toolbarProps`, `clipPoolProps`,
 `previewProps`, `inspectorProps`, and `timelineProps`). `SequenceWorkspace`
 accepts rendered pane nodes. Render `notices` where appropriate and bind
@@ -188,7 +226,7 @@ accepts rendered pane nodes. Render `notices` where appropriate and bind
 For a replacement Timeline, `previewTransitionResize` and `resizeTransition`
 both take `{ transitionId, durationFrames }` for an existing Fade or Dissolve.
 Preview returns `"valid"`, `"blocked"`, or `"conflict"` without emitting an
-edit. `resizeTransition` checks the current transition again before proposing
+edit. `resizeTransition` checks the current transition again before committing
 a duration change. See **Resize a transition** in the Storybook composition examples.
 The default Timeline registers its viewport actions with the session. A replacement
 can call `timelineProps.registerNavigation?.({ panLeft, panRight, fitToView })`
@@ -197,6 +235,13 @@ actions; `toolbarProps.navigation` exposes just those actions to the Toolbar.
 To expose zoom, register `zoomOut` or `zoomIn` as `{ run, disabled }` and update the
 registration when availability changes. A standalone `SequenceTimeline` does not
 render its own zoom buttons.
+
+**Migrating from the controlled editor:** Rename the `sequence` prop or hook
+option to `initialSequence`. Remove the acknowledgement loop; if you keep a
+listener, use it to observe commits or save snapshots. Omitting the listener
+no longer makes the editor read-only. A custom Timeline must replace
+`toggleTrackLock(trackId)` with `setTrackLocked(trackId, locked)`, passing `true`
+to lock or `false` to unlock. Repeating a request for the same state does nothing.
 
 Click a placement to select it, Shift-click to toggle it in the selection, or click empty
 track space to clear the selection. Drag a placement to preview its exact destination.
@@ -207,7 +252,7 @@ leading or internal gaps, remove tracks, or remove reusable clips from the pool.
 Use **Split** to divide all placements that strictly span the playhead when
 their source and project rates match. Use **Split mode** to cut only the placement
 under the pointer without seeking or changing the selection. Escape exits the mode.
-**Undo** and **Redo** navigate accepted edits.
+**Undo** and **Redo** navigate committed edits.
 **Rename track** edits a track’s display name without changing its placements or order.
 **Add track** creates an empty top track. Remove is offered only for an empty track
 when another track remains. A sequence can start with no tracks.
@@ -231,8 +276,8 @@ second (rounded to sequence frames and capped at the placement's duration).
 Use **Inspect transition** on an occupied edge or click its timeline indicator
 to see **Transition Properties**. Choose **Fade** or **Dissolve**
 and enter the duration in sequence frames; **Apply** submits both together.
-**Remove transition** clears that edge and returns to Placement Properties
-once the host accepts the edit. On the timeline, transition indicators cover
+**Remove transition** clears that edge and returns to Placement Properties.
+On the timeline, transition indicators cover
 the top of the track at their actual time span. Click or drag the strip below
 to select or move the placement. Drag a separate grip to resize an authored
 fade or dissolve without moving its cut. An odd dissolve puts its extra

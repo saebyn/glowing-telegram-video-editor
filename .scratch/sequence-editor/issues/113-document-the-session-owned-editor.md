@@ -1,6 +1,6 @@
 # 113 — Document the session-owned editor in the README
 
-Status: ready-for-agent
+Resolution: Document the shipped session contract and the migration in the README.
 Review priority: P1
 Depends on: [111](111-own-the-working-sequence-and-history.md), [112](112-apply-edit-intents-to-the-current-sequence.md)
 Design: [Sequence editor design](../../../docs/sequence-editor-design.md#model-and-ownership).
@@ -34,3 +34,11 @@ would give the wrong integration guidance after the approved changes.
 - Replace the design and data-flow notes that mark this work unimplemented
   once the code ships. Check links, `git diff --check`, and the examples
   against the migrated public types and Storybook compositions.
+
+## Comments
+
+- Type-checked the README page example against the built public declarations
+  in `dist/index.d.ts`. Checked the keying and callback guidance against the
+  page and hook Storybook compositions verified in #111 and #112.
+- Verified local links and heading anchors, and ran `git diff --check`.
+  No runtime code changed.

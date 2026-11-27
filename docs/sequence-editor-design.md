@@ -9,10 +9,9 @@ compiler. Saving projects and final rendering are outside its scope.
 This document describes the intended behavior, not a checklist of what the
 current Storybook stories already support.
 
-**Agreed, not implemented:** The session-owned sequence described below replaces
-the current controlled `sequence` prop and exact-object acknowledgement. See
+The editing session owns the working sequence and Undo/Redo. See
 [ADR 0002](adr/0002-own-the-working-sequence-in-the-editor.md) for the decision
-and the [README](../README.md#sequenceeditorpage) for today's interface.
+and the [README](../README.md#sequenceeditorpage) for usage and migration.
 
 See [Sequence editor data flow](sequence-editor-data-flow.md) for the
 relationships between host inputs, committed edits, Preview, and compilation.
